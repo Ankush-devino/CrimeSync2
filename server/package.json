@@ -1,0 +1,15 @@
+{
+  "name": "crimesync-server",
+  "version": "1.0.0",
+  "description": "Backend API Server for CrimeSync Platform",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "oxlint"
+  },
+  "keywords": ["crimesync", "api", "law-enforcement", "intelligence"],
+  "author": "CrimeSync Team",
+  "license": "ISC"
+}
