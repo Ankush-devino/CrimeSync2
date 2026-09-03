@@ -117,4 +117,39 @@ export const api = {
     getOfficers: () => request<any[]>(`/auth/officers`),
     getProfile: () => request<any>(`/auth/me`),
   },
+
+  // 9. Member 5: AI Copilot & Autonomous Agent Sandbox
+  ai: {
+    askCopilot: (prompt: string, contextType?: string) => request<{
+      session_id: string;
+      answer: string;
+      confidence_score: number;
+      context_retrieved: any;
+      recommended_actions: string[];
+      timestamp: string;
+    }>(`/ai/copilot/chat`, {
+      method: "POST",
+      body: JSON.stringify({ prompt, contextType }),
+    }),
+    executeAgentAction: (agentId: string, actionType: string, targetId?: string) => request<{
+      agent_id: string;
+      status: string;
+      message: string;
+      data?: any;
+      dossier_id?: string;
+    }>(`/ai/sandbox/execute`, {
+      method: "POST",
+      body: JSON.stringify({ agentId, actionType, targetId }),
+    }),
+    getSummaryDossier: (caseId: string) => request<any>(`/ai/dossier/${caseId}`),
+  },
+
+  // 10. Member 5: Forensic & Court-Ready Reports
+  reports: {
+    list: () => request<any[]>(`/reports`),
+    generateCourtReport: (caseId: string, officerName?: string) => request<any>(`/reports/generate`, {
+      method: "POST",
+      body: JSON.stringify({ caseId, officerName }),
+    }),
+  },
 };

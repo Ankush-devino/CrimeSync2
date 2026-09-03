@@ -1,6 +1,9 @@
+// Team Member 5: Knowledge Graph Entity-Relationship & Link Discovery Module
 import { Router, Request, Response } from "express";
 import { neo4jDriver } from "../../config/db";
 import { formatResponse } from "../../utils/api-response";
+
+const neo4j = require("neo4j-driver");
 
 export interface GraphNodeDTO {
   id: string;
@@ -102,9 +105,53 @@ export class KnowledgeGraphService {
       await session.close();
     }
   }
+
+  async findShortestPath(sourceId: string, targetId: string) {
+    if (!neo4jDriver) throw new Error("Neo4j driver not initialized");
+    const session = neo4jDriver.session();
+    try {
+      const result = await session.run(
+        `MATCH (a {id: $sourceId}), (b {id: $targetId}),
+               p = shortestPath((a)-[*..6]-(b))
+         RETURN p, length(p) as distance, [n in nodes(p) | n.name] as node_names, [r in relationships(p) | type(r)] as rel_types`,
+        { sourceId, targetId }
+      );
+
+      if (result.records.length === 0) {
+        return { path_found: false, message: `No path within 6 degrees of separation between ${sourceId} and ${targetId}` };
+      }
+
+      const rec = result.records[0];
+      return {
+        path_found: true,
+        degrees_of_separation: rec.get("distance").toNumber(),
+        entity_chain: rec.get("node_names"),
+        relationship_chain: rec.get("rel_types"),
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  async addRelationship(sourceId: string, targetId: string, relationshipType: string, properties: Record<string, any> = {}) {
+    if (!neo4jDriver) throw new Error("Neo4j driver not initialized");
+    const session = neo4jDriver.session();
+    try {
+      const relName = relationshipType.toUpperCase().replace(/\s+/g, "_");
+      await session.run(
+        `MATCH (s {id: $sourceId}), (t {id: $targetId})
+         MERGE (s)-[r:${relName}]->(t)
+         SET r += $properties
+         RETURN r`,
+        { sourceId, targetId, properties }
+      );
+      return { success: true, source: sourceId, target: targetId, relationship: relName };
+    } finally {
+      await session.close();
+    }
+  }
 }
 
-const neo4j = require("neo4j-driver");
 export const knowledgeGraphService = new KnowledgeGraphService();
 
 export class KnowledgeGraphController {
@@ -127,6 +174,32 @@ export class KnowledgeGraphController {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
     }
   }
+
+  async handleFindPath(req: Request, res: Response) {
+    try {
+      const { from, to } = req.query;
+      if (!from || !to) {
+        return res.status(400).json(formatResponse(false, null, undefined, "'from' and 'to' entity IDs required"));
+      }
+      const data = await knowledgeGraphService.findShortestPath(from as string, to as string);
+      res.json(formatResponse(true, data, "Shortest link path calculated"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async handleAddRelation(req: Request, res: Response) {
+    try {
+      const { sourceId, targetId, relationship, properties } = req.body;
+      if (!sourceId || !targetId || !relationship) {
+        return res.status(400).json(formatResponse(false, null, undefined, "sourceId, targetId, and relationship are required"));
+      }
+      const data = await knowledgeGraphService.addRelationship(sourceId, targetId, relationship, properties || {});
+      res.json(formatResponse(true, data, "Relationship created in Neo4j"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
 }
 
 export const knowledgeGraphController = new KnowledgeGraphController();
@@ -134,6 +207,8 @@ export const knowledgeGraphController = new KnowledgeGraphController();
 export function knowledgeGraphRoutes(): Router {
   const router = Router();
   router.get("/", (req, res) => knowledgeGraphController.handleGetGraph(req, res));
+  router.get("/path", (req, res) => knowledgeGraphController.handleFindPath(req, res));
   router.get("/entity/:id", (req, res) => knowledgeGraphController.handleGetConnections(req, res));
+  router.post("/relation", (req, res) => knowledgeGraphController.handleAddRelation(req, res));
   return router;
 }

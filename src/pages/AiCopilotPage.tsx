@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Plus
 } from 'lucide-react';
+import { api } from '../services/api';
 
 interface AiCopilotPageProps {
   onSelectAction?: (action: string) => void;
@@ -104,7 +105,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
     },
   ]);
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const query = textToSend || inputQuery;
     if (!query.trim()) return;
 
@@ -118,8 +119,24 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
     setMessages((prev) => [...prev, userMsg]);
     setInputQuery('');
 
-    // Simulated AI Copilot response
-    setTimeout(() => {
+    try {
+      // Call live Member 5 AI Copilot backend
+      const res = await api.ai.askCopilot(query);
+      const copilotMsg = {
+        id: `ai-${Date.now()}`,
+        sender: 'copilot' as const,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: res.answer,
+        bullets: res.recommended_actions?.map((act, idx) => ({
+          iconType: idx % 2 === 0 ? ('network' as const) : ('bank' as const),
+          title: `Recommended Protocol ${idx + 1}`,
+          detail: act,
+        })),
+        conclusion: `Confidence Score: ${(res.confidence_score * 100).toFixed(0)}% | Synthesized across PostgreSQL cases and Neo4j Knowledge Graph.`,
+      };
+      setMessages((prev) => [...prev, copilotMsg]);
+    } catch (_err) {
+      // Fallback response
       const copilotMsg = {
         id: `ai-${Date.now()}`,
         sender: 'copilot' as const,
@@ -140,7 +157,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
         conclusion: 'Recommended Action: Subpoena banking records for associated mule accounts and monitor burner SIM IMSI.',
       };
       setMessages((prev) => [...prev, copilotMsg]);
-    }, 600);
+    }
   };
 
   const renderBulletIcon = (type: string) => {

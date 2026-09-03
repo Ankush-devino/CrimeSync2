@@ -7,6 +7,8 @@ import { knowledgeGraphRoutes } from "../modules/knowledge-graph/knowledge-graph
 import { blastRadiusRoutes } from "../modules/blast-radius/blast-radius.module";
 import { financialRoutes } from "../modules/financial-intel/financial.module";
 import { geoRoutes } from "../modules/geo-intel/geo.module";
+import { aiEngineRoutes } from "../modules/ai-engine/ai-engine.module";
+import { reportRoutes } from "../modules/reports/reports.module";
 
 export function registerRoutes(): Router {
   const router = Router();
@@ -26,7 +28,9 @@ export function registerRoutes(): Router {
         "/knowledge-graph",
         "/blast-radius",
         "/financial",
-        "/geo"
+        "/geo",
+        "/ai",
+        "/reports"
       ]
     });
   });
@@ -40,6 +44,8 @@ export function registerRoutes(): Router {
   router.use("/blast-radius", blastRadiusRoutes());
   router.use("/financial", financialRoutes());
   router.use("/geo", geoRoutes());
+  router.use("/ai", aiEngineRoutes());
+  router.use("/reports", reportRoutes());
 
   return router;
 }
