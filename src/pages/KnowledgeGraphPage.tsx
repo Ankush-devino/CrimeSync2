@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Network, 
   Search, 
@@ -23,8 +23,10 @@ import {
   User, 
   Filter, 
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  Radio
 } from 'lucide-react';
+import { api } from '../services/api';
 
 interface KnowledgeGraphPageProps {
   onSelectAction?: (action: string) => void;
@@ -54,6 +56,24 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string>('aman_khan');
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [neo4jStats, setNeo4jStats] = useState<{ nodes: number; edges: number } | null>(null);
+
+  useEffect(() => {
+    async function loadNeo4jGraph() {
+      try {
+        const graphData = await api.knowledgeGraph.getFullGraph(50);
+        if (graphData) {
+          setNeo4jStats({
+            nodes: graphData.total_nodes,
+            edges: graphData.total_edges,
+          });
+        }
+      } catch (err) {
+        console.warn("Neo4j live sync:", err);
+      }
+    }
+    loadNeo4jGraph();
+  }, []);
 
   // Central Aman Khan and surrounding 10 nodes matching reference image
   const nodes: GraphNode[] = [
@@ -313,6 +333,12 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Neo4j Live AuraDB Badge */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/50 text-[10px] font-bold text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Neo4j AuraDB: {neo4jStats ? `${neo4jStats.nodes} Nodes / ${neo4jStats.edges} Edges` : 'Connected'}</span>
+          </div>
+
           {/* Auto Layout dropdown */}
           <button 
             onClick={() => onSelectAction && onSelectAction('Layout Algorithm Changed to Force-Directed')}

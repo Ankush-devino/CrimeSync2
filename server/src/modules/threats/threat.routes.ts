@@ -1,13 +1,32 @@
-// Team Member 3: Threat Controller & Routes
+import { Router, Request, Response } from "express";
+import { threatService } from "./threat.service";
+import { formatResponse } from "../../utils/api-response";
 
-export class ThreatController {
-  async handleGetAlerts(req: unknown, res: unknown) {}
-  async handleGetThreat(req: unknown, res: unknown) {}
-  async handleUpdateStatus(req: unknown, res: unknown) {}
-}
+export function threatRoutes(): Router {
+  const router = Router();
 
-export function threatRoutes() {
-  // GET  /api/threats
-  // GET  /api/threats/:id
-  // PUT  /api/threats/:id/status
+  router.get("/", async (req: Request, res: Response) => {
+    try {
+      const { severity, status } = req.query;
+      const threats = await threatService.getActiveAlerts({
+        severity: severity as string,
+        status: status as string,
+      });
+      res.json(formatResponse(true, threats, "Threat alerts retrieved"));
+    } catch (err: any) {
+      res.status(500).json(formatResponse(false, null, undefined, err.message));
+    }
+  });
+
+  router.get("/:id", async (req: Request, res: Response) => {
+    try {
+      const threat = await threatService.getThreatById(req.params.id as string);
+      if (!threat) return res.status(404).json(formatResponse(false, null, undefined, "Threat not found"));
+      res.json(formatResponse(true, threat, "Threat details retrieved"));
+    } catch (err: any) {
+      res.status(500).json(formatResponse(false, null, undefined, err.message));
+    }
+  });
+
+  return router;
 }
