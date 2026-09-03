@@ -188,4 +188,32 @@ export const api = {
       }),
     getById: (reportId: string) => request<any>(`/reports/${reportId}`),
   },
+
+  // 11. Member 5: Time Machine & Chronological Crime Reconstruction
+  timeline: {
+    getEvents: (params?: { caseId?: string; range?: string }) => {
+      const qs = params ? `?${new URLSearchParams(params as any).toString()}` : "";
+      return request<{
+        total_events: number;
+        time_range: string;
+        case_id: string;
+        events: Array<{
+          id: string;
+          timestamp: string;
+          timeFormatted: string;
+          dateFormatted: string;
+          type: string;
+          category: string;
+          title: string;
+          sub: string;
+          entities: string;
+          entitiesSub: string;
+          evidence: string;
+          evidenceType: 'doc' | 'audio' | 'video' | 'geo' | 'hash';
+          riskSeverity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+          properties?: any;
+        }>;
+      }>(`/timeline${qs}`);
+    },
+  },
 };

@@ -20,8 +20,13 @@ import {
   Bot,
   Play,
   RotateCcw,
-  FileCheck
+  FileCheck,
+  Loader2,
+  Database,
+  Sparkles,
+  Server,
 } from 'lucide-react';
+import { api } from '../services/api';
 import {
   aiSandboxMetricsData,
   aiAgentsData,
@@ -64,6 +69,49 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
   const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
   const [escapeAlert, setEscapeAlert] = useState<{ active: boolean; message: string; agentName: string } | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+
+  // Live Agent Execution State (PostgreSQL & Neo4j backend)
+  const [isExecutingLive, setIsExecutingLive] = useState(false);
+  const [liveActionName, setLiveActionName] = useState<string | null>(null);
+  const [liveOutput, setLiveOutput] = useState<{ status: string; message: string; data?: any } | null>(null);
+
+  const handleExecuteLiveAgent = async (actionType: 'query_database' | 'scan_network' | 'cross_reference_dna' | 'generate_dossier') => {
+    try {
+      setIsExecutingLive(true);
+      setLiveActionName(actionType);
+      const res = await api.ai.executeAgentAction(selectedAgentId || 'CRIMESYNC-AGENT-01', actionType, 'CASE-2026-001');
+      setLiveOutput({
+        status: res.status,
+        message: res.message,
+        data: res.data,
+      });
+
+      // Update active agent thought stream
+      setAgents((prev) =>
+        prev.map((a) =>
+          a.id === selectedAgentId
+            ? {
+                ...a,
+                thoughtStream: [
+                  `[${new Date().toLocaleTimeString()}] Live DB Action Executed: ${res.action_type || actionType}`,
+                  `[${new Date().toLocaleTimeString()}] Result: ${res.message}`,
+                  ...a.thoughtStream,
+                ],
+              }
+            : a
+        )
+      );
+
+      if (onSelectAction) onSelectAction(`Live AI Agent: ${res.message}`);
+    } catch (err: any) {
+      setLiveOutput({
+        status: 'error',
+        message: err.message || 'Execution failed',
+      });
+    } finally {
+      setIsExecutingLive(false);
+    }
+  };
 
   // New Agent Form State
   const [newAgentName, setNewAgentName] = useState('');
@@ -340,6 +388,91 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
           </div>
         </div>
       )}
+
+      {/* ─── LIVE AGENT EXECUTION SUITE ────────────────────────────────────────── */}
+      <div className="mb-3 p-3 rounded-xl bg-[#050b18] border border-cyan-500/40 shadow-xl space-y-2.5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+              <Bot className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                LIVE AUTONOMOUS AGENT DISPATCH
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[9px] font-bold text-emerald-400">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                  Live DB Connect
+                </span>
+              </h2>
+            </div>
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => handleExecuteLiveAgent('query_database')}
+              disabled={isExecutingLive}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#08152e] hover:bg-[#0c224a] border border-blue-500/40 text-[10.5px] font-semibold text-blue-300 hover:text-white transition-all disabled:opacity-50"
+            >
+              <Database className="w-3 h-3 text-blue-400" />
+              <span>SQL Financial Scan</span>
+            </button>
+            <button
+              onClick={() => handleExecuteLiveAgent('scan_network')}
+              disabled={isExecutingLive}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#140b2e] hover:bg-[#1e1045] border border-purple-500/40 text-[10.5px] font-semibold text-purple-300 hover:text-white transition-all disabled:opacity-50"
+            >
+              <Network className="w-3 h-3 text-purple-400" />
+              <span>Neo4j Graph Crawl</span>
+            </button>
+            <button
+              onClick={() => handleExecuteLiveAgent('cross_reference_dna')}
+              disabled={isExecutingLive}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#08201a] hover:bg-[#0c3028] border border-emerald-500/40 text-[10.5px] font-semibold text-emerald-300 hover:text-white transition-all disabled:opacity-50"
+            >
+              <ShieldCheck className="w-3 h-3 text-emerald-400" />
+              <span>SHA-256 Vault Check</span>
+            </button>
+            <button
+              onClick={() => handleExecuteLiveAgent('generate_dossier')}
+              disabled={isExecutingLive}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#261608] hover:bg-[#38200c] border border-amber-500/40 text-[10.5px] font-semibold text-amber-300 hover:text-white transition-all disabled:opacity-50"
+            >
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span>Generate Case Dossier</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Live Execution Output Banner */}
+        {isExecutingLive && (
+          <div className="p-2 rounded-lg bg-[#081224] border border-cyan-500/30 flex items-center gap-2 text-xs text-cyan-300">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+            <span>Agent executing {liveActionName}... querying PostgreSQL & Neo4j AuraDB</span>
+          </div>
+        )}
+
+        {liveOutput && !isExecutingLive && (
+          <div className="p-2.5 rounded-lg bg-[#081224] border border-cyan-500/30 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Agent Execution Response
+              </span>
+              <button onClick={() => setLiveOutput(null)} className="text-slate-400 hover:text-white text-[10px]">Dismiss</button>
+            </div>
+            <p className="text-[11px] text-slate-200">{liveOutput.message}</p>
+            {liveOutput.data && Array.isArray(liveOutput.data) && (
+              <div className="max-h-24 overflow-y-auto space-y-1 pt-1 border-t border-[#111e33] text-[9.5px] font-mono text-slate-300">
+                {liveOutput.data.slice(0, 3).map((item: any, i: number) => (
+                  <div key={i} className="p-1 rounded bg-[#030712] border border-[#111e33] truncate">
+                    {JSON.stringify(item)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ─── Top Control & Status Header ────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-3 border-b border-[#111e33] gap-3">

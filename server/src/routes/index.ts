@@ -9,6 +9,7 @@ import { financialRoutes } from "../modules/financial-intel/financial.module";
 import { geoRoutes } from "../modules/geo-intel/geo.module";
 import { aiEngineRoutes } from "../modules/ai-engine/ai-engine.module";
 import { reportRoutes } from "../modules/reports/reports.module";
+import { timelineRoutes } from "../modules/timeline/timeline.module";
 
 export function registerRoutes(): Router {
   const router = Router();
@@ -46,6 +47,7 @@ export function registerRoutes(): Router {
   router.use("/geo", geoRoutes());
   router.use("/ai", aiEngineRoutes());
   router.use("/reports", reportRoutes());
+  router.use("/timeline", timelineRoutes());
 
   return router;
 }
