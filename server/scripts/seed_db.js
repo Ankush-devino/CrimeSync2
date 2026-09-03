@@ -29,13 +29,6 @@ async function initPostgres() {
     await client.query(schemaSql);
     console.log('✅ PostgreSQL Tables & Indexes created successfully.');
 
-    // Check if data already seeded
-    const check = await client.query('SELECT COUNT(*) FROM users');
-    if (parseInt(check.rows[0].count, 10) > 0) {
-      console.log('ℹ️  PostgreSQL already contains seeded data. Skipping re-seed.');
-      return;
-    }
-
     console.log('🌱 Seeding PostgreSQL with Indian Law Enforcement Data...');
 
     // 1. Users (Indian Police & Cyber Intelligence Officers)

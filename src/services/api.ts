@@ -39,39 +39,60 @@ export const api = {
       return request<any[]>(`/cases${qs}`);
     },
     getById: (id: string) => request<any>(`/cases/${id}`),
-    getStats: () => request<{
-      total_cases: string;
-      active_cases: string;
-      critical_cases: string;
-      resolved_cases: string;
-    }>(`/cases/stats`),
+    getStats: () =>
+      request<{
+        total_cases: string;
+        active_cases: string;
+        critical_cases: string;
+        resolved_cases: string;
+      }>(`/cases/stats`),
   },
 
   // 2. Knowledge Graph (Neo4j AuraDB)
   knowledgeGraph: {
-    getFullGraph: (limit = 100) => request<{
-      nodes: Array<{ id: string; label: string; category: string; properties: any }>;
-      edges: Array<{ id: string; source: string; target: string; relationship: string; properties: any }>;
-      total_nodes: number;
-      total_edges: number;
-    }>(`/knowledge-graph?limit=${limit}`),
+    getFullGraph: (limit = 100) =>
+      request<{
+        nodes: Array<{ id: string; label: string; category: string; properties: any }>;
+        edges: Array<{ id: string; source: string; target: string; relationship: string; properties: any }>;
+        total_nodes: number;
+        total_edges: number;
+      }>(`/knowledge-graph?limit=${limit}`),
     getEntityConnections: (id: string) => request<any[]>(`/knowledge-graph/entity/${id}`),
+    findPath: (from: string, to: string) =>
+      request<{
+        path_found: boolean;
+        degrees_of_separation?: number;
+        entity_chain?: string[];
+        relationship_chain?: string[];
+        message?: string;
+      }>(`/knowledge-graph/path?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+    addRelation: (sourceId: string, targetId: string, relationship: string, properties?: any) =>
+      request<any>(`/knowledge-graph/relation`, {
+        method: "POST",
+        body: JSON.stringify({ sourceId, targetId, relationship, properties }),
+      }),
   },
 
   // 3. Blast Radius Simulator (Neo4j AuraDB)
   blastRadius: {
-    simulate: (originId: string, maxHops = 3) => request<{
-      origin_entity: string;
-      max_hops: number;
-      total_impacted_nodes: number;
-      risk_severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-      impact_radius_percentage: number;
-      impacted_nodes: Array<{ id: string; label: string; category: string; distance_hops: number }>;
-      containment_actions: string[];
-    }>(`/blast-radius/simulate`, {
-      method: "POST",
-      body: JSON.stringify({ originId, maxHops }),
-    }),
+    getSuspects: () =>
+      request<Array<{ id: string; name: string; role: string; city: string; risk_score: number }>>(
+        `/blast-radius/suspects`
+      ),
+    simulate: (originName: string, maxHops = 3) =>
+      request<{
+        origin_entity: string;
+        origin_name: string;
+        max_hops: number;
+        total_impacted_nodes: number;
+        risk_severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+        impact_radius_percentage: number;
+        impacted_nodes: Array<{ id: string; label: string; category: string; distance_hops: number; properties?: any }>;
+        containment_actions: string[];
+      }>(`/blast-radius/simulate`, {
+        method: "POST",
+        body: JSON.stringify({ originName, maxHops }),
+      }),
   },
 
   // 4. Financial Intelligence (PostgreSQL)
@@ -100,16 +121,17 @@ export const api = {
   evidence: {
     getAll: () => request<any[]>(`/evidence`),
     getByCase: (caseId: string) => request<any[]>(`/evidence/case/${caseId}`),
-    verifyHash: (evidenceId: string, hash: string) => request<{
-      evidence_id: string;
-      stored_hash: string;
-      provided_hash: string;
-      is_valid: boolean;
-      status: string;
-    }>(`/evidence/verify`, {
-      method: "POST",
-      body: JSON.stringify({ evidenceId, hash }),
-    }),
+    verifyHash: (evidenceId: string, hash: string) =>
+      request<{
+        evidence_id: string;
+        stored_hash: string;
+        provided_hash: string;
+        is_valid: boolean;
+        status: string;
+      }>(`/evidence/verify`, {
+        method: "POST",
+        body: JSON.stringify({ evidenceId, hash }),
+      }),
   },
 
   // 8. Auth & Officers
@@ -120,36 +142,50 @@ export const api = {
 
   // 9. Member 5: AI Copilot & Autonomous Agent Sandbox
   ai: {
-    askCopilot: (prompt: string, contextType?: string) => request<{
-      session_id: string;
-      answer: string;
-      confidence_score: number;
-      context_retrieved: any;
-      recommended_actions: string[];
-      timestamp: string;
-    }>(`/ai/copilot/chat`, {
-      method: "POST",
-      body: JSON.stringify({ prompt, contextType }),
-    }),
-    executeAgentAction: (agentId: string, actionType: string, targetId?: string) => request<{
-      agent_id: string;
-      status: string;
-      message: string;
-      data?: any;
-      dossier_id?: string;
-    }>(`/ai/sandbox/execute`, {
-      method: "POST",
-      body: JSON.stringify({ agentId, actionType, targetId }),
-    }),
+    getLiveContext: () =>
+      request<{
+        cases: any[];
+        officers: any[];
+        evidence: any[];
+        financial_transactions: any[];
+        suspects: any[];
+      }>(`/ai/context`),
+    askCopilot: (prompt: string, contextType?: string) =>
+      request<{
+        session_id: string;
+        answer: string;
+        confidence_score: number;
+        context_retrieved: any;
+        recommended_actions: string[];
+        timestamp: string;
+      }>(`/ai/copilot/chat`, {
+        method: "POST",
+        body: JSON.stringify({ prompt, contextType }),
+      }),
+    executeAgentAction: (agentId: string, actionType: string, targetId?: string) =>
+      request<{
+        agent_id: string;
+        action_type: string;
+        status: string;
+        message: string;
+        data?: any;
+        dossier_id?: string;
+        executed_at: string;
+      }>(`/ai/sandbox/execute`, {
+        method: "POST",
+        body: JSON.stringify({ agentId, actionType, targetId }),
+      }),
     getSummaryDossier: (caseId: string) => request<any>(`/ai/dossier/${caseId}`),
   },
 
   // 10. Member 5: Forensic & Court-Ready Reports
   reports: {
     list: () => request<any[]>(`/reports`),
-    generateCourtReport: (caseId: string, officerName?: string) => request<any>(`/reports/generate`, {
-      method: "POST",
-      body: JSON.stringify({ caseId, officerName }),
-    }),
+    generateCourtReport: (caseId: string, officerName?: string) =>
+      request<any>(`/reports/generate`, {
+        method: "POST",
+        body: JSON.stringify({ caseId, officerName }),
+      }),
+    getById: (reportId: string) => request<any>(`/reports/${reportId}`),
   },
 };

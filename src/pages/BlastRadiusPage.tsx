@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Sun,
   ShieldAlert,
@@ -24,7 +24,12 @@ import {
   CheckCircle2,
   ShieldCheck,
   Globe,
-  FileText
+  FileText,
+  Loader2,
+  User,
+  AlertTriangle,
+  ChevronDown,
+  RefreshCw,
 } from 'lucide-react';
 import {
   blastRadiusMetricsData,
@@ -68,6 +73,50 @@ export const BlastRadiusPage: React.FC<BlastRadiusPageProps> = ({ onSelectAction
   const [isCircuitModalOpen, setIsCircuitModalOpen] = useState(false);
   const [simulationAlert, setSimulationAlert] = useState<{ active: boolean; message: string; targetNode: string } | null>(null);
 
+  // ── LIVE NEO4J BLAST RADIUS STATE ──
+  const [neo4jSuspects, setNeo4jSuspects] = useState<Array<{ id: string; name: string; role: string; city: string; risk_score: number }>>([]);
+  const [selectedSuspect, setSelectedSuspect] = useState<string>('');
+  const [maxHops, setMaxHops] = useState<number>(3);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [neo4jResult, setNeo4jResult] = useState<any>(null);
+  const [suspectsLoading, setSuspectsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadSuspects() {
+      try {
+        const suspects = await api.blastRadius.getSuspects();
+        setNeo4jSuspects(suspects);
+        if (suspects.length > 0) setSelectedSuspect(suspects[0].name);
+      } catch (err) {
+        console.warn('Suspects load error:', err);
+      } finally {
+        setSuspectsLoading(false);
+      }
+    }
+    loadSuspects();
+  }, []);
+
+  const handleRunNeo4jSimulation = async () => {
+    if (!selectedSuspect) return;
+    try {
+      setIsSimulating(true);
+      setNeo4jResult(null);
+      const result = await api.blastRadius.simulate(selectedSuspect, maxHops);
+      setNeo4jResult(result);
+      setSimulationAlert({
+        active: true,
+        message: `NEO4J AURA TRAVERSAL: ${result.total_impacted_nodes} entities at risk from "${result.origin_name}" — Severity: ${result.risk_severity}`,
+        targetNode: result.origin_name,
+      });
+      setTimeout(() => setSimulationAlert(null), 8000);
+      if (onSelectAction) onSelectAction(`Neo4j Blast: ${result.total_impacted_nodes} entities (${result.risk_severity})`);
+    } catch (err: any) {
+      console.error('Simulation error:', err);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
   // Active Selected Node
   const selectedNode = useMemo(() => {
     return nodes.find((n) => n.id === selectedNodeId) || nodes[0];
@@ -89,67 +138,31 @@ export const BlastRadiusPage: React.FC<BlastRadiusPageProps> = ({ onSelectAction
     });
   }, [nodes, searchQuery, hopFilter]);
 
-  // Trigger Live Neo4j Graph Blast Radius Simulation
-  const handleSimulatePivot = async () => {
-    try {
-      // Call live Neo4j backend
-      const result = await api.blastRadius.simulate('SUS-01', 3);
-      
-      const vulnerableNodes = nodes.filter((n) => n.compromiseStatus === 'HIGH_RISK_EXPOSED' || n.compromiseStatus === 'CONTAINED_SHIELDED');
-      const target = vulnerableNodes.length > 0 ? vulnerableNodes[Math.floor(Math.random() * vulnerableNodes.length)] : nodes[nodes.length - 1];
+  // Trigger local network simulation (existing behavior)
+  const handleSimulatePivot = () => {
+    const vulnerableNodes = nodes.filter((n) => n.compromiseStatus === 'HIGH_RISK_EXPOSED' || n.compromiseStatus === 'CONTAINED_SHIELDED');
+    const target = vulnerableNodes.length > 0 ? vulnerableNodes[Math.floor(Math.random() * vulnerableNodes.length)] : nodes[nodes.length - 1];
 
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.id === target.id
-            ? {
-                ...n,
-                compromiseStatus: 'COMPROMISED',
-                riskScore: Math.min(n.riskScore + 15, 99),
-                vulnerabilityVector: `Neo4j Blast Traversal: Impacted ${result.total_impacted_nodes} connected entities`,
-              }
-            : n
-        )
-      );
+    setNodes((prev) =>
+      prev.map((n) =>
+        n.id === target.id
+          ? {
+              ...n,
+              compromiseStatus: 'COMPROMISED',
+              riskScore: Math.min(n.riskScore + 15, 99),
+              vulnerabilityVector: 'Active Lateral Movement Probe Registered',
+            }
+          : n
+      )
+    );
 
-      setSelectedNodeId(target.id);
-      setSimulationAlert({
-        active: true,
-        message: `NEO4J AURA TRAVERSAL: Simulated blast from SUS-01 (${result.total_impacted_nodes} entities at risk - ${result.risk_severity})!`,
-        targetNode: target.name,
-      });
-
-      if (onSelectAction) {
-        onSelectAction(`Neo4j Blast: ${result.total_impacted_nodes} entities flagged (${result.risk_severity})`);
-      }
-    } catch (_err) {
-      // Fallback local simulation if backend offline
-      const vulnerableNodes = nodes.filter((n) => n.compromiseStatus === 'HIGH_RISK_EXPOSED' || n.compromiseStatus === 'CONTAINED_SHIELDED');
-      const target = vulnerableNodes.length > 0 ? vulnerableNodes[Math.floor(Math.random() * vulnerableNodes.length)] : nodes[nodes.length - 1];
-
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.id === target.id
-            ? {
-                ...n,
-                compromiseStatus: 'COMPROMISED',
-                riskScore: Math.min(n.riskScore + 15, 99),
-                vulnerabilityVector: 'Active Lateral Movement Probe Registered',
-              }
-            : n
-        )
-      );
-
-      setSelectedNodeId(target.id);
-      setSimulationAlert({
-        active: true,
-        message: `LATERAL PIVOT ESCALATION: Intrusion vector propagated to ${target.name}!`,
-        targetNode: target.name,
-      });
-    }
-
-    setTimeout(() => {
-      setSimulationAlert(null);
-    }, 6000);
+    setSelectedNodeId(target.id);
+    setSimulationAlert({
+      active: true,
+      message: `LATERAL PIVOT ESCALATION: Intrusion vector propagated to ${target.name}!`,
+      targetNode: target.name,
+    });
+    setTimeout(() => setSimulationAlert(null), 6000);
   };
 
   // Toggle Isolation on a Node
@@ -280,6 +293,13 @@ export const BlastRadiusPage: React.FC<BlastRadiusPageProps> = ({ onSelectAction
     }
   };
 
+  const SEVERITY_COLORS: Record<string, string> = {
+    CRITICAL: 'text-red-400 bg-red-950/60 border-red-500/40',
+    HIGH: 'text-amber-400 bg-amber-950/60 border-amber-500/40',
+    MEDIUM: 'text-blue-400 bg-blue-950/60 border-blue-500/40',
+    LOW: 'text-slate-400 bg-slate-900 border-slate-700',
+  };
+
   return (
     <div className="flex-1 p-3.5 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
       {/* ─── Simulation Alert Toast ──────────────────────────────────────────────── */}
@@ -317,6 +337,129 @@ export const BlastRadiusPage: React.FC<BlastRadiusPageProps> = ({ onSelectAction
           </div>
         </div>
       )}
+
+      {/* ─── LIVE NEO4J BLAST RADIUS SIMULATION PANEL ──────────────────────────── */}
+      <div className="mb-3 p-3.5 rounded-xl bg-[#050b18] border border-[#1e3a5f] shadow-xl">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-red-600/20 border border-red-500/40 flex items-center justify-center">
+              <Network className="w-4 h-4 text-red-400" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white uppercase tracking-wider">NEO4J CRIMINAL NETWORK BLAST RADIUS</p>
+              <p className="text-[9px] text-slate-400">Live graph traversal from suspect origin · AuraDB connected</p>
+            </div>
+          </div>
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-[9px] font-bold text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          {/* Origin Suspect Dropdown */}
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Origin Suspect (Neo4j)</label>
+            <div className="relative">
+              <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+              <select
+                value={selectedSuspect}
+                onChange={(e) => setSelectedSuspect(e.target.value)}
+                disabled={suspectsLoading}
+                className="w-full pl-7 pr-8 py-1.5 bg-[#081224] border border-[#162744] rounded-lg text-xs text-slate-100 focus:outline-none focus:border-red-500/50 appearance-none"
+              >
+                {suspectsLoading ? (
+                  <option>Loading suspects...</option>
+                ) : neo4jSuspects.length === 0 ? (
+                  <option>No suspects found in Neo4j</option>
+                ) : (
+                  neo4jSuspects.map((s) => (
+                    <option key={s.id || s.name} value={s.name}>
+                      {s.name} — {s.role} ({s.city})
+                    </option>
+                  ))
+                )}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Max Hops */}
+          <div className="w-28">
+            <label className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Max Hops</label>
+            <select
+              value={maxHops}
+              onChange={(e) => setMaxHops(parseInt(e.target.value))}
+              className="w-full px-3 py-1.5 bg-[#081224] border border-[#162744] rounded-lg text-xs text-slate-100 focus:outline-none focus:border-red-500/50"
+            >
+              {[1, 2, 3, 4, 5].map((h) => <option key={h} value={h}>{h} Hops</option>)}
+            </select>
+          </div>
+
+          {/* Run Button */}
+          <button
+            onClick={handleRunNeo4jSimulation}
+            disabled={isSimulating || !selectedSuspect}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold shadow-[0_0_12px_rgba(239,68,68,0.4)] transition-all"
+          >
+            {isSimulating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+            <span>{isSimulating ? 'Simulating...' : 'Run Simulation'}</span>
+          </button>
+        </div>
+
+        {/* Simulation Results */}
+        {neo4jResult && (
+          <div className="mt-3 pt-3 border-t border-[#111e33] space-y-3">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="p-2.5 rounded-lg bg-[#081224] border border-[#142646] text-center">
+                <span className="text-xl font-black text-red-400 block">{neo4jResult.total_impacted_nodes}</span>
+                <span className="text-[9px] text-slate-400">Impacted Nodes</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[#081224] border border-[#142646] text-center">
+                <span className="text-xl font-black text-amber-400 block">{neo4jResult.max_hops}</span>
+                <span className="text-[9px] text-slate-400">Hops Traversed</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[#081224] border border-[#142646] text-center">
+                <span className="text-xl font-black text-blue-400 block">{neo4jResult.impact_radius_percentage}%</span>
+                <span className="text-[9px] text-slate-400">Network Reach</span>
+              </div>
+              <div className={`p-2.5 rounded-lg border text-center ${SEVERITY_COLORS[neo4jResult.risk_severity] || ''}`}>
+                <span className="text-sm font-black block">{neo4jResult.risk_severity}</span>
+                <span className="text-[9px] opacity-70">Severity</span>
+              </div>
+            </div>
+
+            {/* Impacted Nodes List */}
+            {neo4jResult.impacted_nodes.length > 0 && (
+              <div>
+                <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Impacted Entities in Blast Radius</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {neo4jResult.impacted_nodes.map((n: any, i: number) => (
+                    <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#0a1628] border border-[#162744] text-[10px]">
+                      <span className={`w-1.5 h-1.5 rounded-full ${n.distance_hops === 1 ? 'bg-red-500' : n.distance_hops === 2 ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                      <span className="font-semibold text-slate-200">{n.label}</span>
+                      <span className="text-slate-500">{n.category} · {n.distance_hops}h</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Containment Actions */}
+            <div>
+              <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">AI Containment Recommendations</p>
+              <div className="space-y-1">
+                {neo4jResult.containment_actions.map((action: string, i: number) => (
+                  <div key={i} className="flex items-start gap-2 text-[10px]">
+                    <AlertTriangle className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-300">{action}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ─── Top Control & Status Header ────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-3 border-b border-[#111e33] gap-3">
