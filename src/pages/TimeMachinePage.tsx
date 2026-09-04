@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Clock, 
   Calendar, 
@@ -9,17 +9,27 @@ import {
   Hash,
   RefreshCw,
   Loader2,
-  Car,
   AlertTriangle,
   Info,
   CheckCircle2,
   Sparkles,
-  ArrowDown,
-  Briefcase,
-  Layers,
   Search,
   Filter,
-  FileSpreadsheet
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  RotateCcw,
+  Zap,
+  Shield,
+  FileSpreadsheet,
+  ExternalLink,
+  Copy,
+  Check,
+  Eye,
+  Sliders,
+  Radio,
+  FileText
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
@@ -29,7 +39,7 @@ interface TimeMachinePageProps {
   onSelectAction?: (action: string) => void;
 }
 
-interface TimelineEvent {
+export interface TimelineEvent {
   id: string;
   timestamp: string;
   timeFormatted: string;
@@ -48,15 +58,24 @@ interface TimelineEvent {
 
 export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction }) => {
   const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
-  const [selectedRangePreset, setSelectedRangePreset] = useState<'7D' | '15D' | '30D' | 'Custom'>('15D');
+  const [selectedRangePreset, setSelectedRangePreset] = useState<'24H' | '7D' | '15D' | '30D' | 'ALL'>('15D');
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [showHelpBanner, setShowHelpBanner] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const activeCase: LawCase = getCaseById(selectedCaseId);
+  // ─── Time Player / Simulation State ─────────────────────────────────────────
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [activeEventIndex, setActiveEventIndex] = useState<number>(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 1x, 2x, 4x
+  const [selectedModalEvent, setSelectedModalEvent] = useState<TimelineEvent | null>(null);
+  const [copiedHash, setCopiedHash] = useState(false);
 
+  const activeCase: LawCase = getCaseById(selectedCaseId);
+  const eventRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+
+  // ─── Fetch Events ─────────────────────────────────────────────────────────
   const loadTimeline = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -64,10 +83,12 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
         caseId: selectedCaseId === 'ALL' ? undefined : selectedCaseId,
         range: selectedRangePreset,
       });
+
       if (res && res.events && res.events.length > 0) {
         setEvents(res.events as TimelineEvent[]);
+        setActiveEventIndex(0);
       } else {
-        // Construct visual fallback timeline for selected case
+        // Fallback dataset for selected case
         const caseObj = getCaseById(selectedCaseId);
         const fallbackEvents: TimelineEvent[] = [
           {
@@ -84,6 +105,12 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             evidence: 'Core Banking API & SFMS Notice',
             evidenceType: 'doc',
             riskSeverity: caseObj.priority,
+            properties: {
+              amount_inr: caseObj.tracked_money_inr,
+              channel: 'RTGS / SFMS',
+              status: 'FLAGGED_HIGH_RISK',
+              jurisdiction: caseObj.jurisdiction_city
+            }
           },
           {
             id: `ev-2-${caseObj.id}`,
@@ -99,6 +126,11 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             evidence: 'Cell Tower CDR & IPDR Logs',
             evidenceType: 'geo',
             riskSeverity: 'HIGH',
+            properties: {
+              city: caseObj.jurisdiction_city,
+              coordinates: '22.5726° N, 88.3638° E',
+              accuracy_radius: '150 meters'
+            }
           },
           {
             id: `ev-3-${caseObj.id}`,
@@ -114,9 +146,33 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             evidence: 'Digital Forensics Vault',
             evidenceType: 'hash',
             riskSeverity: 'HIGH',
+            properties: {
+              sha256: '9f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9061',
+              cert_section: 'Section 65B Indian Evidence Act'
+            }
+          },
+          {
+            id: `ev-4-${caseObj.id}`,
+            timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
+            timeFormatted: '04:10 PM',
+            dateFormatted: 'Yesterday',
+            type: 'Communication',
+            category: 'Communication',
+            title: `Telecom Intercept: Syndicate Communications`,
+            sub: `Encrypted call routing through VoIP Gateway`,
+            entities: `${caseObj.lead_suspect} ↔ Accomplices`,
+            entitiesSub: 'Section 91 CrPC Telecom Intercept',
+            evidence: 'Telecom Gateway Audio Stream',
+            evidenceType: 'audio',
+            riskSeverity: 'CRITICAL',
+            properties: {
+              call_duration_seconds: 480,
+              encryption_type: 'VoIP SIP Trunk'
+            }
           }
         ];
         setEvents(fallbackEvents);
+        setActiveEventIndex(0);
       }
     } catch (err) {
       console.warn('Timeline live sync error:', err);
@@ -129,55 +185,152 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
     loadTimeline();
   }, [loadTimeline]);
 
+  // ─── Filter Events ────────────────────────────────────────────────────────
   const filteredEvents = events.filter((ev) => {
-    const matchesCat = selectedCategory === 'ALL' || ev.type === selectedCategory || ev.category === selectedCategory;
+    const matchesCat =
+      selectedCategory === 'ALL' ||
+      ev.type.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+      ev.category.toLowerCase().includes(selectedCategory.toLowerCase());
+
     const matchesSearch =
       ev.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ev.sub.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ev.entities.toLowerCase().includes(searchQuery.toLowerCase());
+      ev.entities.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (ev.properties && JSON.stringify(ev.properties).toLowerCase().includes(searchQuery.toLowerCase()));
+
     return matchesCat && matchesSearch;
   });
 
+  // ─── Playback Engine ──────────────────────────────────────────────────────
+  useEffect(() => {
+    let interval: any = null;
+    if (isPlaying && filteredEvents.length > 0) {
+      const stepTimeMs = 1800 / playbackSpeed;
+      interval = setInterval(() => {
+        setActiveEventIndex((prev) => {
+          if (prev >= filteredEvents.length - 1) {
+            setIsPlaying(false);
+            return prev;
+          }
+          const nextIndex = prev + 1;
+          // Smooth scroll to element
+          const el = eventRefs.current[nextIndex];
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+          return nextIndex;
+        });
+      }, stepTimeMs);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, playbackSpeed, filteredEvents.length]);
+
+  const handleStepPrev = () => {
+    setIsPlaying(false);
+    setActiveEventIndex((prev) => Math.max(0, prev - 1));
+    const targetIdx = Math.max(0, activeEventIndex - 1);
+    const el = eventRefs.current[targetIdx];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const handleStepNext = () => {
+    setIsPlaying(false);
+    setActiveEventIndex((prev) => Math.min(filteredEvents.length - 1, prev + 1));
+    const targetIdx = Math.min(filteredEvents.length - 1, activeEventIndex + 1);
+    const el = eventRefs.current[targetIdx];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const handleResetTimeline = () => {
+    setIsPlaying(false);
+    setActiveEventIndex(0);
+    const el = eventRefs.current[0];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (filteredEvents.length === 0) return;
+    const headers = ['Event ID', 'Date', 'Time', 'Type', 'Title', 'Description', 'Entities Involved', 'Evidence Ref', 'Risk Severity'];
+    const rows = filteredEvents.map(e => [
+      `"${e.id}"`,
+      `"${e.dateFormatted}"`,
+      `"${e.timeFormatted}"`,
+      `"${e.type}"`,
+      `"${e.title.replace(/"/g, '""')}"`,
+      `"${e.sub.replace(/"/g, '""')}"`,
+      `"${e.entities.replace(/"/g, '""')}"`,
+      `"${e.evidence.replace(/"/g, '""')}"`,
+      `"${e.riskSeverity}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `CrimeSync_Timeline_${selectedCaseId}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedHash(true);
+    setTimeout(() => setCopiedHash(false), 2000);
+  };
+
   const renderIcon = (type: string) => {
-    if (type === 'Communication') {
+    const t = type.toLowerCase();
+    if (t.includes('comm') || t.includes('phone') || t.includes('audio')) {
       return {
         icon: <Phone className="w-4 h-4 text-purple-300" />,
         bg: 'bg-purple-950/80 border-purple-500/50',
         badge: 'bg-purple-950 text-purple-400 border-purple-600/40',
-        label: 'Phone Contact',
+        glow: 'border-purple-500/60 shadow-[0_0_15px_rgba(168,85,247,0.3)]',
+        label: 'Phone Intercept',
       };
     }
-    if (type === 'Financial Transaction') {
+    if (t.includes('fin') || t.includes('bank') || t.includes('money') || t.includes('transaction')) {
       return {
         icon: <Landmark className="w-4 h-4 text-emerald-300" />,
         bg: 'bg-emerald-950/80 border-emerald-500/50',
         badge: 'bg-emerald-950 text-emerald-400 border-emerald-600/40',
+        glow: 'border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.3)]',
         label: 'Bank Transfer',
       };
     }
-    if (type === 'Location') {
+    if (t.includes('loc') || t.includes('geo') || t.includes('gps')) {
       return {
         icon: <MapPin className="w-4 h-4 text-cyan-300" />,
         bg: 'bg-cyan-950/80 border-cyan-500/50',
         badge: 'bg-cyan-950 text-cyan-400 border-cyan-600/40',
-        label: 'Location Sighting',
+        glow: 'border-cyan-500/60 shadow-[0_0_15px_rgba(6,182,212,0.3)]',
+        label: 'GPS Sighting',
       };
     }
     return {
       icon: <Hash className="w-4 h-4 text-blue-300" />,
       bg: 'bg-blue-950/80 border-blue-500/50',
       badge: 'bg-blue-950 text-blue-400 border-blue-600/40',
+      glow: 'border-blue-500/60 shadow-[0_0_15px_rgba(59,130,246,0.3)]',
       label: 'Evidence Seizure',
     };
   };
 
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
+      
       {/* ─── Top Header & Case Switcher ──────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between pb-3 gap-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-            <Clock className="w-5 h-5" />
+            <Clock className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <h1 className="text-base font-bold text-white flex items-center gap-2">
@@ -187,20 +340,35 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
               </span>
             </h1>
             <p className="text-xs text-slate-400">
-              Correlate bank transfers, phone intercepts, cell tower pings, and evidence seizures in exact chronological sequence
+              Reconstruct how the crime unfolded: correlate bank wires, VoIP taps, cell pings, and forensic seizures step-by-step
             </p>
           </div>
         </div>
 
-        {/* Top Controls */}
+        {/* Top Right Controls */}
         <div className="flex items-center gap-2">
           {/* Case Dropdown */}
           <CaseSelector
             selectedCaseId={selectedCaseId}
-            onSelectCase={(id) => setSelectedCaseId(id)}
+            onSelectCase={(id) => {
+              setSelectedCaseId(id);
+              setIsPlaying(false);
+              setActiveEventIndex(0);
+            }}
             allowAll={true}
           />
 
+          {/* Export CSV */}
+          <button
+            onClick={handleExportCSV}
+            title="Export Timeline to CSV"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
+
+          {/* Sync */}
           <button
             onClick={loadTimeline}
             disabled={isLoading}
@@ -212,21 +380,39 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
         </div>
       </div>
 
-      {/* ─── Selected Case Banner ─────────────────────────────────────── */}
+      {/* ─── Selected Case Banner & KPI Strip ───────────────────────── */}
       {selectedCaseId !== 'ALL' && activeCase && (
-        <div className="mt-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 border border-cyan-600/40 text-cyan-300">
+        <div className="mt-3 p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
+          <div className="flex items-center gap-3">
+            <span className="px-2.5 py-1 rounded text-[11px] font-bold bg-cyan-950 border border-cyan-600/40 text-cyan-300">
               {activeCase.fir_number}
             </span>
-            <span className="font-bold text-white">{activeCase.title}</span>
-            <span className="text-slate-400">({activeCase.jurisdiction_city})</span>
+            <div>
+              <span className="font-bold text-white text-sm mr-2">{activeCase.title}</span>
+              <span className="text-slate-400 text-xs">({activeCase.jurisdiction_city})</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 text-[11px] text-slate-400">
-            <span>Reconstructed Events: <strong className="text-white">{filteredEvents.length}</strong></span>
-            <span>Priority: <strong className="text-amber-400">{activeCase.priority}</strong></span>
-            <span>Lead Suspect: <strong className="text-red-400">{activeCase.lead_suspect}</strong></span>
+          <div className="flex flex-wrap items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800">
+              <Clock className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-slate-400">Events:</span>
+              <strong className="text-white font-mono">{filteredEvents.length}</strong>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800">
+              <Landmark className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-slate-400">Tracked Funds:</span>
+              <strong className="text-emerald-400 font-mono">
+                ₹{activeCase.tracked_money_inr.toLocaleString('en-IN')}
+              </strong>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800">
+              <Shield className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-slate-400">Lead Suspect:</span>
+              <strong className="text-red-300">{activeCase.lead_suspect}</strong>
+            </div>
           </div>
         </div>
       )}
@@ -240,7 +426,7 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             </div>
             <div>
               <span className="font-semibold text-white">How Crime Time Machine Works: </span>
-              This page automatically correlates time-stamped digital evidence across bank ledgers, intercepted calls, GPS pings, and physical seizures for <strong className="text-white">{activeCase?.title || 'Selected Case'}</strong>.
+              Use the <strong className="text-cyan-300">Timeline Player</strong> below to hit <strong className="text-emerald-300">▶ Play Simulation</strong> or drag the scrubber to watch how money, communications, and movements progressed over time for <strong className="text-white">{activeCase?.title || 'Selected Case'}</strong>.
             </div>
           </div>
           <button
@@ -252,20 +438,128 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
         </div>
       )}
 
+      {/* ─── TIME PLAYER & SIMULATION CONTROLS ──────────────────────────── */}
+      <div className="mt-2.5 p-3 rounded-xl bg-[#091122] border border-cyan-500/30 shadow-lg flex flex-col gap-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          
+          {/* Player Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetTimeline}
+              title="Reset to Earliest Event"
+              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={handleStepPrev}
+              disabled={activeEventIndex === 0}
+              title="Step Backward"
+              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 disabled:opacity-40 text-xs transition-colors"
+            >
+              <SkipBack className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs shadow-md transition-all ${
+                isPlaying 
+                  ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-[0_0_12px_rgba(217,119,6,0.4)]'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+              }`}
+            >
+              {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              <span>{isPlaying ? 'Pause Simulation' : 'Play Timeline'}</span>
+            </button>
+
+            <button
+              onClick={handleStepNext}
+              disabled={activeEventIndex >= filteredEvents.length - 1}
+              title="Step Forward"
+              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 disabled:opacity-40 text-xs transition-colors"
+            >
+              <SkipForward className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Speed Toggle */}
+            <div className="flex items-center ml-2 bg-slate-900 rounded-lg border border-slate-800 p-0.5 text-[11px]">
+              {[1, 2, 4].map((spd) => (
+                <button
+                  key={spd}
+                  onClick={() => setPlaybackSpeed(spd)}
+                  className={`px-2 py-0.5 rounded font-mono font-bold transition-all ${
+                    playbackSpeed === spd ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {spd}x
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Current Step Readout */}
+          <div className="flex items-center gap-3 text-xs">
+            {filteredEvents.length > 0 && (
+              <div className="flex items-center gap-2 bg-slate-900/90 px-3 py-1 rounded-lg border border-slate-800">
+                <span className="text-slate-400">Focus:</span>
+                <span className="font-bold text-cyan-300">
+                  Event {activeEventIndex + 1} of {filteredEvents.length}
+                </span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-300 font-mono text-[11px]">
+                  {filteredEvents[activeEventIndex]?.dateFormatted} {filteredEvents[activeEventIndex]?.timeFormatted}
+                </span>
+              </div>
+            )}
+
+            {isPlaying && (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold animate-pulse">
+                <Radio className="w-3.5 h-3.5" />
+                <span>Simulating Crime Trajectory...</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Scrubber Progress Slider */}
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            min={0}
+            max={Math.max(0, filteredEvents.length - 1)}
+            value={activeEventIndex}
+            onChange={(e) => {
+              setIsPlaying(false);
+              const idx = parseInt(e.target.value);
+              setActiveEventIndex(idx);
+              const el = eventRefs.current[idx];
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            }}
+            className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 focus:outline-none"
+          />
+        </div>
+      </div>
+
       {/* ─── Filter & Search Bar ───────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 py-2">
         {/* Category Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {[
-            { label: 'All Timeline Events', val: 'ALL' },
-            { label: 'Bank Transfers', val: 'Financial Transaction' },
-            { label: 'Phone Intercepts', val: 'Communication' },
-            { label: 'GPS Sightings', val: 'Location' },
-            { label: 'Evidence Seizures', val: 'Forensic Evidence' },
+            { label: 'All Events', val: 'ALL' },
+            { label: 'Bank Transfers (₹)', val: 'Financial' },
+            { label: 'Phone Intercepts (📞)', val: 'Communication' },
+            { label: 'GPS Sightings (📍)', val: 'Location' },
+            { label: 'Evidence Seizures (🛡️)', val: 'Evidence' },
           ].map((cat) => (
             <button
               key={cat.val}
-              onClick={() => setSelectedCategory(cat.val)}
+              onClick={() => {
+                setSelectedCategory(cat.val);
+                setActiveEventIndex(0);
+              }}
               className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-all ${
                 selectedCategory === cat.val
                   ? 'bg-slate-800 border-cyan-500 text-white shadow-sm'
@@ -277,12 +571,27 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
           ))}
         </div>
 
+        {/* Range Preset Buttons */}
+        <div className="flex items-center gap-1 bg-slate-900/90 rounded-lg border border-slate-800 p-0.5 text-[11px]">
+          {(['24H', '7D', '15D', '30D', 'ALL'] as const).map((rng) => (
+            <button
+              key={rng}
+              onClick={() => setSelectedRangePreset(rng)}
+              className={`px-2 py-0.5 rounded font-semibold transition-all ${
+                selectedRangePreset === rng ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {rng}
+            </button>
+          ))}
+        </div>
+
         {/* Search Input */}
-        <div className="relative min-w-[240px]">
+        <div className="relative min-w-[220px]">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search timeline events, suspects, or amounts..."
+            placeholder="Search events, suspects, accounts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-900 border border-slate-700/80 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
@@ -296,10 +605,12 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
         {/* Feed Header */}
         <div className="px-4 py-2.5 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-2">
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Showing <strong className="text-white">{filteredEvents.length}</strong> reconstructed events</span>
+            <Zap className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Showing <strong className="text-white">{filteredEvents.length}</strong> chronological exhibits</span>
           </div>
-          <span className="text-[11px] text-slate-500">{activeCase?.title || 'Selected Case'}</span>
+          <span className="text-[11px] text-slate-500 font-mono">
+            {activeCase?.title || 'All Cases Reconstructed'}
+          </span>
         </div>
 
         {/* Scrollable Events List */}
@@ -311,15 +622,39 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             </div>
           ) : filteredEvents.length > 0 ? (
             <div className="relative pl-6 border-l-2 border-slate-800 space-y-4 my-2">
-              {filteredEvents.map((ev) => {
+              {filteredEvents.map((ev, index) => {
                 const iconInfo = renderIcon(ev.type);
+                const isActive = activeEventIndex === index;
+
                 return (
-                  <div key={ev.id} className="relative group">
+                  <div
+                    key={ev.id}
+                    ref={(el) => {
+                      eventRefs.current[index] = el;
+                    }}
+                    className="relative group transition-all"
+                  >
                     {/* Circle Bullet on Timeline Line */}
-                    <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-slate-900 border-2 border-cyan-500 group-hover:scale-125 transition-transform" />
+                    <div
+                      className={`absolute -left-[31px] top-2 w-4 h-4 rounded-full border-2 transition-all ${
+                        isActive
+                          ? 'bg-cyan-500 border-white scale-125 shadow-[0_0_12px_rgba(6,182,212,0.8)]'
+                          : 'bg-slate-900 border-slate-600 group-hover:scale-125 group-hover:border-cyan-400'
+                      }`}
+                    />
 
                     {/* Timeline Event Card */}
-                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all shadow-md">
+                    <div
+                      onClick={() => {
+                        setActiveEventIndex(index);
+                        setSelectedModalEvent(ev);
+                      }}
+                      className={`p-3.5 rounded-xl transition-all cursor-pointer shadow-md ${
+                        isActive
+                          ? `bg-slate-900/95 border-2 ${iconInfo.glow}`
+                          : 'bg-slate-900/80 border border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
                       {/* Top metadata */}
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-2">
@@ -329,22 +664,43 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
                           <span className="text-xs font-semibold text-slate-300">
                             {ev.dateFormatted} • {ev.timeFormatted}
                           </span>
+                          {isActive && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-500/50 uppercase animate-pulse">
+                              Active Focus
+                            </span>
+                          )}
                         </div>
 
-                        <span
-                          className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            ev.riskSeverity === 'CRITICAL'
-                              ? 'bg-red-950 text-red-400 border border-red-700/40'
-                              : 'bg-amber-950 text-amber-400 border border-amber-700/40'
-                          }`}
-                        >
-                          {ev.riskSeverity} RISK
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                              ev.riskSeverity === 'CRITICAL'
+                                ? 'bg-red-950 text-red-400 border border-red-700/40'
+                                : 'bg-amber-950 text-amber-400 border border-amber-700/40'
+                            }`}
+                          >
+                            {ev.riskSeverity} RISK
+                          </span>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedModalEvent(ev);
+                            }}
+                            className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] flex items-center gap-1 border border-slate-700"
+                            title="Inspect Details"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>Inspect</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Main Title & Sub */}
-                      <h4 className="text-sm font-bold text-white mb-0.5">{ev.title}</h4>
-                      <p className="text-xs text-slate-400 mb-2">{ev.sub}</p>
+                      <h4 className="text-sm font-bold text-white mb-0.5 flex items-center gap-2">
+                        {ev.title}
+                      </h4>
+                      <p className="text-xs text-slate-400 mb-2.5">{ev.sub}</p>
 
                       {/* Entity & Evidence Footer */}
                       <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
@@ -366,11 +722,107 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
               <Clock className="w-10 h-10 text-slate-700 mb-2" />
-              <p className="text-xs">No timeline events logged for this specific case.</p>
+              <p className="text-xs">No timeline events match the selected filters or case.</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* ─── FORENSIC EVENT INSPECTOR MODAL ─────────────────────────────── */}
+      {selectedModalEvent && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-xl bg-[#091122] border border-cyan-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            
+            {/* Modal Header */}
+            <div className="p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Forensic Exhibit Inspector</h3>
+                  <p className="text-[11px] text-slate-400 font-mono">{selectedModalEvent.id}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedModalEvent(null)}
+                className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              
+              {/* Event Title Banner */}
+              <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-700/40">
+                    {selectedModalEvent.type}
+                  </span>
+                  <span className="text-slate-400 font-mono text-[11px]">
+                    {selectedModalEvent.dateFormatted} • {selectedModalEvent.timeFormatted}
+                  </span>
+                </div>
+                <h4 className="text-base font-bold text-white mb-1">{selectedModalEvent.title}</h4>
+                <p className="text-slate-300 text-xs">{selectedModalEvent.sub}</p>
+              </div>
+
+              {/* Forensic Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Involved Parties / Entities</span>
+                  <p className="font-semibold text-white mt-1">{selectedModalEvent.entities}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{selectedModalEvent.entitiesSub}</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Evidence Validation Ref</span>
+                  <p className="font-semibold text-emerald-400 mt-1 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {selectedModalEvent.evidence}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Section 65B Indian Evidence Act Compliant</p>
+                </div>
+              </div>
+
+              {/* Raw JSON / Technical Properties */}
+              {selectedModalEvent.properties && (
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                      Technical Exhibit Payload (JSON)
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(JSON.stringify(selectedModalEvent.properties, null, 2))}
+                      className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-mono"
+                    >
+                      {copiedHash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedHash ? 'Copied' : 'Copy JSON'}</span>
+                    </button>
+                  </div>
+                  <pre className="p-2.5 rounded-lg bg-[#040813] border border-slate-900 text-[11px] font-mono text-cyan-300/90 overflow-x-auto max-h-36">
+                    {JSON.stringify(selectedModalEvent.properties, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3.5 bg-slate-950/90 border-t border-slate-800 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setSelectedModalEvent(null)}
+                className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
