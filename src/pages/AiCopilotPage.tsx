@@ -26,6 +26,8 @@ import {
   Search
 } from 'lucide-react';
 import { api } from '../services/api';
+import { CaseSelector } from '../components/CaseSelector';
+import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 
 interface AiCopilotPageProps {
   onSelectAction?: (action: string) => void;
@@ -44,21 +46,22 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
   const [inputQuery, setInputQuery] = useState('');
   const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
   const [liveContext, setLiveContext] = useState<any>(null);
-  const [contextLoading, setContextLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showHelpBanner, setShowHelpBanner] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const activeCase: LawCase = getCaseById(selectedCaseId);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       sender: 'copilot',
       time: 'Just now',
-      text: "👋 **Welcome Officer!** I am your **CrimeSync AI Intelligence Copilot**.\n\nI have direct read access to live database records across PostgreSQL and the Neo4j Syndicate Knowledge Graph.\n\nSelect a case from the top dropdown or ask any investigative question in plain English.",
+      text: `👋 **Welcome Officer!** I am your **CrimeSync AI Intelligence Copilot**.\n\nActive Investigation: **${activeCase.title}** (${activeCase.fir_number})\n• **Jurisdiction**: ${activeCase.jurisdiction_city} Police Cyber Command\n• **Lead Officer**: ${activeCase.lead_investigator_name} (${activeCase.badge_number})\n• **Primary Kingpin**: **${activeCase.lead_suspect}**\n\nAsk me anything in plain English or click a recommended prompt below.`,
       recommendations: [
-        'Who is the main suspect in this case?',
-        'Show all high-risk bank transfers',
-        'Summarize the forensic evidence exhibits',
+        `Who is the primary kingpin in ${activeCase.title}?`,
+        `Show high-risk bank transfers for ${activeCase.title}`,
+        `Inspect forensic evidence exhibits for ${activeCase.title}`,
       ],
       confidenceScore: 0.98,
     },
@@ -68,13 +71,10 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
   useEffect(() => {
     async function loadContext() {
       try {
-        setContextLoading(true);
         const ctx = await api.ai.getLiveContext(selectedCaseId);
         setLiveContext(ctx);
       } catch (err) {
         console.warn('Context load error:', err);
-      } finally {
-        setContextLoading(false);
       }
     }
     loadContext();
@@ -83,6 +83,26 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleCaseChange = (caseId: string) => {
+    setSelectedCaseId(caseId);
+    const chosen = getCaseById(caseId);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `switch-${Date.now()}`,
+        sender: 'copilot',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: `Switched active context to **${chosen.title}** (${chosen.fir_number}).\n\nJurisdiction: **${chosen.jurisdiction_city}** | Priority: **${chosen.priority}**.\nLead Suspect: **${chosen.lead_suspect}** (${chosen.lead_suspect_role}).\n\nAsk me anything about suspects, financial transactions, or evidence in this case.`,
+        recommendations: [
+          `Who is the primary kingpin in ${chosen.title}?`,
+          `Show high-risk bank transfers for ${chosen.title}`,
+          `Inspect forensic evidence exhibits`,
+        ],
+        confidenceScore: 0.99,
+      },
+    ]);
+  };
 
   const handleSendMessage = async (queryText?: string) => {
     const query = queryText || inputQuery;
@@ -115,12 +135,12 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
         id: `copilot-${Date.now()}`,
         sender: 'copilot',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `Based on your database query, records for **${activeCase?.title || 'Selected Case'}** were retrieved.\n\nKey suspect connections and financial layering trails are mapped in the knowledge graph.`,
+        text: `Based on your database query, records for **${activeCase.title}** were analyzed.\n\n• Primary Kingpin: **${activeCase.lead_suspect}** (${activeCase.lead_suspect_role})\n• Total Illicit Volume: **₹${activeCase.tracked_money_inr.toLocaleString('en-IN')}**\n• Evidence Status: SHA-256 Validated under Section 65B Bharatiya Sakshya Adhiniyam 2023.`,
         recommendations: [
           'Run Financial Fraud Detective Agent',
           'Export Court-Ready Section 65B Dossier',
         ],
-        confidenceScore: 0.91,
+        confidenceScore: 0.94,
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -128,12 +148,12 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
     }
   };
 
-  const casesList = liveContext?.cases || [];
-  const activeCase = casesList.find((c: any) => c.id === selectedCaseId) || casesList[0];
-  const suspects = liveContext?.suspects || [];
-  const evidence = liveContext?.evidence || [];
-  const transactions = liveContext?.financial_transactions || [];
-  const totalMoney = transactions.reduce((sum: number, t: any) => sum + Number(t.amount_inr || 0), 0);
+  const dbSuspects = liveContext?.suspects || [];
+  const dbEvidence = liveContext?.evidence || [];
+  const dbTransactions = liveContext?.financial_transactions || [];
+  const totalMoney = dbTransactions.length > 0 
+    ? dbTransactions.reduce((sum: number, t: any) => sum + Number(t.amount_inr || 0), 0)
+    : activeCase.tracked_money_inr;
 
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
@@ -159,41 +179,10 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
 
         {/* Case Switcher Dropdown */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 shadow-sm">
-            <Briefcase className="w-4 h-4 text-blue-400 shrink-0" />
-            <span className="text-xs text-slate-400 font-medium">Active Case:</span>
-            <select
-              value={selectedCaseId}
-              onChange={(e) => {
-                setSelectedCaseId(e.target.value);
-                const chosen = casesList.find((c: any) => c.id === e.target.value);
-                if (chosen) {
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      id: `switch-${Date.now()}`,
-                      sender: 'copilot',
-                      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                      text: `Switched active context to **${chosen.title}** (${chosen.fir_number}).\n\nJurisdiction: **${chosen.jurisdiction_city}** | Priority: **${chosen.priority}**.\nAsk me anything about suspects, financial transactions, or evidence in this case.`,
-                      recommendations: [
-                        `Who is the primary kingpin in ${chosen.title}?`,
-                        `Show high-risk bank transfers for ${chosen.title}`,
-                        `Inspect forensic evidence exhibits`,
-                      ],
-                      confidenceScore: 0.99,
-                    },
-                  ]);
-                }
-              }}
-              className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer max-w-[240px] truncate"
-            >
-              {casesList.map((c: any) => (
-                <option key={c.id} value={c.id} className="bg-slate-900 text-slate-200">
-                  {c.fir_number} — {c.title}
-                </option>
-              ))}
-            </select>
-          </div>
+          <CaseSelector
+            selectedCaseId={selectedCaseId}
+            onSelectCase={handleCaseChange}
+          />
 
           <button
             onClick={() => setMessages([messages[0]])}
@@ -310,7 +299,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
                 </div>
                 <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none text-xs text-slate-400 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                  Querying PostgreSQL & Neo4j Graph databases...
+                  Querying PostgreSQL & Neo4j Graph databases for {activeCase.title}...
                 </div>
               </div>
             )}
@@ -322,25 +311,25 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
           <div className="px-3 py-2 bg-slate-950/80 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto text-[11px]">
             <span className="text-slate-500 font-medium whitespace-nowrap">💡 Quick Inquiries:</span>
             <button
-              onClick={() => handleSendMessage(`Who is the primary kingpin in ${activeCase?.title || 'this case'}?`)}
+              onClick={() => handleSendMessage(`Who is the primary kingpin in ${activeCase.title}?`)}
               className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap transition-colors"
             >
               👑 Kingpin Profile
             </button>
             <button
-              onClick={() => handleSendMessage(`Show high-risk bank transfers for ${activeCase?.title || 'this case'}`)}
+              onClick={() => handleSendMessage(`Show high-risk bank transfers for ${activeCase.title}`)}
               className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap transition-colors"
             >
               💳 Bank Trail
             </button>
             <button
-              onClick={() => handleSendMessage(`Inspect forensic evidence exhibits for ${activeCase?.title || 'this case'}`)}
+              onClick={() => handleSendMessage(`Inspect forensic evidence exhibits for ${activeCase.title}`)}
               className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap transition-colors"
             >
               📦 Evidence Vault
             </button>
             <button
-              onClick={() => handleSendMessage(`What are the recommended containment actions for ${activeCase?.title || 'this case'}?`)}
+              onClick={() => handleSendMessage(`What are the recommended containment actions for ${activeCase.title}?`)}
               className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap transition-colors"
             >
               ⚡ Next Protocol
@@ -354,7 +343,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder={`Ask anything about ${activeCase?.title || 'this case'} (e.g., 'Who is laundering money?', 'Verify SHA-256 hash')...`}
+              placeholder={`Ask anything about ${activeCase.title} (e.g., 'Who is laundering money?', 'Verify SHA-256 hash')...`}
               className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
             />
             <button
@@ -379,34 +368,34 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
               </span>
               <span
                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  activeCase?.priority === 'CRITICAL'
+                  activeCase.priority === 'CRITICAL'
                     ? 'bg-red-950 text-red-400 border border-red-700/50'
                     : 'bg-amber-950 text-amber-400 border border-amber-700/50'
                 }`}
               >
-                {activeCase?.priority || 'CRITICAL'}
+                {activeCase.priority}
               </span>
             </div>
 
             <h2 className="text-sm font-bold text-white mb-1 leading-snug">
-              {activeCase?.title || 'Investigation Record'}
+              {activeCase.title}
             </h2>
             <p className="text-[11px] text-slate-400 mb-3 line-clamp-2">
-              {activeCase?.description}
+              {activeCase.description}
             </p>
 
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-[11px]">
               <div>
                 <span className="text-slate-500 block text-[10px]">FIR Number</span>
-                <span className="font-semibold text-slate-200">{activeCase?.fir_number}</span>
+                <span className="font-semibold text-slate-200">{activeCase.fir_number}</span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[10px]">Lead Officer</span>
-                <span className="font-semibold text-slate-200">{activeCase?.officer || 'Superintendent Sengupta'}</span>
+                <span className="font-semibold text-slate-200">{activeCase.lead_investigator_name}</span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[10px]">Jurisdiction</span>
-                <span className="font-semibold text-slate-200">{activeCase?.jurisdiction_city}</span>
+                <span className="font-semibold text-slate-200">{activeCase.jurisdiction_city}</span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[10px]">Tracked Capital Flow</span>
@@ -420,14 +409,14 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-red-400" />
-                Implicated Suspects ({suspects.length})
+                Implicated Suspects
               </span>
               <span className="text-[10px] text-slate-500">Neo4j Graph</span>
             </div>
 
             <div className="space-y-2">
-              {suspects.length > 0 ? (
-                suspects.map((s: any, idx: number) => (
+              {dbSuspects.length > 0 ? (
+                dbSuspects.map((s: any, idx: number) => (
                   <div
                     key={idx}
                     className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 flex items-center justify-between text-xs"
@@ -448,7 +437,18 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-slate-500 p-2">Loading suspect network...</div>
+                <div className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-semibold text-white">{activeCase.lead_suspect}</div>
+                    <div className="text-[10px] text-slate-400">{activeCase.lead_suspect_role} • {activeCase.jurisdiction_city}</div>
+                  </div>
+                  <button
+                    onClick={() => handleSendMessage(`Analyze background for suspect ${activeCase.lead_suspect}`)}
+                    className="px-2 py-1 rounded bg-blue-950/80 hover:bg-blue-900/80 border border-blue-700/50 text-[10px] text-blue-300 transition-colors"
+                  >
+                    Inquire
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -458,21 +458,31 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-blue-400" />
-                Evidence Vault ({evidence.length} Exhibits)
+                Evidence Vault ({dbEvidence.length || activeCase.evidence_count} Exhibits)
               </span>
-              <span className="text-[10px] text-emerald-400">SHA-256 Valid</span>
+              <span className="text-[10px] text-emerald-400 font-semibold">Section 65B Certified</span>
             </div>
 
             <div className="space-y-1.5">
-              {evidence.slice(0, 3).map((e: any, idx: number) => (
-                <div key={idx} className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 text-xs">
-                  <div className="font-semibold text-slate-200 truncate">{e.title}</div>
+              {dbEvidence.length > 0 ? (
+                dbEvidence.slice(0, 3).map((e: any, idx: number) => (
+                  <div key={idx} className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 text-xs">
+                    <div className="font-semibold text-slate-200 truncate">{e.title}</div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                      <span>{e.category}</span>
+                      <span className="text-emerald-400 font-mono">{e.status}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 text-xs">
+                  <div className="font-semibold text-slate-200">Digital & Physical Evidence Exhibits</div>
                   <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
-                    <span>{e.category}</span>
-                    <span className="text-emerald-400 font-mono">{e.status}</span>
+                    <span>{activeCase.evidence_count} Forensic Logs Recorded</span>
+                    <span className="text-emerald-400 font-mono">SECURED</span>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

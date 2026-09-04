@@ -1,6 +1,24 @@
-import { pgPool } from "../../config/db";
+// CrimeSync Indian Law Enforcement Cases Dataset (Fail-Safe & Reactive)
+export interface LawCase {
+  id: string;
+  fir_number: string;
+  title: string;
+  description: string;
+  crime_category: string;
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  status: 'INVESTIGATING' | 'OPEN' | 'UNDER_REVIEW' | 'CLOSED';
+  jurisdiction_city: string;
+  lead_investigator_name: string;
+  badge_number: string;
+  department: string;
+  lead_suspect: string;
+  lead_suspect_role: string;
+  tracked_money_inr: number;
+  evidence_count: number;
+  suspects_count: number;
+}
 
-const DEFAULT_CASES = [
+export const ALL_CASES: LawCase[] = [
   {
     id: 'CASE-2026-004',
     fir_number: 'FIR/KOL/2026/0412',
@@ -9,10 +27,15 @@ const DEFAULT_CASES = [
     crime_category: 'FINANCIAL_FRAUD',
     priority: 'CRITICAL',
     status: 'INVESTIGATING',
-    jurisdiction_city: 'Kolkata',
+    jurisdiction_city: 'Kolkata & Noida',
     lead_investigator_name: 'Superintendent Ananya Sengupta',
     badge_number: 'CBI-HQ-0012',
     department: 'Anti-Corruption & Economic Offences',
+    lead_suspect: 'Anirban Mukherjee (Alias: Bobby)',
+    lead_suspect_role: 'Call Center Kingpin',
+    tracked_money_inr: 4130000,
+    evidence_count: 2,
+    suspects_count: 2,
   },
   {
     id: 'CASE-2026-005',
@@ -22,10 +45,15 @@ const DEFAULT_CASES = [
     crime_category: 'ORGANIZED_SYNDICATE',
     priority: 'CRITICAL',
     status: 'INVESTIGATING',
-    jurisdiction_city: 'Mumbai',
+    jurisdiction_city: 'Mumbai & Jaipur',
     lead_investigator_name: 'Inspector Priya Kulkarni',
     badge_number: 'MUM-CYB-4091',
     department: 'Cyber Crime Investigation Cell',
+    lead_suspect: 'Kunwar Pratap Singh (Alias: Rana Saheb)',
+    lead_suspect_role: 'Digital Arrest Ring Leader',
+    tracked_money_inr: 5150000,
+    evidence_count: 2,
+    suspects_count: 2,
   },
   {
     id: 'CASE-2026-006',
@@ -35,10 +63,15 @@ const DEFAULT_CASES = [
     crime_category: 'IDENTITY_THEFT',
     priority: 'HIGH',
     status: 'INVESTIGATING',
-    jurisdiction_city: 'Ahmedabad',
+    jurisdiction_city: 'Ahmedabad & Surat',
     lead_investigator_name: 'SI Vikramaditya Reddy',
     badge_number: 'HYD-CID-7740',
     department: 'CID Financial Fraud Division',
+    lead_suspect: 'Jignesh Patel (Alias: Silicon Master)',
+    lead_suspect_role: 'Biometric Cloner & AePS Hacker',
+    tracked_money_inr: 1960000,
+    evidence_count: 2,
+    suspects_count: 2,
   },
   {
     id: 'CASE-2026-007',
@@ -48,10 +81,15 @@ const DEFAULT_CASES = [
     crime_category: 'CYBER_ATTACK',
     priority: 'HIGH',
     status: 'OPEN',
-    jurisdiction_city: 'Bengaluru',
+    jurisdiction_city: 'Bengaluru & Gurugram',
     lead_investigator_name: 'DSP Arvind Swaminathan',
     badge_number: 'BLR-INT-1102',
     department: 'Forensic Science Laboratory (FSL)',
+    lead_suspect: 'Kavita Nair (Alias: Aria)',
+    lead_suspect_role: 'AI Deepfake Synthesizer',
+    tracked_money_inr: 2550000,
+    evidence_count: 2,
+    suspects_count: 2,
   },
   {
     id: 'CASE-2026-008',
@@ -61,10 +99,15 @@ const DEFAULT_CASES = [
     crime_category: 'FINANCIAL_FRAUD',
     priority: 'CRITICAL',
     status: 'INVESTIGATING',
-    jurisdiction_city: 'Pune',
+    jurisdiction_city: 'Pune & Hyderabad',
     lead_investigator_name: 'ACP Rajeshwar Sharma',
     badge_number: 'DEL-IPS-8821',
     department: 'Special Cell / Cyber Crime Unit',
+    lead_suspect: 'Chirag Mehta (Alias: Charlie)',
+    lead_suspect_role: 'Hawala Settlement Broker',
+    tracked_money_inr: 6280000,
+    evidence_count: 2,
+    suspects_count: 2,
   },
   {
     id: 'CASE-2026-009',
@@ -74,10 +117,15 @@ const DEFAULT_CASES = [
     crime_category: 'CYBER_ATTACK',
     priority: 'CRITICAL',
     status: 'OPEN',
-    jurisdiction_city: 'Chennai',
+    jurisdiction_city: 'Chennai & New Delhi',
     lead_investigator_name: 'Inspector Priya Kulkarni',
     badge_number: 'MUM-CYB-4091',
     department: 'Cyber Crime Investigation Cell',
+    lead_suspect: 'Karthik Ramanathan (Alias: GhostByte)',
+    lead_suspect_role: 'APT Exploit Developer',
+    tracked_money_inr: 10000000,
+    evidence_count: 2,
+    suspects_count: 2,
   },
   {
     id: 'CASE-2026-001',
@@ -87,10 +135,15 @@ const DEFAULT_CASES = [
     crime_category: 'FINANCIAL_FRAUD',
     priority: 'CRITICAL',
     status: 'INVESTIGATING',
-    jurisdiction_city: 'New Delhi',
+    jurisdiction_city: 'New Delhi & Mumbai',
     lead_investigator_name: 'ACP Rajeshwar Sharma',
     badge_number: 'DEL-IPS-8821',
     department: 'Special Cell / Cyber Crime Unit',
+    lead_suspect: 'Vikramaditya Shinde (Alias: Vicky Bhai)',
+    lead_suspect_role: 'Syndicate Kingpin',
+    tracked_money_inr: 3480000,
+    evidence_count: 2,
+    suspects_count: 3,
   },
   {
     id: 'CASE-2026-002',
@@ -104,6 +157,11 @@ const DEFAULT_CASES = [
     lead_investigator_name: 'Inspector Priya Kulkarni',
     badge_number: 'MUM-CYB-4091',
     department: 'Cyber Crime Investigation Cell',
+    lead_suspect: 'Meera Krishnan (Alias: ByteQueen)',
+    lead_suspect_role: 'Malware Developer & C2 Handler',
+    tracked_money_inr: 0,
+    evidence_count: 1,
+    suspects_count: 1,
   },
   {
     id: 'CASE-2026-003',
@@ -117,107 +175,14 @@ const DEFAULT_CASES = [
     lead_investigator_name: 'DSP Arvind Swaminathan',
     badge_number: 'BLR-INT-1102',
     department: 'Forensic Science Laboratory (FSL)',
+    lead_suspect: 'Sunil Yadav (Alias: Sunny)',
+    lead_suspect_role: 'SIM Farm Operator',
+    tracked_money_inr: 180000,
+    evidence_count: 1,
+    suspects_count: 1,
   }
 ];
 
-export class CaseService {
-  async getAllCases(filters: { status?: string; priority?: string; city?: string } = {}) {
-    try {
-      let query = `
-        SELECT c.*, u.full_name as lead_investigator_name, u.badge_number, u.department
-        FROM cases c
-        LEFT JOIN users u ON c.lead_investigator_id = u.id
-        WHERE 1=1
-      `;
-      const params: any[] = [];
-
-      if (filters.status) {
-        params.push(filters.status);
-        query += ` AND c.status = $${params.length}`;
-      }
-      if (filters.priority) {
-        params.push(filters.priority);
-        query += ` AND c.priority = $${params.length}`;
-      }
-      if (filters.city) {
-        params.push(filters.city);
-        query += ` AND c.jurisdiction_city = $${params.length}`;
-      }
-
-      query += ` ORDER BY c.created_at DESC`;
-      const result = await pgPool.query(query, params);
-      if (result.rows.length > 0) return result.rows;
-      return DEFAULT_CASES;
-    } catch (err) {
-      console.warn("PostgreSQL query fallback for cases:", err);
-      return DEFAULT_CASES;
-    }
-  }
-
-  async getCaseById(id: string) {
-    try {
-      const caseQuery = `
-        SELECT c.*, u.full_name as lead_investigator_name, u.badge_number, u.department, u.phone as investigator_phone
-        FROM cases c
-        LEFT JOIN users u ON c.lead_investigator_id = u.id
-        WHERE c.id = $1
-      `;
-      const caseRes = await pgPool.query(caseQuery, [id]);
-      if (caseRes.rows.length === 0) {
-        return DEFAULT_CASES.find((c) => c.id === id) || DEFAULT_CASES[0];
-      }
-
-      // Fetch related evidence
-      const evidenceRes = await pgPool.query(
-        `SELECT * FROM evidence WHERE case_id = $1 ORDER BY collected_at DESC`,
-        [id]
-      );
-
-      // Fetch related financial transactions
-      const finRes = await pgPool.query(
-        `SELECT * FROM financial_transactions WHERE case_id = $1 ORDER BY timestamp DESC`,
-        [id]
-      );
-
-      // Fetch related geo events
-      const geoRes = await pgPool.query(
-        `SELECT * FROM geo_intel_events WHERE case_id = $1 ORDER BY timestamp DESC`,
-        [id]
-      );
-
-      return {
-        ...caseRes.rows[0],
-        evidence: evidenceRes.rows,
-        financial_transactions: finRes.rows,
-        geo_events: geoRes.rows,
-      };
-    } catch (err) {
-      console.warn("PostgreSQL getCaseById fallback:", err);
-      return DEFAULT_CASES.find((c) => c.id === id) || DEFAULT_CASES[0];
-    }
-  }
-
-  async getCaseStats() {
-    try {
-      const statsQuery = `
-        SELECT 
-          COUNT(*) as total_cases,
-          COUNT(*) FILTER (WHERE status = 'INVESTIGATING' OR status = 'OPEN') as active_cases,
-          COUNT(*) FILTER (WHERE priority = 'CRITICAL') as critical_cases,
-          COUNT(*) FILTER (WHERE status = 'CLOSED') as resolved_cases
-        FROM cases
-      `;
-      const result = await pgPool.query(statsQuery);
-      return result.rows[0];
-    } catch (err) {
-      return {
-        total_cases: String(DEFAULT_CASES.length),
-        active_cases: "6",
-        critical_cases: "6",
-        resolved_cases: "0",
-      };
-    }
-  }
+export function getCaseById(id: string): LawCase {
+  return ALL_CASES.find((c) => c.id === id) || ALL_CASES[0];
 }
-
-export const caseService = new CaseService();
