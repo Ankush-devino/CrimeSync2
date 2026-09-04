@@ -15,7 +15,12 @@ import {
   Info,
   ShieldAlert,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Briefcase,
+  Layers,
+  HelpCircle,
+  ExternalLink,
+  Shield
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -37,6 +42,7 @@ interface RenderNode {
 }
 
 interface RenderEdge {
+  id?: string;
   source: string;
   target: string;
   relationship: string;
@@ -70,7 +76,7 @@ function computeCleanLayout(
     x: 50,
     y: 46,
     sublabel: centerNode.properties?.role || centerNode.category,
-    sublabel2: centerNode.properties?.risk_score ? `Risk: ${centerNode.properties.risk_score}%` : '',
+    sublabel2: centerNode.properties?.risk_level ? `Risk: ${centerNode.properties.risk_level}` : '',
     bgClass: centerStyle.bg,
     borderColor: centerStyle.border,
     properties: centerNode.properties,
@@ -94,173 +100,179 @@ function computeCleanLayout(
       x: Math.max(8, Math.min(92, x)),
       y: Math.max(10, Math.min(88, y)),
       sublabel: node.properties?.role || node.properties?.account_number || node.properties?.phone_number || node.category,
-      sublabel2: node.properties?.risk_score ? `${node.properties.risk_score}%` : '',
+      sublabel2: node.properties?.risk_level ? `Risk: ${node.properties.risk_level}` : '',
       bgClass: style.bg,
       borderColor: style.border,
       properties: node.properties,
     });
   });
 
-  const renderEdges: RenderEdge[] = edges.map((e) => ({
-    source: e.source,
-    target: e.target,
-    relationship: e.relationship,
-    properties: e.properties,
-  }));
-
-  return { renderNodes, renderEdges };
+  return { renderNodes, renderEdges: edges };
 }
 
-const EDGE_COLORS: Record<string, string> = {
-  TRANSFERRED_INR: '#10b981',
-  COMMUNICATES_WITH: '#38bdf8',
-  OPERATES_ACCOUNT: '#a855f7',
-  OWNS_DEVICE: '#f59e0b',
-  IMPLICATED_IN: '#ef4444',
-  CONTROLS_INFRA: '#f97316',
-};
-
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelectAction }) => {
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
+  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
+  const [casesList, setCasesList] = useState<any[]>([]);
+  const [nodes, setNodes] = useState<RenderNode[]>([]);
+  const [edges, setEdges] = useState<RenderEdge[]>([]);
+  const [selectedNode, setSelectedNode] = useState<RenderNode | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('ALL');
   const [isLoading, setIsLoading] = useState(true);
-  const [renderNodes, setRenderNodes] = useState<RenderNode[]>([]);
-  const [renderEdges, setRenderEdges] = useState<RenderEdge[]>([]);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [showHelpBanner, setShowHelpBanner] = useState(true);
 
-  const loadGraph = useCallback(async () => {
+  // Load cases list
+  useEffect(() => {
+    async function loadCases() {
+      try {
+        const res = await api.cases.getAll();
+        if (res) setCasesList(res);
+      } catch (err) {
+        console.warn('Failed to load cases:', err);
+      }
+    }
+    loadCases();
+  }, []);
+
+  const loadGraphData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await api.knowledgeGraph.getFullGraph(100);
-      const { renderNodes: rn, renderEdges: re } = computeCleanLayout(data.nodes, data.edges);
-      setRenderNodes(rn);
-      setRenderEdges(re);
-      if (rn.length > 0) setSelectedNodeId(rn[0].id);
+      const res = await api.knowledgeGraph.getFullGraph(100, selectedCaseId);
+      if (res && res.nodes) {
+        const layout = computeCleanLayout(res.nodes, res.edges || []);
+        setNodes(layout.renderNodes);
+        setEdges(layout.renderEdges);
+        setSelectedNode(layout.renderNodes[0] || null);
+      }
     } catch (err) {
-      console.warn('Knowledge graph load warning:', err);
+      console.warn('Live graph load error:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedCaseId]);
 
   useEffect(() => {
-    loadGraph();
-  }, [loadGraph]);
+    loadGraphData();
+  }, [loadGraphData]);
 
-  const selectedNode = renderNodes.find((n) => n.id === selectedNodeId) || renderNodes[0];
-
-  const filteredNodes = renderNodes.filter((n) => {
-    const matchCat = !activeCategoryFilter || n.category === activeCategoryFilter;
-    const matchSearch =
-      !searchQuery ||
+  const filteredNodes = nodes.filter((n) => {
+    const matchesSearch =
       n.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.category.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCat && matchSearch;
+      (n.sublabel && n.sublabel.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCat = activeCategoryFilter === 'ALL' || n.category === activeCategoryFilter;
+    return matchesSearch && matchesCat;
   });
 
-  const categories = [
-    { label: 'Suspect', color: 'bg-red-500', text: 'Suspects (5)' },
-    { label: 'Account', color: 'bg-emerald-500', text: 'Bank Accounts (3)' },
-    { label: 'Phone', color: 'bg-blue-500', text: 'Phones (3)' },
-    { label: 'Case', color: 'bg-purple-500', text: 'FIR Cases (1)' },
+  const CATEGORY_COLORS = [
+    { label: 'All Entities', value: 'ALL', color: 'bg-slate-700' },
+    { label: 'Suspects', value: 'Suspect', color: 'bg-red-600' },
+    { label: 'Bank Accounts', value: 'Account', color: 'bg-emerald-600' },
+    { label: 'Phones / SIMs', value: 'Phone', color: 'bg-blue-600' },
+    { label: 'Cyber IPs / C2', value: 'IPAddress', color: 'bg-amber-600' },
   ];
-
-  const renderIcon = (cat: string) => {
-    switch (cat) {
-      case 'Suspect': return <User className="w-4 h-4" />;
-      case 'Account': return <Landmark className="w-4 h-4" />;
-      case 'Phone': return <Phone className="w-4 h-4" />;
-      default: return <Building2 className="w-4 h-4" />;
-    }
-  };
 
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
-      {/* ─── Top Simple Header ────────────────────────────────────────── */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+      {/* ─── Top Header & Case Switcher ──────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between pb-3 gap-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.25)]">
+          <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
             <Network className="w-5 h-5" />
           </div>
           <div>
             <h1 className="text-base font-bold text-white flex items-center gap-2">
-              Criminal Syndicate Knowledge Graph
-              <span className="px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/40 text-[10px] font-semibold text-purple-300">
+              Syndicate Knowledge Graph & Link Discovery
+              <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-[10px] font-semibold text-emerald-400">
                 Neo4j AuraDB Live
               </span>
             </h1>
             <p className="text-xs text-slate-400">
-              Interactive map of connections between suspects, bank accounts, and phone numbers
+              Interactive entity-relationship network mapping suspects, bank accounts, phones, and cyber assets
             </p>
           </div>
         </div>
 
+        {/* Top Controls: Case Select & Refresh */}
         <div className="flex items-center gap-2">
-          {/* Zoom Controls */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5">
-            <button
-              onClick={() => setZoomLevel((z) => Math.min(z + 0.15, 1.8))}
-              className="p-1.5 hover:bg-slate-800 rounded text-slate-300"
-              title="Zoom In"
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 shadow-sm">
+            <Briefcase className="w-4 h-4 text-purple-400 shrink-0" />
+            <span className="text-xs text-slate-400 font-medium">Case:</span>
+            <select
+              value={selectedCaseId}
+              onChange={(e) => setSelectedCaseId(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer max-w-[220px] truncate"
             >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setZoomLevel((z) => Math.max(z - 0.15, 0.6))}
-              className="p-1.5 hover:bg-slate-800 rounded text-slate-300"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setZoomLevel(1)}
-              className="p-1.5 hover:bg-slate-800 rounded text-slate-300"
-              title="Reset View"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
+              <option value="ALL" className="bg-slate-900 text-slate-200">All Cases (Global Syndicate)</option>
+              {casesList.map((c) => (
+                <option key={c.id} value={c.id} className="bg-slate-900 text-slate-200">
+                  {c.fir_number} — {c.title}
+                </option>
+              ))}
+            </select>
           </div>
 
           <button
-            onClick={loadGraph}
-            className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition-colors"
-            title="Refresh from Neo4j"
+            onClick={loadGraphData}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-purple-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* ─── Legend & Filter Bar ──────────────────────────────────────── */}
-      <div className="flex items-center justify-between py-2.5 flex-wrap gap-2 text-xs">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] text-slate-400 font-medium">Click to filter:</span>
-          {categories.map((cat) => (
+      {/* ─── Explanatory Guide Banner ─────────────────────────────────── */}
+      {showHelpBanner && (
+        <div className="mt-3 p-2.5 rounded-xl bg-gradient-to-r from-purple-950/60 via-slate-900/90 to-blue-950/60 border border-purple-500/30 flex items-center justify-between gap-3 text-xs text-slate-300">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0">
+              <Info className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <span className="font-semibold text-white">How Knowledge Graphs Work: </span>
+              Circles represent physical people, accounts, or phone lines. Click any node in the canvas below to reveal suspect aliases, money laundering routes, and call intercept history in the right-hand panel.
+            </div>
+          </div>
+          <button
+            onClick={() => setShowHelpBanner(false)}
+            className="text-slate-400 hover:text-slate-200 font-bold px-2 py-0.5 text-[11px]"
+          >
+            ✕ Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* ─── Toolbar: Legend & Search ──────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+        {/* Category Filters / Legend */}
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          {CATEGORY_COLORS.map((cat) => (
             <button
-              key={cat.label}
-              onClick={() => setActiveCategoryFilter(activeCategoryFilter === cat.label ? null : cat.label)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                activeCategoryFilter === cat.label
-                  ? 'bg-purple-600 text-white border-purple-400 shadow-md'
-                  : 'bg-[#070e1c] text-slate-300 border-slate-800 hover:border-slate-700'
+              key={cat.value}
+              onClick={() => setActiveCategoryFilter(cat.value)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                activeCategoryFilter === cat.value
+                  ? 'bg-slate-800 border-blue-500 text-white shadow-sm'
+                  : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200'
               }`}
             >
               <span className={`w-2 h-2 rounded-full ${cat.color}`} />
-              <span>{cat.text}</span>
+              <span>{cat.label}</span>
             </button>
           ))}
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+        {/* Search Box */}
+        <div className="relative min-w-[240px]">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            placeholder="Search suspect, account, or phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search person or account..."
-            className="bg-[#070e1c] border border-slate-800 rounded-lg pl-8 pr-3 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 w-48"
+            className="w-full bg-slate-900 border border-slate-700/80 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
           />
         </div>
       </div>
@@ -268,210 +280,183 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
       {/* ─── Main Two-Column Layout ───────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
         
-        {/* Left 8 Cols: Visual Interactive Graph Canvas */}
-        <div className="lg:col-span-8 flex flex-col h-full bg-[#020612] border border-slate-800 rounded-xl relative overflow-hidden shadow-lg">
+        {/* Left Column (8 Cols): Interactive SVG Graph Canvas */}
+        <div className="lg:col-span-8 flex flex-col h-full bg-[#070e1c] border border-slate-800 rounded-xl overflow-hidden relative shadow-lg">
           
-          {isLoading && (
-            <div className="absolute inset-0 bg-[#020612]/80 z-30 flex flex-col items-center justify-center gap-2">
-              <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
-              <p className="text-xs text-slate-400">Loading graph from Neo4j database...</p>
+          {/* Zoom Controls */}
+          <div className="absolute top-3 right-3 z-20 flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 rounded-lg p-1 shadow-md">
+            <button
+              onClick={() => setZoomLevel((z) => Math.min(1.5, z + 0.1))}
+              className="p-1 hover:bg-slate-800 rounded text-slate-300"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[10px] text-slate-400 px-1 font-mono">{Math.round(zoomLevel * 100)}%</span>
+            <button
+              onClick={() => setZoomLevel((z) => Math.max(0.7, z - 0.1))}
+              className="p-1 hover:bg-slate-800 rounded text-slate-300"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Graph Visualization */}
+          {isLoading ? (
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+              <span className="text-xs">Traversing Neo4j AuraDB knowledge graph...</span>
+            </div>
+          ) : (
+            <div
+              className="relative w-full h-full overflow-hidden flex items-center justify-center cursor-grab select-none"
+              style={{ transform: `scale(${zoomLevel})`, transition: 'transform 0.2s ease-out' }}
+            >
+              {/* SVG Edges Layer */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                <defs>
+                  <marker
+                    id="arrowhead"
+                    markerWidth="8"
+                    markerHeight="6"
+                    refX="7"
+                    refY="3"
+                    orient="auto"
+                  >
+                    <polygon points="0 0, 8 3, 0 6" fill="#64748b" />
+                  </marker>
+                </defs>
+
+                {edges.map((edge, i) => {
+                  const sNode = nodes.find((n) => n.id === edge.source);
+                  const tNode = nodes.find((n) => n.id === edge.target);
+                  if (!sNode || !tNode) return null;
+
+                  return (
+                    <g key={i}>
+                      <line
+                        x1={`${sNode.x}%`}
+                        y1={`${sNode.y}%`}
+                        x2={`${tNode.x}%`}
+                        y2={`${tNode.y}%`}
+                        stroke="#334155"
+                        strokeWidth="1.5"
+                        strokeDasharray={edge.relationship === 'COMMUNICATES_WITH' ? '4 2' : 'none'}
+                        markerEnd="url(#arrowhead)"
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {/* HTML Nodes Layer */}
+              {filteredNodes.map((node) => {
+                const isSelected = selectedNode?.id === node.id;
+                return (
+                  <div
+                    key={node.id}
+                    onClick={() => setSelectedNode(node)}
+                    style={{
+                      left: `${node.x}%`,
+                      top: `${node.y}%`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                    className={`absolute z-10 p-2.5 rounded-xl cursor-pointer border-2 transition-all flex flex-col items-center text-center shadow-lg ${
+                      node.bgClass
+                    } ${isSelected ? 'ring-4 ring-purple-500 scale-110 z-30' : 'hover:scale-105'}`}
+                  >
+                    <div className="font-bold text-xs truncate max-w-[120px]">{node.name}</div>
+                    {node.sublabel && (
+                      <div className="text-[10px] opacity-90 truncate max-w-[120px]">{node.sublabel}</div>
+                    )}
+                    {node.sublabel2 && (
+                      <div className="text-[9px] font-mono bg-black/40 px-1.5 py-0.5 rounded-full mt-1">
+                        {node.sublabel2}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          {/* Background subtle grid pattern */}
-          <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
-
-          {/* SVG Connection Lines */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none transition-transform duration-200"
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
-          >
-            {renderEdges.map((edge, idx) => {
-              const src = renderNodes.find((n) => n.id === edge.source);
-              const tgt = renderNodes.find((n) => n.id === edge.target);
-              if (!src || !tgt) return null;
-
-              const color = EDGE_COLORS[edge.relationship] || '#94a3b8';
-              const midX = (src.x + tgt.x) / 2;
-              const midY = (src.y + tgt.y) / 2;
-
-              return (
-                <g key={idx}>
-                  <line
-                    x1={`${src.x}%`} y1={`${src.y}%`}
-                    x2={`${tgt.x}%`} y2={`${tgt.y}%`}
-                    stroke={color}
-                    strokeWidth="2"
-                    strokeDasharray="4 4"
-                    strokeOpacity="0.75"
-                  />
-                  <text
-                    x={`${midX}%`} y={`${midY}%`}
-                    fill={color}
-                    fontSize="9"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    dy="-3"
-                    className="select-none font-sans"
-                  >
-                    {edge.relationship.replace(/_/g, ' ')}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-
-          {/* Nodes Layer */}
-          <div
-            className="absolute inset-0 transition-transform duration-200 pointer-events-auto"
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center center' }}
-          >
-            {filteredNodes.map((node) => {
-              const isSelected = selectedNode?.id === node.id;
-              return (
-                <div
-                  key={node.id}
-                  onClick={() => setSelectedNodeId(node.id)}
-                  style={{
-                    left: `${node.x}%`,
-                    top: `${node.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                  className="absolute cursor-pointer flex flex-col items-center group z-10 transition-all hover:scale-110"
-                >
-                  <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center border-2 shadow-lg transition-all ${
-                      node.bgClass
-                    } ${node.borderColor} ${
-                      isSelected ? 'ring-4 ring-purple-400 ring-offset-2 ring-offset-slate-900 scale-110' : ''
-                    }`}
-                  >
-                    {renderIcon(node.category)}
-                  </div>
-
-                  <div className="mt-1.5 px-2 py-0.5 rounded-md bg-[#050b18]/95 border border-slate-700 text-center shadow-md backdrop-blur-sm max-w-[130px]">
-                    <p className="text-[11px] font-bold text-white leading-tight truncate">{node.name}</p>
-                    {node.sublabel && (
-                      <p className="text-[9.5px] text-slate-400 leading-tight truncate">{node.sublabel}</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] text-slate-400 backdrop-blur-sm">
-            💡 Click any circle to view its full case profile on the right
+          {/* Graph Stats Bar */}
+          <div className="px-3 py-2 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+            <div className="flex items-center gap-3">
+              <span>Nodes: <strong className="text-white">{filteredNodes.length}</strong></span>
+              <span>Edges: <strong className="text-white">{edges.length}</strong></span>
+            </div>
+            <span>Click any node to inspect intelligence profile</span>
           </div>
         </div>
 
-        {/* Right 4 Cols: Clean Node Profile Inspector */}
-        <div className="lg:col-span-4 flex flex-col gap-3 h-full overflow-y-auto pr-0.5">
+        {/* Right Column (4 Cols): Selected Entity Profile & Actions */}
+        <div className="lg:col-span-4 flex flex-col gap-3 h-full overflow-y-auto pr-1">
           {selectedNode ? (
-            <div className="p-4 rounded-xl bg-[#070e1c] border border-slate-800 shadow-lg space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="text-xs font-bold text-white uppercase tracking-wider">
-                  Entity Details
-                </span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  selectedNode.category === 'Suspect' ? 'bg-red-950 text-red-400 border border-red-500/40' :
-                  selectedNode.category === 'Account' ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40' :
-                  'bg-blue-950 text-blue-400 border border-blue-500/40'
-                }`}>
-                  {selectedNode.category}
-                </span>
-              </div>
-
-              {/* Profile Header */}
-              <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white border-2 ${selectedNode.bgClass} ${selectedNode.borderColor}`}>
-                  {renderIcon(selectedNode.category)}
+            <>
+              {/* Profile Card */}
+              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Entity Profile Inspector
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 border border-purple-600/40 text-purple-300">
+                    {selectedNode.category}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">{selectedNode.name}</h3>
-                  <p className="text-xs text-slate-400">{selectedNode.sublabel || selectedNode.category}</p>
+
+                <h3 className="text-base font-bold text-white mb-1">{selectedNode.name}</h3>
+                <p className="text-xs text-slate-400 mb-3">{selectedNode.sublabel || 'Active Entity'}</p>
+
+                {/* Attributes Table */}
+                <div className="space-y-1.5 p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+                  {Object.entries(selectedNode.properties || {}).map(([key, val]) => (
+                    <div key={key} className="flex items-center justify-between py-0.5 border-b border-slate-900 last:border-0">
+                      <span className="text-slate-500 text-[11px] uppercase">{key.replace(/_/g, ' ')}:</span>
+                      <span className="font-semibold text-slate-200 max-w-[140px] truncate text-right">
+                        {String(val)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Key Attributes */}
-              <div className="space-y-2 pt-2 border-t border-slate-800 text-xs">
-                {selectedNode.properties?.role && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Assigned Role:</span>
-                    <span className="font-semibold text-white">{selectedNode.properties.role}</span>
-                  </div>
-                )}
-                {selectedNode.properties?.city && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Jurisdiction City:</span>
-                    <span className="font-semibold text-white">{selectedNode.properties.city}</span>
-                  </div>
-                )}
-                {selectedNode.properties?.risk_score && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Threat Risk Score:</span>
-                    <span className="font-mono font-bold text-red-400">{selectedNode.properties.risk_score} / 100</span>
-                  </div>
-                )}
-                {selectedNode.properties?.account_number && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Account Number:</span>
-                    <span className="font-mono text-emerald-400">{selectedNode.properties.account_number}</span>
-                  </div>
-                )}
-                {selectedNode.properties?.phone_number && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Phone Intercept:</span>
-                    <span className="font-mono text-blue-400">{selectedNode.properties.phone_number}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Connected Relationships */}
-              <div className="pt-2 border-t border-slate-800 space-y-2">
-                <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
-                  Direct Connections in Network:
-                </p>
+              {/* Connected Relationships in Graph */}
+              <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                  Direct Graph Connections
+                </span>
                 <div className="space-y-1.5">
-                  {renderEdges
+                  {edges
                     .filter((e) => e.source === selectedNode.id || e.target === selectedNode.id)
-                    .map((edge, i) => {
+                    .map((edge, idx) => {
                       const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
-                      const other = renderNodes.find((n) => n.id === otherId);
+                      const otherNode = nodes.find((n) => n.id === otherId);
                       return (
                         <div
-                          key={i}
-                          onClick={() => setSelectedNodeId(otherId)}
-                          className="p-2 rounded-lg bg-[#0b162a] hover:bg-slate-800 border border-slate-700/60 cursor-pointer text-xs flex items-center justify-between transition-all"
+                          key={idx}
+                          onClick={() => otherNode && setSelectedNode(otherNode)}
+                          className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800/80 border border-slate-800 flex items-center justify-between text-xs cursor-pointer transition-colors"
                         >
-                          <span className="text-slate-300 font-medium truncate">{other?.name || otherId}</span>
-                          <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-slate-900 text-purple-300">
-                            {edge.relationship.replace(/_/g, ' ')}
-                          </span>
+                          <div>
+                            <span className="text-slate-400 text-[10px] block font-mono">{edge.relationship}</span>
+                            <span className="font-bold text-white">{otherNode?.name || otherId}</span>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                         </div>
                       );
                     })}
                 </div>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="p-6 rounded-xl bg-[#070e1c] border border-slate-800 text-center text-xs text-slate-400">
-              Click any node to view details
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
+              <Network className="w-10 h-10 text-slate-700 mb-2" />
+              <p className="text-xs">Click any node on the graph canvas to inspect full properties and links.</p>
             </div>
           )}
-
-          {/* Plain English Guide */}
-          <div className="p-3.5 rounded-xl bg-purple-950/30 border border-purple-500/30 text-xs space-y-1">
-            <p className="font-bold text-purple-300 flex items-center gap-1">
-              <Info className="w-3.5 h-3.5" />
-              What this graph reveals:
-            </p>
-            <p className="text-[11px] text-slate-300 leading-snug">
-              Red circles indicate syndicate members. Green circles show bank accounts where layered funds were transferred. Blue circles represent phone numbers intercepted during investigations.
-            </p>
-          </div>
         </div>
-
       </div>
     </div>
   );

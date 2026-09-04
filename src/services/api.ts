@@ -50,13 +50,16 @@ export const api = {
 
   // 2. Knowledge Graph (Neo4j AuraDB)
   knowledgeGraph: {
-    getFullGraph: (limit = 100) =>
-      request<{
+    getFullGraph: (limit = 100, caseId?: string) => {
+      const qs = new URLSearchParams({ limit: String(limit) });
+      if (caseId) qs.append("caseId", caseId);
+      return request<{
         nodes: Array<{ id: string; label: string; category: string; properties: any }>;
         edges: Array<{ id: string; source: string; target: string; relationship: string; properties: any }>;
         total_nodes: number;
         total_edges: number;
-      }>(`/knowledge-graph?limit=${limit}`),
+      }>(`/knowledge-graph?${qs.toString()}`);
+    },
     getEntityConnections: (id: string) => request<any[]>(`/knowledge-graph/entity/${id}`),
     findPath: (from: string, to: string) =>
       request<{
@@ -142,15 +145,17 @@ export const api = {
 
   // 9. Member 5: AI Copilot & Autonomous Agent Sandbox
   ai: {
-    getLiveContext: () =>
-      request<{
+    getLiveContext: (caseId?: string) => {
+      const qs = caseId ? `?caseId=${caseId}` : "";
+      return request<{
         cases: any[];
         officers: any[];
         evidence: any[];
         financial_transactions: any[];
         suspects: any[];
-      }>(`/ai/context`),
-    askCopilot: (prompt: string, contextType?: string) =>
+      }>(`/ai/context${qs}`);
+    },
+    askCopilot: (prompt: string, contextType?: string, caseId?: string) =>
       request<{
         session_id: string;
         answer: string;
@@ -160,9 +165,9 @@ export const api = {
         timestamp: string;
       }>(`/ai/copilot/chat`, {
         method: "POST",
-        body: JSON.stringify({ prompt, contextType }),
+        body: JSON.stringify({ prompt, contextType, caseId }),
       }),
-    executeAgentAction: (agentId: string, actionType: string, targetId?: string) =>
+    executeAgentAction: (agentId: string, actionType: string, targetId?: string, caseId?: string) =>
       request<{
         agent_id: string;
         action_type: string;
@@ -173,7 +178,7 @@ export const api = {
         executed_at: string;
       }>(`/ai/sandbox/execute`, {
         method: "POST",
-        body: JSON.stringify({ agentId, actionType, targetId }),
+        body: JSON.stringify({ agentId, actionType, targetId, caseId }),
       }),
     getSummaryDossier: (caseId: string) => request<any>(`/ai/dossier/${caseId}`),
   },

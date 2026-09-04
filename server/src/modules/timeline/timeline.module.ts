@@ -26,11 +26,11 @@ export class TimelineService {
 
     // 1. Fetch Financial Transactions from PostgreSQL
     const finQuery = caseId
-      ? await pgPool.query("SELECT * FROM financial_transactions WHERE case_id = $1 ORDER BY created_at DESC", [caseId])
-      : await pgPool.query("SELECT * FROM financial_transactions ORDER BY created_at DESC");
+      ? await pgPool.query("SELECT * FROM financial_transactions WHERE case_id = $1 ORDER BY timestamp DESC", [caseId])
+      : await pgPool.query("SELECT * FROM financial_transactions ORDER BY timestamp DESC");
 
     finQuery.rows.forEach((row, i) => {
-      const dt = new Date(row.created_at || Date.now() - i * 3600000 * 4);
+      const dt = new Date(row.timestamp || Date.now() - i * 3600000 * 4);
       events.push({
         id: `fin-${row.id || i}`,
         timestamp: dt.toISOString(),
@@ -51,11 +51,11 @@ export class TimelineService {
 
     // 2. Fetch Geo-Intel events from PostgreSQL
     const geoQuery = caseId
-      ? await pgPool.query("SELECT * FROM geo_intel_events WHERE case_id = $1 ORDER BY created_at DESC", [caseId])
-      : await pgPool.query("SELECT * FROM geo_intel_events ORDER BY created_at DESC");
+      ? await pgPool.query("SELECT * FROM geo_intel_events WHERE case_id = $1 ORDER BY timestamp DESC", [caseId])
+      : await pgPool.query("SELECT * FROM geo_intel_events ORDER BY timestamp DESC");
 
     geoQuery.rows.forEach((row, i) => {
-      const dt = new Date(row.created_at || Date.now() - (i + 1) * 3600000 * 6);
+      const dt = new Date(row.timestamp || Date.now() - (i + 1) * 3600000 * 6);
       events.push({
         id: `geo-${row.id || i}`,
         timestamp: dt.toISOString(),

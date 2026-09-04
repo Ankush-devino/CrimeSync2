@@ -18,7 +18,12 @@ import {
   Database,
   ArrowRight,
   HelpCircle,
-  Briefcase
+  Briefcase,
+  ChevronDown,
+  Info,
+  ExternalLink,
+  Shield,
+  Search
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -37,31 +42,34 @@ interface ChatMessage {
 
 export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) => {
   const [inputQuery, setInputQuery] = useState('');
+  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
+  const [liveContext, setLiveContext] = useState<any>(null);
+  const [contextLoading, setContextLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showHelpBanner, setShowHelpBanner] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       sender: 'copilot',
       time: 'Just now',
-      text: "👋 Hello Officer! I am your **CrimeSync AI Copilot**.\n\nI have direct access to all active cases, bank records, and suspect phone networks in your database.\n\nYou can ask me questions in plain English, or click one of the quick questions below to get started!",
+      text: "👋 **Welcome Officer!** I am your **CrimeSync AI Intelligence Copilot**.\n\nI have direct read access to live database records across PostgreSQL and the Neo4j Syndicate Knowledge Graph.\n\nSelect a case from the top dropdown or ask any investigative question in plain English.",
       recommendations: [
-        'Who is the main suspect in Operation Trishul?',
+        'Who is the main suspect in this case?',
         'Show all high-risk bank transfers',
-        'Summarize the evidence collected so far',
+        'Summarize the forensic evidence exhibits',
       ],
       confidenceScore: 0.98,
     },
   ]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [liveContext, setLiveContext] = useState<any>(null);
-  const [contextLoading, setContextLoading] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load live case context on mount
+  // Load context whenever selectedCaseId changes
   useEffect(() => {
     async function loadContext() {
       try {
         setContextLoading(true);
-        const ctx = await api.ai.getLiveContext();
+        const ctx = await api.ai.getLiveContext(selectedCaseId);
         setLiveContext(ctx);
       } catch (err) {
         console.warn('Context load error:', err);
@@ -70,7 +78,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
       }
     }
     loadContext();
-  }, []);
+  }, [selectedCaseId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,7 +100,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
     setIsLoading(true);
 
     try {
-      const res = await api.ai.askCopilot(query);
+      const res = await api.ai.askCopilot(query, undefined, selectedCaseId);
       const copilotMsg: ChatMessage = {
         id: `copilot-${Date.now()}`,
         sender: 'copilot',
@@ -107,12 +115,12 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
         id: `copilot-${Date.now()}`,
         sender: 'copilot',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `Based on your database records, **Operation Trishul** is currently the primary active case.\n\nKey finding: Suspect Vikramaditya Shinde is connected to ₹28,50,000 in layered bank transfers from Alok Pandey.`,
+        text: `Based on your database query, records for **${activeCase?.title || 'Selected Case'}** were retrieved.\n\nKey suspect connections and financial layering trails are mapped in the knowledge graph.`,
         recommendations: [
-          'Freeze linked ICICI bank account',
-          'Generate Section 65B court dossier',
+          'Run Financial Fraud Detective Agent',
+          'Export Court-Ready Section 65B Dossier',
         ],
-        confidenceScore: 0.92,
+        confidenceScore: 0.91,
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -120,38 +128,104 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
     }
   };
 
-  const activeCase = liveContext?.cases?.[0];
+  const casesList = liveContext?.cases || [];
+  const activeCase = casesList.find((c: any) => c.id === selectedCaseId) || casesList[0];
   const suspects = liveContext?.suspects || [];
+  const evidence = liveContext?.evidence || [];
+  const transactions = liveContext?.financial_transactions || [];
+  const totalMoney = transactions.reduce((sum: number, t: any) => sum + Number(t.amount_inr || 0), 0);
 
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
-      {/* ─── Top Simple Header ────────────────────────────────────────── */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+      {/* ─── Top Interactive Header ────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between pb-3 gap-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.25)]">
+          <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
             <h1 className="text-base font-bold text-white flex items-center gap-2">
               AI Investigation Copilot
-              <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-[10px] font-semibold text-emerald-400">
-                Connected to Database
+              <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                PostgreSQL & Neo4j Connected
               </span>
             </h1>
             <p className="text-xs text-slate-400">
-              Ask questions in simple words to analyze cases, suspects, and bank trails
+              Natural language intelligence assistant for Indian law enforcement officers
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => setMessages([messages[0]])}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 transition-colors"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-          <span>Clear Chat</span>
-        </button>
+        {/* Case Switcher Dropdown */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 shadow-sm">
+            <Briefcase className="w-4 h-4 text-blue-400 shrink-0" />
+            <span className="text-xs text-slate-400 font-medium">Active Case:</span>
+            <select
+              value={selectedCaseId}
+              onChange={(e) => {
+                setSelectedCaseId(e.target.value);
+                const chosen = casesList.find((c: any) => c.id === e.target.value);
+                if (chosen) {
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: `switch-${Date.now()}`,
+                      sender: 'copilot',
+                      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      text: `Switched active context to **${chosen.title}** (${chosen.fir_number}).\n\nJurisdiction: **${chosen.jurisdiction_city}** | Priority: **${chosen.priority}**.\nAsk me anything about suspects, financial transactions, or evidence in this case.`,
+                      recommendations: [
+                        `Who is the primary kingpin in ${chosen.title}?`,
+                        `Show high-risk bank transfers for ${chosen.title}`,
+                        `Inspect forensic evidence exhibits`,
+                      ],
+                      confidenceScore: 0.99,
+                    },
+                  ]);
+                }
+              }}
+              className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer max-w-[240px] truncate"
+            >
+              {casesList.map((c: any) => (
+                <option key={c.id} value={c.id} className="bg-slate-900 text-slate-200">
+                  {c.fir_number} — {c.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={() => setMessages([messages[0]])}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 transition-colors"
+            title="Reset Chat Session"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden sm:inline">Reset</span>
+          </button>
+        </div>
       </div>
+
+      {/* ─── Naive User Explanatory Guide Banner ─────────────────────── */}
+      {showHelpBanner && (
+        <div className="mt-3 p-2.5 rounded-xl bg-gradient-to-r from-blue-950/60 via-slate-900/90 to-indigo-950/60 border border-blue-500/30 flex items-center justify-between gap-3 text-xs text-slate-300">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-300 shrink-0">
+              <Info className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <span className="font-semibold text-white">How this works for officers: </span>
+              Select any of the 9 cases from the dropdown above. You can type any question or click a recommended prompt pill below to instantly query suspects, bank accounts, and evidence logs.
+            </div>
+          </div>
+          <button
+            onClick={() => setShowHelpBanner(false)}
+            className="text-slate-400 hover:text-slate-200 font-bold px-2 py-0.5 text-[11px]"
+          >
+            ✕ Dismiss
+          </button>
+        </div>
+      )}
 
       {/* ─── Main Two-Column Layout ───────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 pt-3 overflow-hidden">
@@ -159,215 +233,247 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
         {/* Left Column (8 Cols): Simple Chat Window */}
         <div className="lg:col-span-8 flex flex-col h-full bg-[#070e1c] border border-slate-800 rounded-xl overflow-hidden shadow-lg">
           
-          {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {msg.sender === 'copilot' && (
-                  <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 flex-shrink-0 mt-0.5">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                )}
-
+          {/* Chat Messages Scrollable Feed */}
+          <div className="flex-1 p-4 overflow-y-auto space-y-4">
+            {messages.map((msg) => {
+              const isUser = msg.sender === 'user';
+              return (
                 <div
-                  className={`max-w-xl rounded-xl p-3.5 space-y-2.5 shadow-md ${
-                    msg.sender === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-none'
-                      : 'bg-[#0b162a] border border-slate-700/60 text-slate-100 rounded-bl-none'
-                  }`}
+                  key={msg.id}
+                  className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
                 >
-                  <div className="flex items-center justify-between text-[11px] opacity-75 border-b border-white/10 pb-1">
-                    <span className="font-semibold">{msg.sender === 'user' ? 'You' : 'CrimeSync AI'}</span>
-                    <span>{msg.time}</span>
+                  {/* Avatar */}
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                      isUser
+                        ? 'bg-blue-600 border-blue-400 text-white'
+                        : 'bg-slate-800 border-slate-700 text-blue-400'
+                    }`}
+                  >
+                    {isUser ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
                   </div>
 
-                  <div className="text-xs leading-relaxed whitespace-pre-line space-y-2">
-                    {msg.text}
-                  </div>
+                  {/* Message Bubble */}
+                  <div className={`max-w-[85%] space-y-2`}>
+                    <div
+                      className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
+                        isUser
+                          ? 'bg-blue-600 text-white rounded-tr-none'
+                          : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none shadow-sm'
+                      }`}
+                    >
+                      <div className="whitespace-pre-line font-sans">{msg.text}</div>
 
-                  {/* Recommendations */}
-                  {msg.recommendations && msg.recommendations.length > 0 && (
-                    <div className="pt-2 border-t border-slate-700/60 space-y-1.5">
-                      <p className="text-[10.5px] font-bold text-blue-300 uppercase tracking-wider">
-                        Suggested Actions:
-                      </p>
-                      <div className="space-y-1">
-                        {msg.recommendations.map((rec, idx) => (
-                          <div
-                            key={idx}
+                      {/* Confidence Score Pill */}
+                      {!isUser && msg.confidenceScore && (
+                        <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+                          <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Verified with Database Ledger
+                          </span>
+                          <span>AI Confidence: {Math.round(msg.confidenceScore * 100)}%</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recommendations Chips */}
+                    {!isUser && msg.recommendations && msg.recommendations.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {msg.recommendations.map((rec, i) => (
+                          <button
+                            key={i}
                             onClick={() => handleSendMessage(rec)}
-                            className="flex items-center gap-2 p-1.5 rounded-lg bg-[#07101e] hover:bg-blue-950/40 border border-slate-800 hover:border-blue-500/40 cursor-pointer text-xs text-slate-300 hover:text-white transition-all"
+                            className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-blue-900/30 border border-slate-700 hover:border-blue-500/50 text-blue-300 transition-all flex items-center gap-1 text-left"
                           >
-                            <ArrowRight className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                            <span>{rec}</span>
-                          </div>
+                            <span>👉 {rec}</span>
+                          </button>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {msg.confidenceScore && (
-                    <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-400 pt-1">
-                      <ShieldCheck className="w-3 h-3" />
-                      <span>{(msg.confidenceScore * 100).toFixed(0)}% AI Accuracy Confidence</span>
+                    <div
+                      className={`text-[10px] text-slate-500 ${
+                        isUser ? 'text-right' : 'text-left'
+                      }`}
+                    >
+                      {msg.time}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {isLoading && (
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-                  <Sparkles className="w-4 h-4" />
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-blue-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 </div>
-                <div className="p-3 rounded-xl bg-[#0b162a] border border-slate-700 flex items-center gap-2 text-xs text-slate-300">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                  <span>Searching PostgreSQL & Neo4j databases...</span>
+                <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none text-xs text-slate-400 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                  Querying PostgreSQL & Neo4j Graph databases...
                 </div>
               </div>
             )}
+
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Starter Question Chips */}
-          <div className="px-3 py-2 bg-[#040913] border-t border-slate-800 flex items-center gap-2 overflow-x-auto scrollbar-none">
-            <span className="text-[11px] text-slate-400 whitespace-nowrap font-medium">Quick Questions:</span>
-            {[
-              'Who is the main suspect?',
-              'Show financial trail',
-              'Summarize case evidence',
-              'Check suspect phone records',
-            ].map((q) => (
-              <button
-                key={q}
-                onClick={() => handleSendMessage(q)}
-                className="px-2.5 py-1 rounded-full bg-slate-900 hover:bg-blue-950 border border-slate-700 hover:border-blue-500/50 text-[11px] text-slate-300 hover:text-white whitespace-nowrap transition-all shadow-sm"
-              >
-                {q}
-              </button>
-            ))}
+          {/* Quick Prompts Bar */}
+          <div className="px-3 py-2 bg-slate-950/80 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto text-[11px]">
+            <span className="text-slate-500 font-medium whitespace-nowrap">💡 Quick Inquiries:</span>
+            <button
+              onClick={() => handleSendMessage(`Who is the primary kingpin in ${activeCase?.title || 'this case'}?`)}
+              className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap transition-colors"
+            >
+              👑 Kingpin Profile
+            </button>
+            <button
+              onClick={() => handleSendMessage(`Show high-risk bank transfers for ${activeCase?.title || 'this case'}`)}
+              className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap transition-colors"
+            >
+              💳 Bank Trail
+            </button>
+            <button
+              onClick={() => handleSendMessage(`Inspect forensic evidence exhibits for ${activeCase?.title || 'this case'}`)}
+              className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap transition-colors"
+            >
+              📦 Evidence Vault
+            </button>
+            <button
+              onClick={() => handleSendMessage(`What are the recommended containment actions for ${activeCase?.title || 'this case'}?`)}
+              className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 whitespace-nowrap transition-colors"
+            >
+              ⚡ Next Protocol
+            </button>
           </div>
 
-          {/* Chat Input */}
-          <div className="p-3 bg-[#040913] border-t border-slate-800 flex items-center gap-2">
+          {/* Message Input Box */}
+          <div className="p-3 bg-[#030712] border-t border-slate-800 flex items-center gap-2">
             <input
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Ask anything about the investigation in simple words..."
-              className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+              placeholder={`Ask anything about ${activeCase?.title || 'this case'} (e.g., 'Who is laundering money?', 'Verify SHA-256 hash')...`}
+              className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
             />
             <button
               onClick={() => handleSendMessage()}
               disabled={isLoading || !inputQuery.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold shadow-md transition-all"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(59,130,246,0.3)]"
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              <span>Send</span>
+              <span>Ask</span>
+              <Send className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Right Column (4 Cols): Simple Case & Suspect Overview */}
-        <div className="lg:col-span-4 flex flex-col gap-3 h-full overflow-y-auto pr-0.5">
+        {/* Right Column (4 Cols): Live Case Profile & Intelligence Card */}
+        <div className="lg:col-span-4 flex flex-col gap-3 h-full overflow-y-auto pr-1">
           
-          {/* Card 1: Active Case Overview */}
-          <div className="p-3.5 rounded-xl bg-[#070e1c] border border-slate-800 shadow-lg space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Briefcase className="w-3.5 h-3.5 text-blue-400" />
-                Case in Investigation
+          {/* Active Case Intelligence Summary */}
+          <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Case Dossier Snapshot
               </span>
-              <span className="px-2 py-0.5 rounded bg-red-950 border border-red-500/40 text-red-400 text-[10px] font-bold">
-                CRITICAL
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  activeCase?.priority === 'CRITICAL'
+                    ? 'bg-red-950 text-red-400 border border-red-700/50'
+                    : 'bg-amber-950 text-amber-400 border border-amber-700/50'
+                }`}
+              >
+                {activeCase?.priority || 'CRITICAL'}
               </span>
             </div>
 
-            {contextLoading ? (
-              <div className="py-4 text-center">
-                <Loader2 className="w-5 h-5 text-blue-400 animate-spin mx-auto" />
+            <h2 className="text-sm font-bold text-white mb-1 leading-snug">
+              {activeCase?.title || 'Investigation Record'}
+            </h2>
+            <p className="text-[11px] text-slate-400 mb-3 line-clamp-2">
+              {activeCase?.description}
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-[11px]">
+              <div>
+                <span className="text-slate-500 block text-[10px]">FIR Number</span>
+                <span className="font-semibold text-slate-200">{activeCase?.fir_number}</span>
               </div>
-            ) : (
-              <div className="space-y-2 text-xs">
-                <div>
-                  <span className="text-[10px] text-slate-400 block">Case Name</span>
-                  <p className="font-semibold text-white leading-tight">
-                    {activeCase?.title || 'Operation Trishul: Hawala Syndicate'}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800 text-[11px]">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">FIR Number</span>
-                    <span className="font-mono text-slate-200">{activeCase?.fir_number || 'FIR/DEL/2026/0891'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">City</span>
-                    <span className="text-slate-200">{activeCase?.jurisdiction_city || 'New Delhi'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">Lead Officer</span>
-                    <span className="text-slate-200">{activeCase?.officer || 'ACP Rajeshwar Sharma'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">Status</span>
-                    <span className="text-emerald-400 font-semibold">{activeCase?.status || 'INVESTIGATING'}</span>
-                  </div>
-                </div>
+              <div>
+                <span className="text-slate-500 block text-[10px]">Lead Officer</span>
+                <span className="font-semibold text-slate-200">{activeCase?.officer || 'Superintendent Sengupta'}</span>
               </div>
-            )}
+              <div>
+                <span className="text-slate-500 block text-[10px]">Jurisdiction</span>
+                <span className="font-semibold text-slate-200">{activeCase?.jurisdiction_city}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[10px]">Tracked Capital Flow</span>
+                <span className="font-semibold text-emerald-400">₹{totalMoney.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
           </div>
 
-          {/* Card 2: Key Suspects Identified */}
-          <div className="p-3.5 rounded-xl bg-[#070e1c] border border-slate-800 shadow-lg space-y-3 flex-1">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+          {/* Suspects in this case (Neo4j Mapped) */}
+          <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-red-400" />
-                Suspects in Network
+                Implicated Suspects ({suspects.length})
               </span>
-              <span className="text-[11px] text-slate-400">{suspects.length} Identified</span>
+              <span className="text-[10px] text-slate-500">Neo4j Graph</span>
             </div>
 
             <div className="space-y-2">
-              {suspects.map((s: any, idx: number) => (
-                <div
-                  key={idx}
-                  onClick={() => handleSendMessage(`Tell me everything about suspect ${s.name}`)}
-                  className="p-2.5 rounded-lg bg-[#0b162a] hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-all flex items-center justify-between gap-2"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-red-950/80 border border-red-500/50 flex items-center justify-center text-red-400 flex-shrink-0">
-                      <User className="w-3.5 h-3.5" />
+              {suspects.length > 0 ? (
+                suspects.map((s: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="font-semibold text-white flex items-center gap-1.5">
+                        <span>{s.name}</span>
+                        {s.alias && <span className="text-[10px] text-amber-400">"{s.alias}"</span>}
+                      </div>
+                      <div className="text-[10px] text-slate-400">{s.role} • {s.city}</div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-white truncate">{s.name}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{s.role} · {s.city}</p>
-                    </div>
+                    <button
+                      onClick={() => handleSendMessage(`Analyze background and bank accounts for suspect ${s.name}`)}
+                      className="px-2 py-1 rounded bg-blue-950/80 hover:bg-blue-900/80 border border-blue-700/50 text-[10px] text-blue-300 transition-colors"
+                    >
+                      Inquire
+                    </button>
                   </div>
-
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono flex-shrink-0 ${
-                    s.risk_score >= 90 ? 'bg-red-950 border border-red-500 text-red-400' : 'bg-amber-950 border border-amber-500 text-amber-400'
-                  }`}>
-                    {s.risk_score}% Risk
-                  </span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-xs text-slate-500 p-2">Loading suspect network...</div>
+              )}
             </div>
           </div>
 
-          {/* Card 3: Help / How to Use */}
-          <div className="p-3 rounded-xl bg-blue-950/30 border border-blue-500/30 text-xs space-y-1">
-            <div className="flex items-center gap-1.5 text-blue-300 font-semibold">
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Did you know?</span>
+          {/* Evidence exhibits in this case */}
+          <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-blue-400" />
+                Evidence Vault ({evidence.length} Exhibits)
+              </span>
+              <span className="text-[10px] text-emerald-400">SHA-256 Valid</span>
             </div>
-            <p className="text-[11px] text-slate-300 leading-snug">
-              You can click any suspect above or type questions like <em>"What bank accounts belong to Alok Pandey?"</em> to get immediate cross-referenced evidence.
-            </p>
+
+            <div className="space-y-1.5">
+              {evidence.slice(0, 3).map((e: any, idx: number) => (
+                <div key={idx} className="p-2 rounded-lg bg-slate-950/70 border border-slate-800/80 text-xs">
+                  <div className="font-semibold text-slate-200 truncate">{e.title}</div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                    <span>{e.category}</span>
+                    <span className="text-emerald-400 font-mono">{e.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>

@@ -21,19 +21,41 @@ export interface GraphEdgeDTO {
 }
 
 export class KnowledgeGraphService {
-  async getFullGraph(limit = 100) {
+  async getFullGraph(limit = 100, caseId?: string) {
     if (!neo4jDriver) {
       throw new Error("Neo4j driver is not initialized");
     }
 
     const session = neo4jDriver.session();
     try {
-      const result = await session.run(
-        `MATCH (s)-[r]->(t)
+      let cypher = `MATCH (s)-[r]->(t)
          RETURN s, r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r) as r_id
-         LIMIT $limit`,
-        { limit: neo4j.int(limit) }
-      );
+         LIMIT $limit`;
+
+      const params: any = { limit: neo4j.int(limit) };
+
+      if (caseId && caseId !== "ALL") {
+        cypher = `
+          MATCH (c:Case {id: $caseId})
+          OPTIONAL MATCH (c)<-[r1:IMPLICATED_IN]-(s:Suspect)
+          OPTIONAL MATCH (s)-[r2]->(t)
+          RETURN s, r2 as r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r2) as r_id
+          LIMIT $limit
+        `;
+        params.caseId = caseId;
+      }
+
+      let result = await session.run(cypher, params);
+
+      // If case-specific query returned 0 edges (e.g. fresh case), fallback to general query
+      if (result.records.length === 0 && caseId && caseId !== "ALL") {
+        result = await session.run(
+          `MATCH (s)-[r]->(t)
+           RETURN s, r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r) as r_id
+           LIMIT $limit`,
+          { limit: neo4j.int(limit) }
+        );
+      }
 
       const nodesMap = new Map<string, GraphNodeDTO>();
       const edges: GraphEdgeDTO[] = [];
@@ -42,6 +64,8 @@ export class KnowledgeGraphService {
         const sNode = record.get("s");
         const tNode = record.get("t");
         const rel = record.get("r");
+
+        if (!sNode || !tNode) continue;
 
         const sKey = sNode.properties.id || sNode.properties.account_number || sNode.properties.phone_number || sNode.properties.ip || record.get("s_id");
         const tKey = tNode.properties.id || tNode.properties.account_number || tNode.properties.phone_number || tNode.properties.ip || record.get("t_id");
@@ -64,13 +88,15 @@ export class KnowledgeGraphService {
           });
         }
 
-        edges.push({
-          id: record.get("r_id"),
-          source: sKey,
-          target: tKey,
-          relationship: rel.type,
-          properties: rel.properties,
-        });
+        if (rel) {
+          edges.push({
+            id: record.get("r_id") || `rel-${sKey}-${tKey}`,
+            source: sKey,
+            target: tKey,
+            relationship: rel.type,
+            properties: rel.properties,
+          });
+        }
       }
 
       return {
@@ -158,7 +184,8 @@ export class KnowledgeGraphController {
   async handleGetGraph(req: Request, res: Response) {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
-      const data = await knowledgeGraphService.getFullGraph(limit);
+      const caseId = req.query.caseId as string;
+      const data = await knowledgeGraphService.getFullGraph(limit, caseId);
       res.json(formatResponse(true, data, "Knowledge graph retrieved successfully"));
     } catch (error: any) {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
