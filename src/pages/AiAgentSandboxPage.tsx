@@ -22,7 +22,8 @@ import {
   Download,
   Copy,
   Check,
-  Terminal
+  Terminal,
+  FileSpreadsheet
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -45,6 +46,7 @@ interface AgentCard {
 export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelectAction }) => {
   const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
   const [casesList, setCasesList] = useState<any[]>([]);
+  const [caseContext, setCaseContext] = useState<any>(null);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -65,6 +67,19 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
     loadCases();
   }, []);
 
+  // Load specific case context when selectedCaseId changes
+  useEffect(() => {
+    async function loadCaseContext() {
+      try {
+        const ctx = await api.ai.getLiveContext(selectedCaseId);
+        setCaseContext(ctx);
+      } catch (err) {
+        console.warn('Context error:', err);
+      }
+    }
+    loadCaseContext();
+  }, [selectedCaseId]);
+
   const AGENTS: AgentCard[] = [
     {
       id: 'query_database',
@@ -73,7 +88,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
       icon: <Landmark className="w-5 h-5 text-emerald-400" />,
       iconBg: 'bg-emerald-950/80 border-emerald-500/50',
       badgeColor: 'bg-emerald-950 text-emerald-400 border-emerald-600/40',
-      description: 'Scans PostgreSQL core banking records to uncover high-value money layering, mule accounts, and Hawala routing loops.',
+      description: 'Scans PostgreSQL core banking ledgers to uncover high-value money layering, mule accounts, and Hawala routing loops.',
       targetDatabase: 'PostgreSQL (Neon Cloud)',
       capabilities: [
         'Flags suspicious transactions with risk score ≥ 0.85',
@@ -156,7 +171,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
         id: `log-${Date.now()}`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         agentName: agent.name,
-        message: `Agent completed execution for case ${selectedCaseId}. Database records analyzed.`,
+        message: `Agent completed execution for case ${activeCase?.title || selectedCaseId}. Database records analyzed.`,
         status: 'completed',
         data: { target_case: selectedCaseId, status: 'VERIFIED' },
       };
@@ -181,6 +196,10 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
   };
 
   const activeCase = casesList.find((c) => c.id === selectedCaseId) || casesList[0];
+  const caseEvidence = caseContext?.evidence || [];
+  const caseTxns = caseContext?.financial_transactions || [];
+  const caseSuspects = caseContext?.suspects || [];
+  const totalMoney = caseTxns.reduce((sum: number, t: any) => sum + Number(t.amount_inr || 0), 0);
 
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
@@ -212,7 +231,6 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
             onChange={(e) => setSelectedCaseId(e.target.value)}
             className="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer max-w-[240px] truncate"
           >
-            <option value="ALL" className="bg-slate-900 text-slate-200">All Cases (Entire Syndicate)</option>
             {casesList.map((c) => (
               <option key={c.id} value={c.id} className="bg-slate-900 text-slate-200">
                 {c.fir_number} — {c.title}
@@ -222,16 +240,44 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
         </div>
       </div>
 
+      {/* ─── Selected Case Metrics Strip ─────────────────────────────── */}
+      <div className="mt-3 p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950 border border-blue-600/40 text-blue-300">
+            {activeCase?.fir_number || 'FIR'}
+          </span>
+          <div>
+            <h2 className="text-xs font-bold text-white leading-tight">{activeCase?.title}</h2>
+            <span className="text-[10px] text-slate-400">{activeCase?.jurisdiction_city} Police Cyber Command • Priority: {activeCase?.priority}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 text-[11px]">
+          <div>
+            <span className="text-slate-500 block text-[10px]">Tracked Capital Flow</span>
+            <span className="font-bold text-emerald-400">₹{totalMoney.toLocaleString('en-IN')}</span>
+          </div>
+          <div>
+            <span className="text-slate-500 block text-[10px]">Evidence Exhibits</span>
+            <span className="font-bold text-blue-400">{caseEvidence.length} items</span>
+          </div>
+          <div>
+            <span className="text-slate-500 block text-[10px]">Mapped Suspects</span>
+            <span className="font-bold text-red-400">{caseSuspects.length} suspects</span>
+          </div>
+        </div>
+      </div>
+
       {/* ─── Explanatory Guide Banner ─────────────────────────────────── */}
       {showHelpBanner && (
-        <div className="mt-3 p-2.5 rounded-xl bg-gradient-to-r from-purple-950/60 via-slate-900/90 to-blue-950/60 border border-purple-500/30 flex items-center justify-between gap-3 text-xs text-slate-300">
+        <div className="mt-2.5 p-2.5 rounded-xl bg-gradient-to-r from-purple-950/60 via-slate-900/90 to-blue-950/60 border border-purple-500/30 flex items-center justify-between gap-3 text-xs text-slate-300">
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0">
               <Info className="w-3.5 h-3.5" />
             </div>
             <div>
               <span className="font-semibold text-white">How Autonomous Agents Work: </span>
-              Select a target case above, then click <span className="font-semibold text-purple-300">"Run Agent"</span> on any of the 4 specialized bots below. The agent autonomously queries live SQL/Graph databases, performs validation, and formats actionable results.
+              Click <span className="font-semibold text-purple-300">"Run Agent"</span> on any card below to watch the AI independently query databases, verify evidence integrity, or assemble a Section 65B court dossier for <strong className="text-white">{activeCase?.title}</strong>.
             </div>
           </div>
           <button
@@ -250,9 +296,9 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
         <div className="lg:col-span-6 flex flex-col gap-3 h-full overflow-y-auto pr-1">
           <div className="flex items-center justify-between pb-1">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Available Autonomous Agents ({AGENTS.length})
+              Select Agent to Run on {activeCase?.title || 'Case'}
             </span>
-            <span className="text-[11px] text-slate-500">Targeting: {activeCase?.title || 'Selected Case'}</span>
+            <span className="text-[10px] text-emerald-400 font-medium">Ready to Execute</span>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
@@ -302,7 +348,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
 
                   {/* Run Button */}
                   <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                    <span className="text-[10px] text-slate-500">Autonomous execution • Zero human delay</span>
+                    <span className="text-[10px] text-slate-500">Targets: {activeCase?.title}</span>
                     <button
                       onClick={() => handleRunAgent(agent)}
                       disabled={isRunning}
@@ -311,12 +357,12 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
                       {isThisRunning ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Executing...</span>
+                          <span>Executing on {activeCase?.fir_number}...</span>
                         </>
                       ) : (
                         <>
                           <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>Run Agent</span>
+                          <span>Run on {activeCase?.fir_number?.split('/')[1] || 'Case'}</span>
                         </>
                       )}
                     </button>
@@ -356,7 +402,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="font-bold text-emerald-400 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4" />
-                      {selectedResult.agentName} — Execution Result
+                      {selectedResult.agentName} — Execution Output
                     </span>
                     <span className="text-[10px] text-slate-400">{selectedResult.time}</span>
                   </div>
@@ -367,7 +413,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
                 {selectedResult.data && (
                   <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 font-mono text-[11px] space-y-2">
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Payload & Evidence Exhibits:
+                      Payload & Evidence Exhibits for {activeCase?.title}:
                     </div>
                     {Array.isArray(selectedResult.data) ? (
                       <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
@@ -377,18 +423,20 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
                               <div>
                                 <span className="text-emerald-400 font-bold">₹{Number(item.amount_inr).toLocaleString('en-IN')}</span> ({item.channel})
                                 <div className="text-[10px] text-slate-400">{item.source_holder_name} → {item.target_holder_name} ({item.bank_name})</div>
+                                <div className="text-[9px] text-slate-500 font-mono mt-0.5">Ref: {item.transaction_ref}</div>
                               </div>
                             )}
                             {item.suspect && (
                               <div>
                                 <span className="text-red-400 font-bold">{item.suspect}</span> ({item.role})
-                                <div className="text-[10px] text-slate-400">City: {item.city} | Account: {item.account} | Device: {item.phone}</div>
+                                <div className="text-[10px] text-slate-400">City: {item.city} | Account: {item.account} | Phone: {item.phone}</div>
                               </div>
                             )}
                             {item.evidence_code && (
                               <div>
                                 <span className="text-blue-400 font-bold">[{item.evidence_code}]</span> {item.title}
-                                <div className="text-[10px] text-slate-400">Category: {item.category} | Hash: {item.hash_sha256?.slice(0, 20)}...</div>
+                                <div className="text-[10px] text-slate-400">Category: {item.category} | Hash: {item.hash_sha256?.slice(0, 24)}...</div>
+                                <div className="text-[9px] text-emerald-400 mt-0.5">Status: {item.status} (Valid Section 65B)</div>
                               </div>
                             )}
                           </div>
@@ -400,10 +448,10 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
                           <div>
                             <div className="text-slate-300 font-bold text-sm">{selectedResult.data.case_title}</div>
                             <div className="text-slate-400 text-xs">FIR: {selectedResult.data.fir_number} | Officer: {selectedResult.data.investigating_officer}</div>
-                            <div className="mt-2 p-2 rounded bg-slate-900 border border-slate-800 text-slate-300 text-xs leading-relaxed">
+                            <div className="mt-2 p-2.5 rounded bg-slate-900 border border-slate-800 text-slate-300 text-xs leading-relaxed font-sans">
                               {selectedResult.data.ai_executive_summary}
                             </div>
-                            <div className="text-[10px] text-emerald-400 mt-1">
+                            <div className="text-[11px] text-emerald-400 mt-1 font-semibold">
                               ⚖️ {selectedResult.data.statutory_note}
                             </div>
                           </div>
@@ -417,9 +465,9 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
               /* Empty State */
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
                 <Bot className="w-12 h-12 text-slate-700 mb-3" />
-                <h3 className="text-sm font-semibold text-slate-400">No Agent Execution Selected</h3>
+                <h3 className="text-sm font-semibold text-slate-400">Ready to Analyze {activeCase?.title}</h3>
                 <p className="text-xs text-slate-500 max-w-sm mt-1">
-                  Click "Run Agent" on any of the cards to the left to execute an autonomous investigation task.
+                  Click "Run" on any of the 4 autonomous agent cards to the left to execute live database analysis on this case.
                 </p>
               </div>
             )}

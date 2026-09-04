@@ -61,7 +61,7 @@ function computeCleanLayout(
     Case: { bg: 'bg-purple-600 text-white', border: 'border-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.4)]' },
   };
 
-  const sortedNodes = [...nodes].sort((a, b) => (b.category === 'Suspect' ? 1 : -1));
+  const sortedNodes = [...nodes].sort((a, b) => (b.category === 'Case' ? 1 : b.category === 'Suspect' ? 2 : 3));
   const centerNode = sortedNodes[0] || { id: 'center', label: 'Investigation Center', category: 'Case', properties: {} };
   const orbitingNodes = sortedNodes.slice(1);
 
@@ -156,6 +156,8 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
     loadGraphData();
   }, [loadGraphData]);
 
+  const activeCase = casesList.find((c) => c.id === selectedCaseId) || casesList[0];
+
   const filteredNodes = nodes.filter((n) => {
     const matchesSearch =
       n.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -223,16 +225,34 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
         </div>
       </div>
 
+      {/* ─── Selected Case Intelligence Banner ──────────────────────── */}
+      {selectedCaseId !== 'ALL' && activeCase && (
+        <div className="mt-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 border border-purple-600/40 text-purple-300">
+              {activeCase.fir_number}
+            </span>
+            <span className="font-bold text-white">{activeCase.title}</span>
+            <span className="text-slate-400">({activeCase.jurisdiction_city})</span>
+          </div>
+
+          <div className="flex items-center gap-3 text-[11px] text-slate-400">
+            <span>Graph Nodes: <strong className="text-white">{filteredNodes.length}</strong></span>
+            <span>Relationships: <strong className="text-white">{edges.length}</strong></span>
+          </div>
+        </div>
+      )}
+
       {/* ─── Explanatory Guide Banner ─────────────────────────────────── */}
       {showHelpBanner && (
-        <div className="mt-3 p-2.5 rounded-xl bg-gradient-to-r from-purple-950/60 via-slate-900/90 to-blue-950/60 border border-purple-500/30 flex items-center justify-between gap-3 text-xs text-slate-300">
+        <div className="mt-2.5 p-2.5 rounded-xl bg-gradient-to-r from-purple-950/60 via-slate-900/90 to-blue-950/60 border border-purple-500/30 flex items-center justify-between gap-3 text-xs text-slate-300">
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0">
               <Info className="w-3.5 h-3.5" />
             </div>
             <div>
               <span className="font-semibold text-white">How Knowledge Graphs Work: </span>
-              Circles represent physical people, accounts, or phone lines. Click any node in the canvas below to reveal suspect aliases, money laundering routes, and call intercept history in the right-hand panel.
+              Circles represent physical entities (Suspects, Bank Accounts, Phone Numbers, Cyber IPs). Click any node on the canvas to inspect its role, risk rating, and connected transactions in <strong className="text-white">{activeCase?.title || 'Selected Case'}</strong>.
             </div>
           </div>
           <button
@@ -245,7 +265,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
       )}
 
       {/* ─── Toolbar: Legend & Search ──────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 py-2">
         {/* Category Filters / Legend */}
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {CATEGORY_COLORS.map((cat) => (
@@ -306,7 +326,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
           {isLoading ? (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
-              <span className="text-xs">Traversing Neo4j AuraDB knowledge graph...</span>
+              <span className="text-xs">Traversing Neo4j AuraDB knowledge graph for {activeCase?.title || 'Case'}...</span>
             </div>
           ) : (
             <div

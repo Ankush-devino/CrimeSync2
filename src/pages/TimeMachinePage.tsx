@@ -88,6 +88,8 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
     loadTimeline();
   }, [loadTimeline]);
 
+  const activeCase = casesList.find((c) => c.id === selectedCaseId) || casesList[0];
+
   const filteredEvents = events.filter((ev) => {
     const matchesCat = selectedCategory === 'ALL' || ev.type === selectedCategory || ev.category === selectedCategory;
     const matchesSearch =
@@ -129,8 +131,6 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
       label: 'Evidence Seizure',
     };
   };
-
-  const activeCase = casesList.find((c) => c.id === selectedCaseId) || casesList[0];
 
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
@@ -184,16 +184,34 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
         </div>
       </div>
 
+      {/* ─── Selected Case Banner ─────────────────────────────────────── */}
+      {selectedCaseId !== 'ALL' && activeCase && (
+        <div className="mt-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 border border-cyan-600/40 text-cyan-300">
+              {activeCase.fir_number}
+            </span>
+            <span className="font-bold text-white">{activeCase.title}</span>
+            <span className="text-slate-400">({activeCase.jurisdiction_city})</span>
+          </div>
+
+          <div className="flex items-center gap-3 text-[11px] text-slate-400">
+            <span>Reconstructed Events: <strong className="text-white">{filteredEvents.length}</strong></span>
+            <span>Priority: <strong className="text-amber-400">{activeCase.priority}</strong></span>
+          </div>
+        </div>
+      )}
+
       {/* ─── Explanatory Guide Banner ─────────────────────────────────── */}
       {showHelpBanner && (
-        <div className="mt-3 p-2.5 rounded-xl bg-gradient-to-r from-cyan-950/60 via-slate-900/90 to-blue-950/60 border border-cyan-500/30 flex items-center justify-between gap-3 text-xs text-slate-300">
+        <div className="mt-2.5 p-2.5 rounded-xl bg-gradient-to-r from-cyan-950/60 via-slate-900/90 to-blue-950/60 border border-cyan-500/30 flex items-center justify-between gap-3 text-xs text-slate-300">
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded-lg bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shrink-0">
               <Info className="w-3.5 h-3.5" />
             </div>
             <div>
-              <span className="font-semibold text-white">How the Crime Time Machine Works: </span>
-              This view pulls time-stamped events across bank ledgers, phone calls, GPS pings, and physical evidence logs. Replay the sequence of criminal actions to prove conspiracy and timeline in court.
+              <span className="font-semibold text-white">How Crime Time Machine Works: </span>
+              This page automatically correlates time-stamped digital evidence across bank ledgers, intercepted calls, GPS pings, and physical seizures for <strong className="text-white">{activeCase?.title || 'Selected Case'}</strong>.
             </div>
           </div>
           <button
@@ -206,7 +224,7 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
       )}
 
       {/* ─── Filter & Search Bar ───────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 py-2">
         {/* Category Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {[
@@ -252,7 +270,7 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
             <span>Showing <strong className="text-white">{filteredEvents.length}</strong> reconstructed events</span>
           </div>
-          <span className="text-[11px] text-slate-500">Case: {activeCase?.title || 'Selected Case'}</span>
+          <span className="text-[11px] text-slate-500">{activeCase?.title || 'Selected Case'}</span>
         </div>
 
         {/* Scrollable Events List */}
@@ -260,7 +278,7 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
           {isLoading ? (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-              <span className="text-xs">Reconstructing chronological crime timeline...</span>
+              <span className="text-xs">Reconstructing chronological timeline for {activeCase?.title || 'Case'}...</span>
             </div>
           ) : filteredEvents.length > 0 ? (
             <div className="relative pl-6 border-l-2 border-slate-800 space-y-4 my-2">
@@ -319,7 +337,7 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
               <Clock className="w-10 h-10 text-slate-700 mb-2" />
-              <p className="text-xs">No timeline events matched your current filters.</p>
+              <p className="text-xs">No timeline events logged for this specific case.</p>
             </div>
           )}
         </div>

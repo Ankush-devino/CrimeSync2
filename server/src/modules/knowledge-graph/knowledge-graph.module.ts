@@ -37,7 +37,7 @@ export class KnowledgeGraphService {
       if (caseId && caseId !== "ALL") {
         cypher = `
           MATCH (c:Case {id: $caseId})
-          OPTIONAL MATCH (c)<-[r1:IMPLICATED_IN]-(s:Suspect)
+          OPTIONAL MATCH (s:Suspect)-[r1:IMPLICATED_IN]->(c)
           OPTIONAL MATCH (s)-[r2]->(t)
           RETURN s, r2 as r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r2) as r_id
           LIMIT $limit
@@ -47,8 +47,17 @@ export class KnowledgeGraphService {
 
       let result = await session.run(cypher, params);
 
-      // If case-specific query returned 0 edges (e.g. fresh case), fallback to general query
+      // If specific case returned 0 (e.g. initial setup), return case with its direct nodes
       if (result.records.length === 0 && caseId && caseId !== "ALL") {
+        result = await session.run(
+          `MATCH (s:Suspect)-[r:IMPLICATED_IN]->(c:Case {id: $caseId})
+           RETURN s, r, c as t, elementId(s) as s_id, elementId(c) as t_id, elementId(r) as r_id`,
+          { caseId }
+        );
+      }
+
+      // Fallback to all nodes if still empty
+      if (result.records.length === 0) {
         result = await session.run(
           `MATCH (s)-[r]->(t)
            RETURN s, r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r) as r_id
@@ -104,6 +113,7 @@ export class KnowledgeGraphService {
         edges,
         total_nodes: nodesMap.size,
         total_edges: edges.length,
+        case_id: caseId || "ALL",
       };
     } finally {
       await session.close();
