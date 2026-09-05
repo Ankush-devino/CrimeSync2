@@ -186,6 +186,92 @@ export class KnowledgeGraphService {
       await session.close();
     }
   }
+  async addNode(nodeData: {
+    id?: string;
+    label: string;
+    category: string;
+    properties?: Record<string, any>;
+    connectToId?: string;
+    relationship?: string;
+    caseId?: string;
+  }) {
+    const id = nodeData.id || `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const label = nodeData.label.trim();
+    const category = nodeData.category || "Suspect";
+    const properties = {
+      id,
+      name: label,
+      title: label,
+      category,
+      created_at: new Date().toISOString(),
+      ...(nodeData.properties || {}),
+    };
+
+    let createdInNeo4j = false;
+    let edgeCreated: any = null;
+
+    if (neo4jDriver) {
+      const session = neo4jDriver.session();
+      try {
+        const safeLabel = category.replace(/[^a-zA-Z0-9_]/g, "") || "Entity";
+        await session.run(
+          `MERGE (n:${safeLabel} {id: $id})
+           SET n += $properties
+           RETURN n`,
+          { id, properties }
+        );
+        createdInNeo4j = true;
+
+        if (nodeData.connectToId) {
+          const relType = (nodeData.relationship || "LINKED_TO").toUpperCase().replace(/[^a-zA-Z0-9_]/g, "_");
+          await session.run(
+            `MATCH (s {id: $sourceId}), (t {id: $targetId})
+             MERGE (s)-[r:${relType}]->(t)
+             RETURN r`,
+            { sourceId: id, targetId: nodeData.connectToId }
+          );
+          edgeCreated = {
+            id: `rel-${id}-${nodeData.connectToId}`,
+            source: id,
+            target: nodeData.connectToId,
+            relationship: relType,
+            properties: {},
+          };
+        } else if (nodeData.caseId && nodeData.caseId !== "ALL") {
+          await session.run(
+            `MATCH (c:Case {id: $caseId}), (n {id: $id})
+             MERGE (n)-[r:IMPLICATED_IN]->(c)
+             RETURN r`,
+            { caseId: nodeData.caseId, id }
+          );
+          edgeCreated = {
+            id: `rel-${id}-${nodeData.caseId}`,
+            source: id,
+            target: nodeData.caseId,
+            relationship: "IMPLICATED_IN",
+            properties: {},
+          };
+        }
+      } catch (err) {
+        console.warn("Neo4j addNode warning:", err);
+      } finally {
+        await session.close();
+      }
+    }
+
+    const newNodeDTO: GraphNodeDTO = {
+      id,
+      label,
+      category,
+      properties,
+    };
+
+    return {
+      node: newNodeDTO,
+      edge: edgeCreated,
+      createdInNeo4j,
+    };
+  }
 }
 
 export const knowledgeGraphService = new KnowledgeGraphService();
@@ -237,6 +323,27 @@ export class KnowledgeGraphController {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
     }
   }
+
+  async handleAddNode(req: Request, res: Response) {
+    try {
+      const { id, label, category, properties, connectToId, relationship, caseId } = req.body;
+      if (!label) {
+        return res.status(400).json(formatResponse(false, null, undefined, "Node label/name is required"));
+      }
+      const data = await knowledgeGraphService.addNode({
+        id,
+        label,
+        category: category || "Suspect",
+        properties,
+        connectToId,
+        relationship,
+        caseId,
+      });
+      res.json(formatResponse(true, data, "Knowledge graph node added successfully"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
 }
 
 export const knowledgeGraphController = new KnowledgeGraphController();
@@ -247,5 +354,6 @@ export function knowledgeGraphRoutes(): Router {
   router.get("/path", (req, res) => knowledgeGraphController.handleFindPath(req, res));
   router.get("/entity/:id", (req, res) => knowledgeGraphController.handleGetConnections(req, res));
   router.post("/relation", (req, res) => knowledgeGraphController.handleAddRelation(req, res));
+  router.post("/node", (req, res) => knowledgeGraphController.handleAddNode(req, res));
   return router;
 }

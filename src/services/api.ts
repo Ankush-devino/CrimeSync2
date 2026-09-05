@@ -74,6 +74,23 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ sourceId, targetId, relationship, properties }),
       }),
+    addNode: (payload: {
+      id?: string;
+      label: string;
+      category: string;
+      properties?: Record<string, any>;
+      connectToId?: string;
+      relationship?: string;
+      caseId?: string;
+    }) =>
+      request<{
+        node: { id: string; label: string; category: string; properties: any };
+        edge?: { id: string; source: string; target: string; relationship: string; properties: any };
+        createdInNeo4j: boolean;
+      }>(`/knowledge-graph/node`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
 
   // 3. Blast Radius Simulator (Neo4j AuraDB)
@@ -220,5 +237,23 @@ export const api = {
         }>;
       }>(`/timeline${qs}`);
     },
+    addEvent: (payload: {
+      case_id: string;
+      title: string;
+      type?: string;
+      category?: string;
+      sub?: string;
+      entities?: string;
+      entitiesSub?: string;
+      evidence?: string;
+      evidenceType?: 'doc' | 'audio' | 'video' | 'geo' | 'hash';
+      riskSeverity?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+      timestamp?: string;
+      properties?: Record<string, any>;
+    }) =>
+      request<any>(`/timeline/event`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
 };

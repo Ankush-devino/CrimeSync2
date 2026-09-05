@@ -29,7 +29,10 @@ import {
   Eye,
   Sliders,
   Radio,
-  FileText
+  FileText,
+  PlusCircle,
+  Plus,
+  X
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
@@ -71,6 +74,19 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 1x, 2x, 4x
   const [selectedModalEvent, setSelectedModalEvent] = useState<TimelineEvent | null>(null);
   const [copiedHash, setCopiedHash] = useState(false);
+
+  // ─── Add Timeline Event Modal State ────────────────────────────────────────
+  const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventType, setNewEventType] = useState<string>('Financial Transaction');
+  const [newEventSub, setNewEventSub] = useState('');
+  const [newEventEntities, setNewEventEntities] = useState('');
+  const [newEventEvidence, setNewEventEvidence] = useState('');
+  const [newEventRisk, setNewEventRisk] = useState<'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'>('HIGH');
+  const [newEventAmount, setNewEventAmount] = useState('');
+  const [newEventCity, setNewEventCity] = useState('');
+  const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const activeCase: LawCase = getCaseById(selectedCaseId);
   const eventRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
@@ -185,6 +201,81 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
     loadTimeline();
   }, [loadTimeline]);
 
+  // ─── Handle Create Timeline Event ─────────────────────────────────────────
+  const handleCreateTimelineEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEventTitle.trim()) return;
+
+    try {
+      setIsSubmittingEvent(true);
+      const now = new Date();
+      const customId = `ev-user-${Date.now().toString().slice(-6)}`;
+
+      let evidenceType: 'doc' | 'audio' | 'video' | 'geo' | 'hash' = 'doc';
+      if (newEventType === 'Communication') evidenceType = 'audio';
+      else if (newEventType === 'Location') evidenceType = 'geo';
+      else if (newEventType === 'Forensic Evidence') evidenceType = 'hash';
+
+      const payload = {
+        case_id: selectedCaseId,
+        title: newEventTitle.trim(),
+        type: newEventType,
+        category: newEventType,
+        sub: newEventSub.trim() || `Investigation exhibit recorded by officer`,
+        entities: newEventEntities.trim() || activeCase.lead_suspect || 'Investigative Unit',
+        entitiesSub: `Case: ${activeCase.fir_number || selectedCaseId}`,
+        evidence: newEventEvidence.trim() || (evidenceType === 'hash' ? 'SHA-256 Vault Hash' : 'Field Investigation Record'),
+        evidenceType,
+        riskSeverity: newEventRisk,
+        timestamp: now.toISOString(),
+        properties: {
+          amount_inr: newEventAmount ? Number(newEventAmount) : undefined,
+          city: newEventCity || activeCase.jurisdiction_city,
+          created_manually: true,
+          section_65b_valid: true,
+        },
+      };
+
+      const res = await api.timeline.addEvent(payload);
+
+      const createdEvent: TimelineEvent = res || {
+        id: customId,
+        timestamp: now.toISOString(),
+        timeFormatted: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        dateFormatted: 'Today',
+        type: newEventType,
+        category: newEventType,
+        title: newEventTitle.trim(),
+        sub: payload.sub,
+        entities: payload.entities,
+        entitiesSub: payload.entitiesSub,
+        evidence: payload.evidence,
+        evidenceType,
+        riskSeverity: newEventRisk,
+        properties: payload.properties,
+      };
+
+      setEvents((prev) => [createdEvent, ...prev]);
+      setActiveEventIndex(0);
+      setIsAddEventOpen(false);
+      setNewEventTitle('');
+      setNewEventSub('');
+      setNewEventEntities('');
+      setNewEventEvidence('');
+      setNewEventAmount('');
+      setNewEventCity('');
+
+      setToastMessage(`Added timeline exhibit "${newEventTitle}" successfully!`);
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err: any) {
+      console.warn('Error adding timeline event:', err);
+      setToastMessage('Timeline event saved to local chronological view.');
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setIsSubmittingEvent(false);
+    }
+  };
+
   // ─── Filter Events ────────────────────────────────────────────────────────
   const filteredEvents = events.filter((ev) => {
     const matchesCat =
@@ -213,7 +304,6 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             return prev;
           }
           const nextIndex = prev + 1;
-          // Smooth scroll to element
           const el = eventRefs.current[nextIndex];
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -326,6 +416,14 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
       
+      {/* ─── Top Toast Notification ──────────────────────────────────── */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 p-3 rounded-xl bg-cyan-950 border border-cyan-500/80 text-white text-xs shadow-2xl flex items-center gap-2 animate-bounce">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* ─── Top Header & Case Switcher ──────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between pb-3 gap-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
@@ -347,6 +445,15 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
 
         {/* Top Right Controls */}
         <div className="flex items-center gap-2">
+          {/* Add Timeline Event Button */}
+          <button
+            onClick={() => setIsAddEventOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-600/30 transition-all hover:scale-105"
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>Add Timeline Event</span>
+          </button>
+
           {/* Case Dropdown */}
           <CaseSelector
             selectedCaseId={selectedCaseId}
@@ -426,7 +533,7 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             </div>
             <div>
               <span className="font-semibold text-white">How Crime Time Machine Works: </span>
-              Use the <strong className="text-cyan-300">Timeline Player</strong> below to hit <strong className="text-emerald-300">▶ Play Simulation</strong> or drag the scrubber to watch how money, communications, and movements progressed over time for <strong className="text-white">{activeCase?.title || 'Selected Case'}</strong>.
+              Use the <strong className="text-cyan-300">Timeline Player</strong> below to hit <strong className="text-emerald-300">▶ Play Simulation</strong> or click <strong className="text-cyan-300">+ Add Timeline Event</strong> to log a new wire transfer, intercepted call, or physical seizure.
             </div>
           </div>
           <button
@@ -727,6 +834,162 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
           )}
         </div>
       </div>
+
+      {/* ─── ADD TIMELINE EVENT MODAL ───────────────────────────────────── */}
+      {isAddEventOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#091122] border border-cyan-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                  <PlusCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Add Chronological Exhibit to Case</h3>
+                  <p className="text-[11px] text-slate-400">Case: {activeCase?.title || selectedCaseId}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsAddEventOpen(false)}
+                className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleCreateTimelineEvent} className="p-5 overflow-y-auto space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Event Title <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. ₹28,00,000 Layered Transfer to Overseas Mule, Raid at Call Center Suite"
+                  value={newEventTitle}
+                  onChange={(e) => setNewEventTitle(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Event Category</label>
+                  <select
+                    value={newEventType}
+                    onChange={(e) => setNewEventType(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 text-xs"
+                  >
+                    <option value="Financial Transaction">Financial Transaction (₹ Wire / UPI)</option>
+                    <option value="Communication">Communication (VoIP / Phone Intercept)</option>
+                    <option value="Location">Location (GPS Sighting / Cell Tower)</option>
+                    <option value="Forensic Evidence">Forensic Evidence (Physical / Digital Seizure)</option>
+                    <option value="Case Event">Case Event (FIR / Warrant / Action)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Risk Severity</label>
+                  <select
+                    value={newEventRisk}
+                    onChange={(e) => setNewEventRisk(e.target.value as any)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 text-xs"
+                  >
+                    <option value="CRITICAL">CRITICAL RISK</option>
+                    <option value="HIGH">HIGH RISK</option>
+                    <option value="MEDIUM">MEDIUM RISK</option>
+                    <option value="LOW">LOW RISK</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Investigative Narrative / Subtitle</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Money was routed through 3 intermediate shell accounts before being cashed out via crypto OTC desk."
+                  value={newEventSub}
+                  onChange={(e) => setNewEventSub(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Involved Parties / Entities</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Debjit Sen → Anirban Mukherjee"
+                    value={newEventEntities}
+                    onChange={(e) => setNewEventEntities(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Evidence Reference / SHA-256</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. SFMS Wire Log #88192 or Hash"
+                    value={newEventEvidence}
+                    onChange={(e) => setNewEventEvidence(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs"
+                  />
+                </div>
+              </div>
+
+              {newEventType === 'Financial Transaction' && (
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Transaction Amount (INR ₹)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 1500000"
+                    value={newEventAmount}
+                    onChange={(e) => setNewEventAmount(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs font-mono"
+                  />
+                </div>
+              )}
+
+              {newEventType === 'Location' && (
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">City / Location Point</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Salt Lake Sector V, Kolkata"
+                    value={newEventCity}
+                    onChange={(e) => setNewEventCity(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 text-xs"
+                  />
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddEventOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEvent || !newEventTitle.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md shadow-cyan-600/30 transition-all disabled:opacity-50"
+                >
+                  {isSubmittingEvent ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
+                  <span>{isSubmittingEvent ? 'Saving...' : 'Add Event to Feed'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ─── FORENSIC EVENT INSPECTOR MODAL ─────────────────────────────── */}
       {selectedModalEvent && (

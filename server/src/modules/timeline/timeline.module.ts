@@ -587,6 +587,103 @@ export class TimelineService {
       events: fallbackList,
     };
   }
+
+  async addTimelineEvent(eventData: {
+    case_id: string;
+    type?: string;
+    category?: string;
+    title: string;
+    sub?: string;
+    entities?: string;
+    entitiesSub?: string;
+    evidence?: string;
+    evidenceType?: "doc" | "audio" | "video" | "geo" | "hash";
+    riskSeverity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+    timestamp?: string;
+    properties?: Record<string, any>;
+  }): Promise<TimelineEventDTO> {
+    const caseId = eventData.case_id || "CASE-2026-004";
+    const dt = eventData.timestamp ? new Date(eventData.timestamp) : new Date();
+    const eventId = `ev-user-${Date.now()}`;
+
+    const newEvent: TimelineEventDTO = {
+      id: eventId,
+      timestamp: dt.toISOString(),
+      timeFormatted: dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      dateFormatted: dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      type: (eventData.type as any) || "Case Event",
+      category: eventData.category || eventData.type || "Case Event",
+      title: eventData.title.trim(),
+      sub: eventData.sub || "Manually logged investigation exhibit",
+      entities: eventData.entities || "Investigation Team",
+      entitiesSub: eventData.entitiesSub || `Case: ${caseId}`,
+      evidence: eventData.evidence || "Officer Field Log",
+      evidenceType: eventData.evidenceType || "doc",
+      riskSeverity: eventData.riskSeverity || "HIGH",
+      properties: eventData.properties || {},
+    };
+
+    // 1. If DEFAULT_TIMELINES has this case, prepend it so memory cache is always reactive
+    if (!DEFAULT_TIMELINES[caseId]) {
+      DEFAULT_TIMELINES[caseId] = [];
+    }
+    DEFAULT_TIMELINES[caseId].unshift(newEvent);
+
+    // 2. Try inserting into PostgreSQL based on event type
+    try {
+      if (newEvent.type === "Financial Transaction" && eventData.properties?.amount_inr) {
+        await pgPool.query(
+          `INSERT INTO financial_transactions (case_id, transaction_ref, source_account, source_holder_name, target_account, target_holder_name, amount_inr, channel, suspicious_score, timestamp)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            caseId,
+            `TXN-MAN-${Date.now().toString().slice(-6)}`,
+            eventData.properties.source_account || "ACC-MULE-01",
+            eventData.properties.source_name || eventData.entities || "Source Account",
+            eventData.properties.target_account || "ACC-MULE-02",
+            eventData.properties.target_name || "Target Account",
+            Number(eventData.properties.amount_inr) || 50000,
+            eventData.properties.channel || "UPI",
+            newEvent.riskSeverity === "CRITICAL" ? 0.95 : 0.85,
+            dt.toISOString(),
+          ]
+        );
+      } else if (newEvent.type === "Location") {
+        await pgPool.query(
+          `INSERT INTO geo_intel_events (case_id, event_type, latitude, longitude, location_name, city, state, timestamp)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            caseId,
+            "FIELD_SURVEILLANCE_PING",
+            eventData.properties?.latitude || 28.6139,
+            eventData.properties?.longitude || 77.2090,
+            eventData.entities || "Surveillance Point",
+            eventData.properties?.city || "New Delhi",
+            eventData.properties?.state || "Delhi",
+            dt.toISOString(),
+          ]
+        );
+      } else if (newEvent.type === "Forensic Evidence") {
+        await pgPool.query(
+          `INSERT INTO evidence (case_id, evidence_code, title, category, hash_sha256, status, collected_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            caseId,
+            `EVD-${Date.now().toString().slice(-4)}`,
+            newEvent.title,
+            "DIGITAL_FORENSIC_EXHIBIT",
+            eventData.properties?.sha256 || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "SECURED",
+            dt.toISOString(),
+          ]
+        );
+      }
+    } catch (dbErr) {
+      console.warn("Could not insert timeline event into PostgreSQL (fallback to in-memory):", dbErr);
+    }
+
+    return newEvent;
+  }
 }
 
 export const timelineService = new TimelineService();
@@ -609,6 +706,32 @@ export class TimelineController {
       }, "Chronological timeline reconstructed (fallback mode)"));
     }
   }
+
+  async handleAddEvent(req: Request, res: Response) {
+    try {
+      const { case_id, title, type, category, sub, entities, entitiesSub, evidence, evidenceType, riskSeverity, timestamp, properties } = req.body;
+      if (!title) {
+        return res.status(400).json(formatResponse(false, null, undefined, "Event title is required"));
+      }
+      const newEvent = await timelineService.addTimelineEvent({
+        case_id: case_id || "CASE-2026-004",
+        title,
+        type: type || "Case Event",
+        category,
+        sub,
+        entities,
+        entitiesSub,
+        evidence,
+        evidenceType,
+        riskSeverity: riskSeverity || "HIGH",
+        timestamp,
+        properties,
+      });
+      res.json(formatResponse(true, newEvent, "Timeline exhibit added successfully"));
+    } catch (err: any) {
+      res.status(500).json(formatResponse(false, null, undefined, err.message));
+    }
+  }
 }
 
 export const timelineController = new TimelineController();
@@ -616,5 +739,6 @@ export const timelineController = new TimelineController();
 export function timelineRoutes(): Router {
   const router = Router();
   router.get("/", (req, res) => timelineController.handleGetTimeline(req, res));
+  router.post("/event", (req, res) => timelineController.handleAddEvent(req, res));
   return router;
 }
