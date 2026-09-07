@@ -31,6 +31,7 @@ import {
 import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
+import { useCaseContext } from '../context/CaseContext';
 
 interface KnowledgeGraphPageProps {
   onSelectAction?: (action: string) => void;
@@ -122,7 +123,7 @@ function computeCleanLayout(
 }
 
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelectAction }) => {
-  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
+  const { selectedCaseId, setSelectedCaseId } = useCaseContext();
   const [nodes, setNodes] = useState<RenderNode[]>([]);
   const [rawNodes, setRawNodes] = useState<Array<{ id: string; label: string; category: string; properties: any }>>([]);
   const [edges, setEdges] = useState<RenderEdge[]>([]);

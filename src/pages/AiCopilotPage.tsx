@@ -28,6 +28,7 @@ import {
 import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
+import { useCaseContext } from '../context/CaseContext';
 
 interface AiCopilotPageProps {
   onSelectAction?: (action: string) => void;
@@ -43,8 +44,8 @@ interface ChatMessage {
 }
 
 export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) => {
+  const { selectedCaseId, setSelectedCaseId } = useCaseContext();
   const [inputQuery, setInputQuery] = useState('');
-  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
   const [liveContext, setLiveContext] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showHelpBanner, setShowHelpBanner] = useState(true);

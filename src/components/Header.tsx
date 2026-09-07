@@ -29,7 +29,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string; showActionBar
   'investigations': {
     title: 'INVESTIGATIONS / CASE DASHBOARD',
     subtitle: 'Track, analyze and manage criminal investigations',
-    showActionBar: true,
+    showActionBar: false,
   },
   'ai-copilot': {
     title: 'AI COPILOT',
@@ -294,27 +294,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAlerts, acti
           </div>
         </div>
       </div>
-
-      {/* Investigations action bar (only shows for Investigations page) */}
-      {meta.showActionBar && (
-        <div className="px-4 h-10 flex items-center justify-end gap-2 border-t border-slate-800/50 bg-[#04080f]/60">
-          <button className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-violet-700 hover:bg-violet-600 text-white text-xs font-semibold shadow-[0_0_12px_rgba(124,58,237,0.35)] transition-all">
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Evidence</span>
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#0b1220] hover:bg-[#0e1a30] border border-slate-700/60 text-slate-200 text-xs font-medium transition-all">
-            <Share2 className="w-3.5 h-3.5 text-slate-400" />
-            <span>Share Case</span>
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#0b1220] hover:bg-[#0e1a30] border border-slate-700/60 text-slate-200 text-xs font-medium transition-all">
-            <FileDown className="w-3.5 h-3.5 text-slate-400" />
-            <span>Generate Report</span>
-          </button>
-          <button className="p-1 rounded-md bg-[#0b1220] hover:bg-[#0e1a30] border border-slate-700/60 text-slate-400 hover:text-slate-200 transition-all" title="More options">
-            <MoreVertical className="w-4 h-4" />
-          </button>
-        </div>
-      )}
     </header>
   );
 };

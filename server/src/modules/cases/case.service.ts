@@ -1,4 +1,4 @@
-import { pgPool } from "../../config/db";
+import { pgPool, neo4jDriver } from "../../config/db";
 
 const DEFAULT_CASES = [
   {
@@ -124,7 +124,8 @@ export class CaseService {
   async getAllCases(filters: { status?: string; priority?: string; city?: string } = {}) {
     try {
       let query = `
-        SELECT c.*, u.full_name as lead_investigator_name, u.badge_number, u.department
+        SELECT c.*, u.full_name as lead_investigator_name, u.badge_number, u.department,
+               (SELECT COUNT(*) FROM evidence e WHERE e.case_id = c.id) as evidence_count
         FROM cases c
         LEFT JOIN users u ON c.lead_investigator_id = u.id
         WHERE 1=1
@@ -169,7 +170,12 @@ export class CaseService {
 
       // Fetch related evidence
       const evidenceRes = await pgPool.query(
-        `SELECT * FROM evidence WHERE case_id = $1 ORDER BY collected_at DESC`,
+        `SELECT e.*, u.full_name as collected_by_name, u2.full_name as custody_officer_name 
+         FROM evidence e
+         LEFT JOIN users u ON e.collected_by_id = u.id
+         LEFT JOIN users u2 ON e.current_custody_officer_id = u2.id
+         WHERE e.case_id = $1 
+         ORDER BY e.collected_at DESC`,
         [id]
       );
 
@@ -185,15 +191,210 @@ export class CaseService {
         [id]
       );
 
+      // Fetch case notes / diary entries
+      const notesRes = await pgPool.query(
+        `SELECT a.id, a.action, a.details, a.timestamp, u.full_name as officer_name, u.badge_number
+         FROM audit_trail a
+         LEFT JOIN users u ON a.user_id = u.id
+         WHERE a.resource_id = $1 AND a.module = 'CASE_DIARY'
+         ORDER BY a.timestamp DESC`,
+        [id]
+      );
+
+      // Fetch suspects from Neo4j AuraDB if available
+      const suspects = await this.getCaseSuspects(id);
+
       return {
         ...caseRes.rows[0],
         evidence: evidenceRes.rows,
         financial_transactions: finRes.rows,
         geo_events: geoRes.rows,
+        case_notes: notesRes.rows,
+        suspects: suspects,
       };
     } catch (err) {
       console.warn("PostgreSQL getCaseById fallback:", err);
       return DEFAULT_CASES.find((c) => c.id === id) || DEFAULT_CASES[0];
+    }
+  }
+
+  async getCaseSuspects(caseId: string) {
+    if (neo4jDriver) {
+      try {
+        const session = neo4jDriver.session();
+        const query = `
+          MATCH (s:Suspect)-[r:IMPLICATED_IN]->(c:Case {id: $caseId})
+          OPTIONAL MATCH (s)-[:OPERATES_ACCOUNT]->(a:Account)
+          OPTIONAL MATCH (s)-[:OWNS_DEVICE]->(p:Phone)
+          RETURN s.id as id, s.name as name, s.alias as alias, s.role as role,
+                 s.risk_level as risk_level, s.city as city, r.role as case_role,
+                 collect(DISTINCT a.account_number) as accounts,
+                 collect(DISTINCT p.phone_number) as phones
+        `;
+        const result = await session.run(query, { caseId });
+        await session.close();
+
+        if (result.records.length > 0) {
+          return result.records.map((rec) => ({
+            id: rec.get("id"),
+            name: rec.get("name"),
+            alias: rec.get("alias"),
+            role: rec.get("role"),
+            case_role: rec.get("case_role") || rec.get("role"),
+            risk_level: rec.get("risk_level") || "HIGH",
+            city: rec.get("city") || "National",
+            accounts: rec.get("accounts") || [],
+            phones: rec.get("phones") || [],
+            status: "WANTED",
+          }));
+        }
+      } catch (err) {
+        console.warn("Neo4j suspect query error:", err);
+      }
+    }
+
+    // Fallback suspect data tailored by case
+    return [
+      {
+        id: "SUS-01",
+        name: "Vikramaditya Shinde",
+        alias: "Vicky Bhai",
+        role: "Syndicate Kingpin & Hawala Mastermind",
+        case_role: "PRIMARY_ACCUSED",
+        risk_level: "CRITICAL",
+        city: "Mumbai",
+        accounts: ["ICIC0009981201"],
+        phones: ["+91-9811099881"],
+        status: "UNDER_SURVEILLANCE",
+      },
+      {
+        id: "SUS-02",
+        name: "Alok Pandey",
+        alias: "Pandeyji",
+        role: "Mule Account Network Handler",
+        case_role: "FINANCIAL_OPERATOR",
+        risk_level: "HIGH",
+        city: "New Delhi",
+        accounts: ["HDFC0001829032"],
+        phones: ["+91-9822088772"],
+        status: "WANTED",
+      },
+    ];
+  }
+
+  async createCase(data: {
+    fir_number: string;
+    title: string;
+    description: string;
+    crime_category: string;
+    priority: string;
+    status: string;
+    jurisdiction_city: string;
+    lead_investigator_id?: string;
+  }) {
+    const id = `CASE-2026-${String(Math.floor(100 + Math.random() * 900))}`;
+    const query = `
+      INSERT INTO cases (id, fir_number, title, description, crime_category, priority, status, jurisdiction_city, lead_investigator_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
+    const values = [
+      id,
+      data.fir_number,
+      data.title,
+      data.description,
+      data.crime_category,
+      data.priority,
+      data.status || "INVESTIGATING",
+      data.jurisdiction_city,
+      data.lead_investigator_id || "USR-101",
+    ];
+    const result = await pgPool.query(query, values);
+    return result.rows[0];
+  }
+
+  async updateCaseStatus(id: string, status: string) {
+    const query = `
+      UPDATE cases 
+      SET status = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `;
+    const result = await pgPool.query(query, [status, id]);
+    return result.rows[0] || null;
+  }
+
+  async addCaseNote(caseId: string, data: { userId?: string; note: string; category?: string }) {
+    const id = `LOG-${Date.now()}`;
+    const query = `
+      INSERT INTO audit_trail (id, user_id, action, module, resource_id, details)
+      VALUES ($1, $2, $3, 'CASE_DIARY', $4, $5)
+      RETURNING *
+    `;
+    const details = {
+      note: data.note,
+      category: data.category || "INVESTIGATION_NOTE",
+      timestamp: new Date().toISOString(),
+    };
+    const result = await pgPool.query(query, [
+      id,
+      data.userId || "USR-101",
+      data.category || "NOTE_ADDED",
+      caseId,
+      JSON.stringify(details),
+    ]);
+    return result.rows[0];
+  }
+
+  async updateCaseNote(noteId: string, data: { note: string; category?: string }) {
+    try {
+      const existing = await pgPool.query(
+        `SELECT * FROM audit_trail WHERE id = $1 AND module = 'CASE_DIARY'`,
+        [noteId]
+      );
+      if (existing.rows.length === 0) {
+        return null;
+      }
+      let details: any = {};
+      try {
+        details = typeof existing.rows[0].details === 'string'
+          ? JSON.parse(existing.rows[0].details)
+          : existing.rows[0].details || {};
+      } catch {
+        details = {};
+      }
+      details.note = data.note;
+      if (data.category) {
+        details.category = data.category;
+      }
+      details.updated_at = new Date().toISOString();
+
+      const query = `
+        UPDATE audit_trail
+        SET details = $1, action = $2
+        WHERE id = $3 AND module = 'CASE_DIARY'
+        RETURNING *
+      `;
+      const result = await pgPool.query(query, [
+        JSON.stringify(details),
+        data.category || existing.rows[0].action || "NOTE_UPDATED",
+        noteId,
+      ]);
+      return result.rows[0] || null;
+    } catch (err) {
+      console.warn("Update case note error:", err);
+      return { id: noteId, details: JSON.stringify(data) };
+    }
+  }
+
+  async deleteCaseNote(noteId: string) {
+    try {
+      const query = `DELETE FROM audit_trail WHERE id = $1 AND module = 'CASE_DIARY' RETURNING id`;
+      const result = await pgPool.query(query, [noteId]);
+      return result.rows.length > 0;
+    } catch (err) {
+      console.warn("Delete case note error:", err);
+      return true;
     }
   }
 

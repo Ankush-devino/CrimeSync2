@@ -25,6 +25,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { useCaseContext } from '../context/CaseContext';
 
 interface ReportsPageProps {
   onSelectAction?: (action: string) => void;
@@ -48,6 +49,7 @@ interface ReportItem {
 }
 
 export const ReportsPage: React.FC<ReportsPageProps> = ({ onSelectAction, onNavigateTab: _onNavigateTab }) => {
+  const { selectedCaseId, setSelectedCaseId } = useCaseContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [reports, setReports] = useState<ReportItem[]>([]);
@@ -56,7 +58,6 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onSelectAction, onNavi
   // Generate Report modal state
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
-  const [selectedCaseId, setSelectedCaseId] = useState('CASE-2026-001');
   const [officerName, setOfficerName] = useState('');
   const [generatedReport, setGeneratedReport] = useState<any>(null);
   const [reportPreviewOpen, setReportPreviewOpen] = useState(false);
@@ -85,7 +86,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onSelectAction, onNavi
     try {
       const data = await api.cases.getAll();
       setCases(data);
-      if (data.length > 0) setSelectedCaseId(data[0].id);
+      if (data.length > 0 && !selectedCaseId) setSelectedCaseId(data[0].id);
     } catch (err) {
       console.warn('Cases load error:', err);
     }

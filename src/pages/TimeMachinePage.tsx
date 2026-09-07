@@ -37,6 +37,7 @@ import {
 import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
+import { useCaseContext } from '../context/CaseContext';
 
 interface TimeMachinePageProps {
   onSelectAction?: (action: string) => void;
@@ -60,7 +61,7 @@ export interface TimelineEvent {
 }
 
 export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction }) => {
-  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
+  const { selectedCaseId, setSelectedCaseId } = useCaseContext();
   const [selectedRangePreset, setSelectedRangePreset] = useState<'24H' | '7D' | '15D' | '30D' | 'ALL'>('15D');
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);

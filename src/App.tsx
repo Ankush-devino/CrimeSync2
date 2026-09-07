@@ -6,6 +6,7 @@ import { SuspectModal } from './components/Modals/SuspectModal';
 import { SearchModal } from './components/Modals/SearchModal';
 import { ActionModal } from './components/Modals/ActionModal';
 import { AnalysisModal } from './components/Modals/AnalysisModal';
+import { CaseProvider } from './context/CaseContext';
 
 // Pages
 import { CommandCenterPage } from './pages/CommandCenterPage';
@@ -222,6 +223,7 @@ export const App: React.FC = () => {
           onSelectAlert={handleSelectAlert}
           onSelectAction={setSelectedAction}
           onOpenAnalysis={() => setIsAnalysisOpen(true)}
+          onNavigateTab={setActiveTab}
         />
       );
     }
@@ -397,46 +399,48 @@ export const App: React.FC = () => {
     activeTab === 'audit-trail';
 
   return (
-    <div className="h-screen bg-[#050811] text-slate-100 flex flex-col font-sans overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-200">
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Navigation Sidebar */}
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <CaseProvider>
+      <div className="h-screen bg-[#050811] text-slate-100 flex flex-col font-sans overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-200">
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left Navigation Sidebar */}
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Right Column: Header + Main Content + Footer */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Sticky Header */}
-          <Header
-            activeTab={activeTab}
-            onOpenSearch={() => setIsSearchOpen(true)}
-            onOpenAlerts={() => setSelectedAction('Security Alerts Audit')}
-          />
+          {/* Right Column: Header + Main Content + Footer */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {/* Sticky Header */}
+            <Header
+              activeTab={activeTab}
+              onOpenSearch={() => setIsSearchOpen(true)}
+              onOpenAlerts={() => setSelectedAction('Security Alerts Audit')}
+            />
 
-          {/* Page Content */}
-          <main
-            className={`flex-1 min-h-0 bg-[#050811] cyber-grid-bg ${
-              pageHandlesOwnScroll ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
-            }`}
-          >
-            {renderPage()}
-          </main>
+            {/* Page Content */}
+            <main
+              className={`flex-1 min-h-0 bg-[#050811] cyber-grid-bg ${
+                pageHandlesOwnScroll ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
+              }`}
+            >
+              {renderPage()}
+            </main>
 
-          {/* Bottom Sticky Intelligence Feed Ticker (only on Command Center) */}
-          {activeTab === 'command-center' && (
-            <IntelligenceTicker onViewAll={() => setSelectedAction('Global Intelligence Wire')} />
-          )}
+            {/* Bottom Sticky Intelligence Feed Ticker (only on Command Center) */}
+            {activeTab === 'command-center' && (
+              <IntelligenceTicker onViewAll={() => setSelectedAction('Global Intelligence Wire')} />
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Interactive Modals */}
-      <SuspectModal node={selectedNode} onClose={() => setSelectedNode(null)} />
-      <SearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        onSelectNode={(node) => setSelectedNode(node)}
-      />
-      <ActionModal actionName={selectedAction} onClose={() => setSelectedAction(null)} />
-      <AnalysisModal isOpen={isAnalysisOpen} onClose={() => setIsAnalysisOpen(false)} />
-    </div>
+        {/* Interactive Modals */}
+        <SuspectModal node={selectedNode} onClose={() => setSelectedNode(null)} />
+        <SearchModal
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          onSelectNode={(node) => setSelectedNode(node)}
+        />
+        <ActionModal actionName={selectedAction} onClose={() => setSelectedAction(null)} />
+        <AnalysisModal isOpen={isAnalysisOpen} onClose={() => setIsAnalysisOpen(false)} />
+      </div>
+    </CaseProvider>
   );
 };
 

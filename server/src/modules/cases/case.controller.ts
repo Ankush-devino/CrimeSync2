@@ -30,6 +30,62 @@ export class CaseController {
     }
   }
 
+  async createCase(req: Request, res: Response) {
+    try {
+      const newCase = await caseService.createCase(req.body);
+      res.status(201).json(formatResponse(true, newCase, "FIR Case created successfully"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async updateCaseStatus(req: Request, res: Response) {
+    try {
+      const id = req.params.id as string;
+      const { status } = req.body;
+      const updatedCase = await caseService.updateCaseStatus(id, status);
+      if (!updatedCase) {
+        return res.status(404).json(formatResponse(false, null, undefined, "Case not found"));
+      }
+      res.json(formatResponse(true, updatedCase, "Case status updated successfully"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async addCaseNote(req: Request, res: Response) {
+    try {
+      const caseId = req.params.id as string;
+      const note = await caseService.addCaseNote(caseId, req.body);
+      res.status(201).json(formatResponse(true, note, "Case diary note added"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async updateCaseNote(req: Request, res: Response) {
+    try {
+      const noteId = req.params.noteId as string;
+      const updated = await caseService.updateCaseNote(noteId, req.body);
+      if (!updated) {
+        return res.status(404).json(formatResponse(false, null, undefined, "Case diary note not found"));
+      }
+      res.json(formatResponse(true, updated, "Case diary note updated successfully"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async deleteCaseNote(req: Request, res: Response) {
+    try {
+      const noteId = req.params.noteId as string;
+      await caseService.deleteCaseNote(noteId);
+      res.json(formatResponse(true, { noteId }, "Case diary note deleted successfully"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
   async getCaseStats(_req: Request, res: Response) {
     try {
       const stats = await caseService.getCaseStats();

@@ -39,6 +39,39 @@ export const api = {
       return request<any[]>(`/cases${qs}`);
     },
     getById: (id: string) => request<any>(`/cases/${id}`),
+    create: (payload: {
+      fir_number: string;
+      title: string;
+      description: string;
+      crime_category: string;
+      priority: string;
+      status: string;
+      jurisdiction_city: string;
+      lead_investigator_id?: string;
+    }) =>
+      request<any>(`/cases`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    updateStatus: (id: string, status: string) =>
+      request<any>(`/cases/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    addNote: (caseId: string, payload: { note: string; category?: string; userId?: string }) =>
+      request<any>(`/cases/${caseId}/notes`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    updateNote: (caseId: string, noteId: string, payload: { note: string; category?: string }) =>
+      request<any>(`/cases/${caseId}/notes/${noteId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
+    deleteNote: (caseId: string, noteId: string) =>
+      request<any>(`/cases/${caseId}/notes/${noteId}`, {
+        method: "DELETE",
+      }),
     getStats: () =>
       request<{
         total_cases: string;
@@ -141,6 +174,20 @@ export const api = {
   evidence: {
     getAll: () => request<any[]>(`/evidence`),
     getByCase: (caseId: string) => request<any[]>(`/evidence/case/${caseId}`),
+    create: (payload: {
+      case_id: string;
+      evidence_code: string;
+      title: string;
+      category: string;
+      hash_sha256: string;
+      collected_by_id?: string;
+      current_custody_officer_id?: string;
+      status?: string;
+    }) =>
+      request<any>(`/evidence`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
     verifyHash: (evidenceId: string, hash: string) =>
       request<{
         evidence_id: string;
@@ -152,6 +199,24 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ evidenceId, hash }),
       }),
+    update: (
+      id: string,
+      payload: {
+        title?: string;
+        category?: string;
+        status?: string;
+        hash_sha256?: string;
+        current_custody_officer_id?: string;
+      }
+    ) =>
+      request<any>(`/evidence/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
+    delete: (id: string) =>
+      request<any>(`/evidence/${id}`, {
+        method: "DELETE",
+      }),
   },
 
   // 8. Auth & Officers
@@ -160,7 +225,7 @@ export const api = {
     getProfile: () => request<any>(`/auth/me`),
   },
 
-  // 9. Member 5: AI Copilot & Autonomous Agent Sandbox
+  // 9. AI Copilot & Autonomous Agent Sandbox
   ai: {
     getLiveContext: (caseId?: string) => {
       const qs = caseId ? `?caseId=${caseId}` : "";
@@ -200,7 +265,7 @@ export const api = {
     getSummaryDossier: (caseId: string) => request<any>(`/ai/dossier/${caseId}`),
   },
 
-  // 10. Member 5: Forensic & Court-Ready Reports
+  // 10. Forensic & Court-Ready Reports
   reports: {
     list: () => request<any[]>(`/reports`),
     generateCourtReport: (caseId: string, officerName?: string) =>
@@ -211,7 +276,7 @@ export const api = {
     getById: (reportId: string) => request<any>(`/reports/${reportId}`),
   },
 
-  // 11. Member 5: Time Machine & Chronological Crime Reconstruction
+  // 11. Time Machine & Chronological Crime Reconstruction
   timeline: {
     getEvents: (params?: { caseId?: string; range?: string }) => {
       const qs = params ? `?${new URLSearchParams(params as any).toString()}` : "";

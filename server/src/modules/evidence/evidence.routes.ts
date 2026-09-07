@@ -23,12 +23,50 @@ export function evidenceRoutes(): Router {
     }
   });
 
+  router.post("/", async (req: Request, res: Response) => {
+    try {
+      const item = await evidenceService.createEvidence(req.body);
+      res.status(201).json(formatResponse(true, item, "Evidence registered successfully"));
+    } catch (err: any) {
+      res.status(500).json(formatResponse(false, null, undefined, err.message));
+    }
+  });
+
   router.post("/verify", async (req: Request, res: Response) => {
     try {
       const { evidenceId, hash } = req.body;
       const result = await evidenceService.verifyEvidenceHash(evidenceId, hash);
       if (!result) return res.status(404).json(formatResponse(false, null, undefined, "Evidence record not found"));
       res.json(formatResponse(true, result, "Evidence integrity check complete"));
+    } catch (err: any) {
+      res.status(500).json(formatResponse(false, null, undefined, err.message));
+    }
+  });
+
+  router.put("/:id", async (req: Request, res: Response) => {
+    try {
+      const item = await evidenceService.updateEvidence(req.params.id as string, req.body);
+      if (!item) return res.status(404).json(formatResponse(false, null, undefined, "Evidence record not found"));
+      res.json(formatResponse(true, item, "Evidence record updated successfully"));
+    } catch (err: any) {
+      res.status(500).json(formatResponse(false, null, undefined, err.message));
+    }
+  });
+
+  router.patch("/:id", async (req: Request, res: Response) => {
+    try {
+      const item = await evidenceService.updateEvidence(req.params.id as string, req.body);
+      if (!item) return res.status(404).json(formatResponse(false, null, undefined, "Evidence record not found"));
+      res.json(formatResponse(true, item, "Evidence record updated successfully"));
+    } catch (err: any) {
+      res.status(500).json(formatResponse(false, null, undefined, err.message));
+    }
+  });
+
+  router.delete("/:id", async (req: Request, res: Response) => {
+    try {
+      const deleted = await evidenceService.deleteEvidence(req.params.id as string);
+      res.json(formatResponse(true, { id: req.params.id, deleted }, "Evidence record deleted successfully"));
     } catch (err: any) {
       res.status(500).json(formatResponse(false, null, undefined, err.message));
     }
