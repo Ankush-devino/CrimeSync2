@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../services/api';
+import { dbService } from '../services/db';
+import { useAuth } from './AuthContext';
 import { getApplicableLawForCase, type CaseLawProfile } from '../data/applicableLaws';
+import { logOfficerAction } from '../services/activityLogger';
+import { ALL_CASES, getCaseById } from '../constants/cases';
 
 export interface CaseContextType {
   cases: any[];
@@ -9,7 +13,7 @@ export interface CaseContextType {
   applicableLaw: CaseLawProfile;
   loading: boolean;
   detailsLoading: boolean;
-  toastMessage: { text: string; type: 'success' | 'info' } | null;
+  toastMessage: { text: string; type: 'success' | 'info' | 'error' } | null;
   setSelectedCaseId: (id: string) => void;
   fetchCases: (selectNewId?: string) => Promise<void>;
   fetchCaseDetails: (caseId: string) => Promise<void>;
@@ -19,50 +23,94 @@ export interface CaseContextType {
   deleteCaseNote: (noteId: string) => Promise<void>;
   editEvidence: (evidenceId: string, payload: { title?: string; category?: string; status?: string }) => Promise<void>;
   deleteEvidence: (evidenceId: string) => Promise<void>;
-  showToast: (text: string, type?: 'success' | 'info') => void;
+  showToast: (text: string, type?: 'success' | 'info' | 'error') => void;
 }
 
 const CaseContext = createContext<CaseContextType | undefined>(undefined);
 
 export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cases, setCases] = useState<any[]>([]);
-  const [selectedCaseId, setSelectedCaseIdState] = useState<string>(() => {
-    return localStorage.getItem('crimesync_selected_case') || 'CASE-2026-004';
-  });
-  const [selectedCase, setSelectedCase] = useState<any | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
+  const { currentUser, permissions } = useAuth();
 
-  const showToast = useCallback((text: string, type: 'success' | 'info' = 'success') => {
+  const [cases, setCases] = useState<any[]>(() => dbService.getInitialUserCases(currentUser));
+  const [selectedCaseId, setSelectedCaseIdState] = useState<string>(() => {
+    const initialList = dbService.getInitialUserCases(currentUser);
+    const stored = localStorage.getItem('crimesync_selected_case');
+    if (stored && initialList.some((c: any) => c.id === stored)) {
+      return stored;
+    }
+    return initialList[0]?.id || 'CASE-2026-002';
+  });
+  const [selectedCase, setSelectedCase] = useState<any | null>(() => {
+    const initialList = dbService.getInitialUserCases(currentUser);
+    const stored = localStorage.getItem('crimesync_selected_case');
+    if (stored && initialList.some((c: any) => c.id === stored)) {
+      return initialList.find((c: any) => c.id === stored) || getCaseById(stored);
+    }
+    return initialList[0] || getCaseById('CASE-2026-002');
+  });
+  const [loading, setLoading] = useState<boolean>(false);
+  const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
+
+  const showToast = useCallback((text: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
   }, []);
+
+  const casesRef = React.useRef(cases);
+  casesRef.current = cases;
+
+  const selectedCaseIdRef = React.useRef(selectedCaseId);
+  selectedCaseIdRef.current = selectedCaseId;
 
   const setSelectedCaseId = useCallback((id: string) => {
     setSelectedCaseIdState(id);
     localStorage.setItem('crimesync_selected_case', id);
-  }, []);
+    const currentCases = casesRef.current;
+    const foundCase = currentCases.find((c) => c.id === id) || ALL_CASES.find((c) => c.id === id);
+    if (foundCase) {
+      logOfficerAction({
+        action: `Switched Active Case to ${foundCase.fir_number || id}`,
+        module: 'Case Switcher',
+        caseId: foundCase.fir_number || id,
+        status: 'Success',
+        category: 'CASES',
+        details: `${currentUser.name} (${currentUser.role}) activated workspace for "${foundCase.title || id}"`
+      });
+    }
+  }, [currentUser]);
 
-  // Fetch all cases from Neon PostgreSQL
+  // Fetch RBAC-scoped cases from DB Service (PostgreSQL + user_cases join)
   const fetchCases = useCallback(async (selectNewId?: string) => {
     try {
       setLoading(true);
-      const data = await api.cases.getAll();
-      setCases(data || []);
+      const data = await dbService.fetchUserCases(currentUser);
       if (data && data.length > 0) {
+        setCases(data);
         if (selectNewId) {
           setSelectedCaseId(selectNewId);
-        } else if (!selectedCaseId || !data.some((c) => c.id === selectedCaseId)) {
-          setSelectedCaseId(data[0].id);
+        } else {
+          const currentId = selectedCaseIdRef.current;
+          // If current case is not in user's authorized list, auto-select highest priority available case
+          if (!currentId || !data.some((c: any) => c.id === currentId)) {
+            setSelectedCaseId(data[0].id);
+          }
+        }
+      } else {
+        const fallbackCases = dbService.getInitialUserCases(currentUser);
+        setCases(fallbackCases);
+        if (fallbackCases.length > 0) {
+          setSelectedCaseId(fallbackCases[0].id);
         }
       }
     } catch (err) {
-      console.error('CaseContext: Failed to fetch cases:', err);
+      console.warn('CaseContext: DB query fallback...', err);
+      const fallbackCases = dbService.getInitialUserCases(currentUser);
+      setCases(fallbackCases);
     } finally {
       setLoading(false);
     }
-  }, [selectedCaseId, setSelectedCaseId]);
+  }, [currentUser, setSelectedCaseId]);
 
   // Fetch details of the active case
   const fetchCaseDetails = useCallback(async (caseId: string) => {
@@ -70,14 +118,20 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setDetailsLoading(true);
       const details = await api.cases.getById(caseId);
-      setSelectedCase(details);
+      if (details) {
+        setSelectedCase(details);
+      } else {
+        setSelectedCase(getCaseById(caseId));
+      }
     } catch (err) {
-      console.error('CaseContext: Failed to fetch case details:', err);
+      console.warn('CaseContext: Live API case detail fallback', err);
+      setSelectedCase(getCaseById(caseId));
     } finally {
       setDetailsLoading(false);
     }
   }, []);
 
+  // Re-fetch cases whenever the logged-in user changes (RBAC trigger)
   useEffect(() => {
     fetchCases();
   }, [fetchCases]);
@@ -88,8 +142,12 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [selectedCaseId, fetchCaseDetails]);
 
-  // 1-Click Update Case Status
+  // 1-Click Update Case Status (Guarded by RBAC permissions)
   const updateCaseStatus = useCallback(async (newStatus: string) => {
+    if (!permissions.canEditCaseStatus) {
+      showToast('Action Denied: Your role does not permit modifying case status.', 'error');
+      return;
+    }
     if (!selectedCase || selectedCase.status === newStatus) return;
     try {
       await api.cases.updateStatus(selectedCase.id, newStatus);
@@ -98,30 +156,51 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         prev.map((c) => (c.id === selectedCase.id ? { ...c, status: newStatus } : c))
       );
       showToast(`Case status updated to ${newStatus}`);
+      logOfficerAction({
+        action: `Updated Case Status: ${newStatus}`,
+        module: 'Investigations',
+        caseId: selectedCase.fir_number || 'CR-2026-0417',
+        status: 'Success',
+        category: 'CASES',
+        details: `${currentUser.name} modified case status of "${selectedCase.title || selectedCase.fir_number}" to ${newStatus}`
+      });
     } catch (err) {
       console.error('Failed to update status:', err);
       showToast('Failed to update status', 'info');
     }
-  }, [selectedCase, showToast]);
+  }, [selectedCase, permissions, currentUser, showToast]);
 
-  // Add Case Note
+  // Add Case Note (Append-Only)
   const addCaseNote = useCallback(async (note: string, category = 'INVESTIGATION_NOTE') => {
+    if (!permissions.canAddDiaryNotes) {
+      showToast('Action Denied: Role lacks permissions to log case diary notes.', 'error');
+      return;
+    }
     if (!selectedCase || !note.trim()) return;
     try {
-      await api.cases.addNote(selectedCase.id, {
-        note: note.trim(),
-        category,
+      await dbService.addCaseNote(selectedCase.id, note.trim(), category, currentUser);
+      showToast('Note recorded in Case Diary');
+      logOfficerAction({
+        action: `Added Case Diary Note`,
+        module: 'Investigations',
+        caseId: selectedCase.fir_number || 'CR-2026-0417',
+        status: 'Success',
+        category: 'CASES',
+        details: `${currentUser.name} recorded: "${note.slice(0, 50)}${note.length > 50 ? '...' : ''}"`
       });
-      showToast('Note added to Case Diary');
       await fetchCaseDetails(selectedCase.id);
     } catch (err) {
       console.error('Failed to add note:', err);
       showToast('Failed to save note', 'info');
     }
-  }, [selectedCase, fetchCaseDetails, showToast]);
+  }, [selectedCase, permissions, currentUser, fetchCaseDetails, showToast]);
 
   // Edit Case Note
   const editCaseNote = useCallback(async (noteId: string, note: string, category = 'INVESTIGATION_NOTE') => {
+    if (!permissions.canEditDiaryNotes) {
+      showToast('Action Denied: Your role does not permit editing diary entries.', 'error');
+      return;
+    }
     if (!selectedCase || !note.trim() || !noteId) return;
     try {
       await api.cases.updateNote(selectedCase.id, noteId, {
@@ -157,14 +236,17 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Failed to update note:', err);
       showToast('Failed to update note', 'info');
     }
-  }, [selectedCase, fetchCaseDetails, showToast]);
+  }, [selectedCase, permissions, fetchCaseDetails, showToast]);
 
-  // Delete Case Note
+  // Delete Case Note (Protected)
   const deleteCaseNote = useCallback(async (noteId: string) => {
+    if (permissions.isReadOnly) {
+      showToast('Action Denied: Read-only role cannot delete notes.', 'error');
+      return;
+    }
     if (!selectedCase || !noteId) return;
     try {
       await api.cases.deleteNote(selectedCase.id, noteId);
-      // Optimistically update local state in selectedCase
       setSelectedCase((prev: any) => {
         if (!prev || !prev.case_notes) return prev;
         return {
@@ -178,18 +260,21 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Failed to delete note:', err);
       showToast('Failed to delete note', 'info');
     }
-  }, [selectedCase, fetchCaseDetails, showToast]);
+  }, [selectedCase, permissions, fetchCaseDetails, showToast]);
 
-  // Edit Evidence
+  // Edit Evidence (Forensic or Investigator)
   const editEvidence = useCallback(
     async (
       evidenceId: string,
       payload: { title?: string; category?: string; status?: string }
     ) => {
+      if (!permissions.canEditEvidence) {
+        showToast('Action Denied: You do not have permission to edit evidence exhibits.', 'error');
+        return;
+      }
       if (!selectedCase || !evidenceId) return;
       try {
         await api.evidence.update(evidenceId, payload);
-        // Optimistically update local state in selectedCase
         setSelectedCase((prev: any) => {
           if (!prev || !prev.evidence) return prev;
           const updatedEvidence = prev.evidence.map((ev: any) => {
@@ -210,16 +295,19 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         showToast('Failed to update evidence', 'info');
       }
     },
-    [selectedCase, fetchCaseDetails, showToast]
+    [selectedCase, permissions, fetchCaseDetails, showToast]
   );
 
-  // Delete Evidence
+  // Delete Evidence (Append-Only Guard)
   const deleteEvidence = useCallback(
     async (evidenceId: string) => {
+      if (permissions.isReadOnly) {
+        showToast('Action Denied: Append-only compliance prevents deleting evidence.', 'error');
+        return;
+      }
       if (!selectedCase || !evidenceId) return;
       try {
         await api.evidence.delete(evidenceId);
-        // Optimistically update local state in selectedCase
         setSelectedCase((prev: any) => {
           if (!prev || !prev.evidence) return prev;
           return {
@@ -227,14 +315,14 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
             evidence: prev.evidence.filter((ev: any) => ev.id !== evidenceId),
           };
         });
-        showToast('Evidence deleted from Case Locker');
+        showToast('Evidence exhibit archived from active locker');
         await fetchCaseDetails(selectedCase.id);
       } catch (err) {
         console.error('Failed to delete evidence:', err);
-        showToast('Failed to delete evidence', 'info');
+        showToast('Failed to archive evidence', 'info');
       }
     },
-    [selectedCase, fetchCaseDetails, showToast]
+    [selectedCase, permissions, fetchCaseDetails, showToast]
   );
 
   // Derived Applicable Law profile tailored to the active case

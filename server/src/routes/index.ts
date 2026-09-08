@@ -10,6 +10,12 @@ import { geoRoutes } from "../modules/geo-intel/geo.module";
 import { aiEngineRoutes } from "../modules/ai-engine/ai-engine.module";
 import { reportRoutes } from "../modules/reports/reports.module";
 import { timelineRoutes } from "../modules/timeline/timeline.module";
+import { blockchainRoutes } from "../modules/blockchain/blockchain.module";
+import { auditTrailRoutes } from "../modules/audit-trail/audit-trail.module";
+import { deceptionRoutes } from "../modules/deception/deception.module";
+import { identityRoutes } from "../modules/identity/identity.module";
+import { attackGraphRoutes } from "../modules/attack-graph/attack-graph.module";
+import { custodyRoutes } from "../modules/custody/custody.routes";
 
 export function registerRoutes(): Router {
   const router = Router();
@@ -31,7 +37,14 @@ export function registerRoutes(): Router {
         "/financial",
         "/geo",
         "/ai",
-        "/reports"
+        "/reports",
+        "/timeline",
+        "/blockchain",
+        "/audit-trail",
+        "/deception",
+        "/identity",
+        "/attack-graph",
+        "/custody"
       ]
     });
   });
@@ -48,6 +61,12 @@ export function registerRoutes(): Router {
   router.use("/ai", aiEngineRoutes());
   router.use("/reports", reportRoutes());
   router.use("/timeline", timelineRoutes());
+  router.use("/blockchain", blockchainRoutes());
+  router.use("/audit-trail", auditTrailRoutes());
+  router.use("/deception", deceptionRoutes());
+  router.use("/identity", identityRoutes());
+  router.use("/attack-graph", attackGraphRoutes());
+  router.use("/custody", custodyRoutes());
 
   return router;
 }

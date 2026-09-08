@@ -28,8 +28,10 @@ import {
   Pencil,
   Trash2,
   X,
+  Lock,
 } from 'lucide-react';
 import { useCaseContext } from '../context/CaseContext';
+import { useAuth } from '../context/AuthContext';
 import { NewCaseModal } from '../components/Investigations/NewCaseModal';
 import { AddEvidenceModal } from '../components/Investigations/AddEvidenceModal';
 import type { NetworkNode, AlertItem } from '../types/dashboard';
@@ -46,6 +48,7 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
   onSelectAction,
   onNavigateTab,
 }) => {
+  const { currentUser, permissions } = useAuth();
   const {
     cases,
     selectedCaseId,
@@ -286,6 +289,15 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
 
         {/* Top Right Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* Active Officer Badge */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-[#08132e] border border-slate-700 text-xs font-mono">
+            <span className="text-slate-400 font-sans">Officer:</span>
+            <span className="font-bold text-white">{currentUser.name}</span>
+            <span className="text-[10px] text-blue-300 font-extrabold bg-blue-950 px-1.5 py-0.2 rounded border border-blue-500/40">
+              {currentUser.role}
+            </span>
+          </div>
+
           <button
             onClick={() => fetchCases()}
             title="Refresh database records"
@@ -294,17 +306,28 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-400' : 'text-slate-200'}`} />
           </button>
 
-          <button
-            onClick={() => setIsNewCaseModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold rounded-lg shadow-[0_0_14px_rgba(37,99,235,0.5)] flex items-center gap-1.5 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Lodge New FIR</span>
-          </button>
+          {permissions.canLodgeFIR ? (
+            <button
+              onClick={() => setIsNewCaseModalOpen(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold rounded-lg shadow-[0_0_14px_rgba(37,99,235,0.5)] flex items-center gap-1.5 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Lodge New FIR</span>
+            </button>
+          ) : (
+            <button
+              disabled
+              title={`Lodge FIR requires Inspector or ACP authorization. Current role: ${currentUser.roleTitle}`}
+              className="px-3.5 py-2 bg-slate-800/60 text-slate-400 border border-slate-700 text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-75"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Lodge FIR (Restricted)</span>
+            </button>
+          )}
         </div>
       </header>
 
-      {/* ─── Explanatory Guide Banner ─── */}
+      {/* ─── Explanatory Guide Banner & RBAC Scope Alert ─── */}
       {showHelpBanner && (
         <div className="mx-4 mt-2.5 p-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-900/80 via-slate-900/95 to-purple-900/80 border border-blue-400/50 flex items-center justify-between gap-3 text-xs sm:text-sm text-slate-100 flex-shrink-0 shadow-md">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -312,8 +335,15 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
               <Info className="w-3.5 h-3.5" />
             </div>
             <div className="truncate text-xs sm:text-sm">
-              <span className="font-bold text-white">How Case Investigations Work: </span>
-              Select an FIR to inspect suspect links, verify SHA-256 evidence, and review statutory penal codes.
+              <span className="font-bold text-white">RBAC Session: </span>
+              Logged in as <strong className="text-cyan-300">{currentUser.name}</strong> ({currentUser.roleTitle}).
+              {currentUser.role === 'ACP' ? (
+                <span> Supervisor view enabled — all national jurisdiction cases accessible.</span>
+              ) : currentUser.role === 'FORENSIC_ANALYST' ? (
+                <span className="text-amber-300"> Forensic Read-Only mode active — exhibit verification permitted.</span>
+              ) : (
+                <span> Filtered to {cases.length} assigned investigation cases via <code>user_cases</code> relational join.</span>
+              )}
             </div>
           </div>
           <button
@@ -361,7 +391,7 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
                     </h2>
                   </div>
 
-                  {/* 1-Click Status Toggles */}
+                  {/* 1-Click Status Toggles (Guarded by RBAC) */}
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
                       Status:
@@ -372,7 +402,9 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
                         return (
                           <button
                             key={st}
+                            disabled={!permissions.canEditCaseStatus}
                             onClick={() => updateCaseStatus(st)}
+                            title={!permissions.canEditCaseStatus ? 'Status modification requires Investigator or ACP role' : undefined}
                             className={`px-3 py-1 rounded text-xs font-bold transition-all ${
                               isActive
                                 ? st === 'CLOSED'
@@ -380,8 +412,8 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
                                 : st === 'UNDER_REVIEW'
                                 ? 'bg-purple-600 text-white shadow-md'
                                 : 'bg-blue-600 text-white shadow-md'
-                              : 'text-slate-200 hover:text-white hover:bg-slate-800'
-                            }`}
+                                : 'text-slate-200 hover:text-white hover:bg-slate-800'
+                            } ${!permissions.canEditCaseStatus ? 'opacity-60 cursor-not-allowed' : ''}`}
                           >
                             {st === 'UNDER_REVIEW' ? 'Review' : st}
                           </button>

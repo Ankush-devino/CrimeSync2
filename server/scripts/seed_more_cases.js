@@ -221,52 +221,52 @@ async function seedAdditionalData() {
 
     await session.run(`
       // Cases
-      MERGE (c4:Case {id: 'CASE-2026-004', title: 'Operation Chakra', status: 'INVESTIGATING'})
-      MERGE (c5:Case {id: 'CASE-2026-005', title: 'Operation Vajra', status: 'INVESTIGATING'})
-      MERGE (c6:Case {id: 'CASE-2026-006', title: 'Operation Durg', status: 'INVESTIGATING'})
-      MERGE (c7:Case {id: 'CASE-2026-007', title: 'Operation Netra', status: 'OPEN'})
-      MERGE (c8:Case {id: 'CASE-2026-008', title: 'Operation Kuber', status: 'INVESTIGATING'})
-      MERGE (c9:Case {id: 'CASE-2026-009', title: 'Operation Rudra', status: 'OPEN'})
+      MERGE (c4:Case {id: 'CASE-2026-004'}) SET c4.title = 'Operation Chakra', c4.status = 'INVESTIGATING'
+      MERGE (c5:Case {id: 'CASE-2026-005'}) SET c5.title = 'Operation Vajra', c5.status = 'INVESTIGATING'
+      MERGE (c6:Case {id: 'CASE-2026-006'}) SET c6.title = 'Operation Durg', c6.status = 'INVESTIGATING'
+      MERGE (c7:Case {id: 'CASE-2026-007'}) SET c7.title = 'Operation Netra', c7.status = 'OPEN'
+      MERGE (c8:Case {id: 'CASE-2026-008'}) SET c8.title = 'Operation Kuber', c8.status = 'INVESTIGATING'
+      MERGE (c9:Case {id: 'CASE-2026-009'}) SET c9.title = 'Operation Rudra', c9.status = 'OPEN'
 
       // New Suspects
-      MERGE (s6:Suspect {id: 'SUS-06', name: 'Anirban Mukherjee', alias: 'Bobby', role: 'Call Center Kingpin', risk_level: 'CRITICAL', city: 'Kolkata'})
-      MERGE (s7:Suspect {id: 'SUS-07', name: 'Debjit Sen', alias: 'Dave', role: 'VOIP & SIP Administrator', risk_level: 'HIGH', city: 'Noida'})
-      MERGE (s8:Suspect {id: 'SUS-08', name: 'Kunwar Pratap Singh', alias: 'Rana Saheb', role: 'Digital Arrest Impersonation Boss', risk_level: 'CRITICAL', city: 'Jaipur'})
-      MERGE (s9:Suspect {id: 'SUS-09', name: 'Manish Rathore', alias: 'Munna', role: 'Mule Account Manager', risk_level: 'HIGH', city: 'Mumbai'})
-      MERGE (s10:Suspect {id: 'SUS-10', name: 'Jignesh Patel', alias: 'Silicon Master', role: 'Biometric Cloner & AePS Hacker', risk_level: 'HIGH', city: 'Ahmedabad'})
-      MERGE (s11:Suspect {id: 'SUS-11', name: 'Paresh Dave', alias: 'Masterji', role: 'Micro-ATM CSP Operator', risk_level: 'MEDIUM', city: 'Surat'})
-      MERGE (s12:Suspect {id: 'SUS-12', name: 'Kavita Nair', alias: 'Aria', role: 'AI Deepfake Synthesizer', risk_level: 'CRITICAL', city: 'Bengaluru'})
-      MERGE (s13:Suspect {id: 'SUS-13', name: 'Harpreet Singh', alias: 'Happy', role: 'Extortion Call Operator', risk_level: 'HIGH', city: 'Gurugram'})
-      MERGE (s14:Suspect {id: 'SUS-14', name: 'Siddharth Joshi', alias: 'Sid', role: 'Malicious APK Distributor', risk_level: 'HIGH', city: 'Pune'})
-      MERGE (s15:Suspect {id: 'SUS-15', name: 'Chirag Mehta', alias: 'Charlie', role: 'Hawala Settlement Broker', risk_level: 'CRITICAL', city: 'Hyderabad'})
-      MERGE (s16:Suspect {id: 'SUS-16', name: 'Karthik Ramanathan', alias: 'GhostByte', role: 'APT Exploit Developer', risk_level: 'CRITICAL', city: 'Chennai'})
-      MERGE (s17:Suspect {id: 'SUS-17', name: 'Deepak Sharma', alias: 'RootAdmin', role: 'SCADA Insider Access Broker', risk_level: 'HIGH', city: 'New Delhi'})
+      MERGE (s6:Suspect {id: 'SUS-06'}) SET s6.name = 'Anirban Mukherjee', s6.alias = 'Bobby', s6.role = 'Call Center Kingpin', s6.risk_level = 'CRITICAL', s6.city = 'Kolkata'
+      MERGE (s7:Suspect {id: 'SUS-07'}) SET s7.name = 'Debjit Sen', s7.alias = 'Dave', s7.role = 'VOIP & SIP Administrator', s7.risk_level = 'HIGH', s7.city = 'Noida'
+      MERGE (s8:Suspect {id: 'SUS-08'}) SET s8.name = 'Kunwar Pratap Singh', s8.alias = 'Rana Saheb', s8.role = 'Digital Arrest Impersonation Boss', s8.risk_level = 'CRITICAL', s8.city = 'Jaipur'
+      MERGE (s9:Suspect {id: 'SUS-09'}) SET s9.name = 'Manish Rathore', s9.alias = 'Munna', s9.role = 'Mule Account Manager', s9.risk_level = 'HIGH', s9.city = 'Mumbai'
+      MERGE (s10:Suspect {id: 'SUS-10'}) SET s10.name = 'Jignesh Patel', s10.alias = 'Silicon Master', s10.role = 'Biometric Cloner & AePS Hacker', s10.risk_level = 'HIGH', s10.city = 'Ahmedabad'
+      MERGE (s11:Suspect {id: 'SUS-11'}) SET s11.name = 'Paresh Dave', s11.alias = 'Masterji', s11.role = 'Micro-ATM CSP Operator', s11.risk_level = 'MEDIUM', s11.city = 'Surat'
+      MERGE (s12:Suspect {id: 'SUS-12'}) SET s12.name = 'Kavita Nair', s12.alias = 'Aria', s12.role = 'AI Deepfake Synthesizer', s12.risk_level = 'CRITICAL', s12.city = 'Bengaluru'
+      MERGE (s13:Suspect {id: 'SUS-13'}) SET s13.name = 'Harpreet Singh', s13.alias = 'Happy', s13.role = 'Extortion Call Operator', s13.risk_level = 'HIGH', s13.city = 'Gurugram'
+      MERGE (s14:Suspect {id: 'SUS-14'}) SET s14.name = 'Siddharth Joshi', s14.alias = 'Sid', s14.role = 'Malicious APK Distributor', s14.risk_level = 'HIGH', s14.city = 'Pune'
+      MERGE (s15:Suspect {id: 'SUS-15'}) SET s15.name = 'Chirag Mehta', s15.alias = 'Charlie', s15.role = 'Hawala Settlement Broker', s15.risk_level = 'CRITICAL', s15.city = 'Hyderabad'
+      MERGE (s16:Suspect {id: 'SUS-16'}) SET s16.name = 'Karthik Ramanathan', s16.alias = 'GhostByte', s16.role = 'APT Exploit Developer', s16.risk_level = 'CRITICAL', s16.city = 'Chennai'
+      MERGE (s17:Suspect {id: 'SUS-17'}) SET s17.name = 'Deepak Sharma', s17.alias = 'RootAdmin', s17.role = 'SCADA Insider Access Broker', s17.risk_level = 'HIGH', s17.city = 'New Delhi'
 
       // New Accounts
-      MERGE (a4:Account {account_number: 'AXIS0009182374', bank: 'Axis Bank', holder: 'Debjit Sen', balance_inr: 890000})
-      MERGE (a5:Account {account_number: 'ICIC0003892110', bank: 'ICICI Bank', holder: 'Anirban Mukherjee', balance_inr: 4500000})
-      MERGE (a6:Account {account_number: 'SBIN0006719023', bank: 'SBI', holder: 'Manish Rathore', balance_inr: 5200000})
-      MERGE (a7:Account {account_number: 'HDFC0004819201', bank: 'HDFC Bank', holder: 'Kunwar Pratap Singh', balance_inr: 8900000})
-      MERGE (a8:Account {account_number: 'KKBK0001928374', bank: 'Kotak Bank', holder: 'Jignesh Patel', balance_inr: 2100000})
-      MERGE (a9:Account {account_number: 'YESB0002918273', bank: 'Yes Bank', holder: 'Kavita Nair', balance_inr: 3400000})
-      MERGE (a10:Account {account_number: 'IDFB0004918271', bank: 'IDFC First', holder: 'Siddharth Joshi', balance_inr: 1750000})
-      MERGE (a11:Account {account_number: 'UTIB0001928374', bank: 'Axis Bank', holder: 'Chirag Mehta', balance_inr: 12000000})
-      MERGE (a12:Account {account_number: 'IOBA0001928371', bank: 'IOB', holder: 'Karthik Ramanathan', balance_inr: 9500000})
+      MERGE (a4:Account {account_number: 'AXIS0009182374'}) SET a4.bank = 'Axis Bank', a4.holder = 'Debjit Sen', a4.balance_inr = 890000
+      MERGE (a5:Account {account_number: 'ICIC0003892110'}) SET a5.bank = 'ICICI Bank', a5.holder = 'Anirban Mukherjee', a5.balance_inr = 4500000
+      MERGE (a6:Account {account_number: 'SBIN0006719023'}) SET a6.bank = 'SBI', a6.holder = 'Manish Rathore', a6.balance_inr = 5200000
+      MERGE (a7:Account {account_number: 'HDFC0004819201'}) SET a7.bank = 'HDFC Bank', a7.holder = 'Kunwar Pratap Singh', a7.balance_inr = 8900000
+      MERGE (a8:Account {account_number: 'KKBK0001928374'}) SET a8.bank = 'Kotak Bank', a8.holder = 'Jignesh Patel', a8.balance_inr = 2100000
+      MERGE (a9:Account {account_number: 'YESB0002918273'}) SET a9.bank = 'Yes Bank', a9.holder = 'Kavita Nair', a9.balance_inr = 3400000
+      MERGE (a10:Account {account_number: 'IDFB0004918271'}) SET a10.bank = 'IDFC First', a10.holder = 'Siddharth Joshi', a10.balance_inr = 1750000
+      MERGE (a11:Account {account_number: 'UTIB0001928374'}) SET a11.bank = 'Axis Bank', a11.holder = 'Chirag Mehta', a11.balance_inr = 12000000
+      MERGE (a12:Account {account_number: 'IOBA0001928371'}) SET a12.bank = 'IOB', a12.holder = 'Karthik Ramanathan', a12.balance_inr = 9500000
 
       // New Phones
-      MERGE (p4:Phone {phone_number: '+91-9831998877', carrier: 'Airtel', suspect_id: 'SUS-06'})
-      MERGE (p5:Phone {phone_number: '+91-9874112233', carrier: 'Jio', suspect_id: 'SUS-07'})
-      MERGE (p6:Phone {phone_number: '+91-9829001122', carrier: 'Vi', suspect_id: 'SUS-08'})
-      MERGE (p7:Phone {phone_number: '+91-9825112233', carrier: 'Jio', suspect_id: 'SUS-10'})
-      MERGE (p8:Phone {phone_number: '+91-9844001199', carrier: 'Airtel', suspect_id: 'SUS-12'})
-      MERGE (p9:Phone {phone_number: '+91-9823004455', carrier: 'Vi', suspect_id: 'SUS-14'})
-      MERGE (p10:Phone {phone_number: '+91-9840112233', carrier: 'BSNL', suspect_id: 'SUS-16'})
+      MERGE (p4:Phone {phone_number: '+91-9831998877'}) SET p4.carrier = 'Airtel', p4.suspect_id = 'SUS-06'
+      MERGE (p5:Phone {phone_number: '+91-9874112233'}) SET p5.carrier = 'Jio', p5.suspect_id = 'SUS-07'
+      MERGE (p6:Phone {phone_number: '+91-9829001122'}) SET p6.carrier = 'Vi', p6.suspect_id = 'SUS-08'
+      MERGE (p7:Phone {phone_number: '+91-9825112233'}) SET p7.carrier = 'Jio', p7.suspect_id = 'SUS-10'
+      MERGE (p8:Phone {phone_number: '+91-9844001199'}) SET p8.carrier = 'Airtel', p8.suspect_id = 'SUS-12'
+      MERGE (p9:Phone {phone_number: '+91-9823004455'}) SET p9.carrier = 'Vi', p9.suspect_id = 'SUS-14'
+      MERGE (p10:Phone {phone_number: '+91-9840112233'}) SET p10.carrier = 'BSNL', p10.suspect_id = 'SUS-16'
 
       // New Cyber Assets
-      MERGE (ip3:IPAddress {ip: '182.74.22.19', isp: 'Tata Tele', location: 'Kolkata', status: 'VOIP_SIP_TRUNK'})
-      MERGE (ip4:IPAddress {ip: '115.240.91.44', isp: 'Airtel Broadband', location: 'Jaipur', status: 'SKYPE_PROXY'})
-      MERGE (ip5:IPAddress {ip: '103.110.170.8', isp: 'Spectranet', location: 'Bengaluru', status: 'AI_MODEL_C2'})
-      MERGE (ip6:IPAddress {ip: '45.114.128.5', isp: 'ACT Enterprise', location: 'Chennai', status: 'SCADA_EXPLOIT_STAGING'})
+      MERGE (ip3:IPAddress {ip: '182.74.22.19'}) SET ip3.isp = 'Tata Tele', ip3.location = 'Kolkata', ip3.status = 'VOIP_SIP_TRUNK'
+      MERGE (ip4:IPAddress {ip: '115.240.91.44'}) SET ip4.isp = 'Airtel Broadband', ip4.location = 'Jaipur', ip4.status = 'SKYPE_PROXY'
+      MERGE (ip5:IPAddress {ip: '103.110.170.8'}) SET ip5.isp = 'Spectranet', ip5.location = 'Bengaluru', ip5.status = 'AI_MODEL_C2'
+      MERGE (ip6:IPAddress {ip: '45.114.128.5'}) SET ip6.isp = 'ACT Enterprise', ip6.location = 'Chennai', ip6.status = 'SCADA_EXPLOIT_STAGING'
 
       // Relationships - Case Involvements
       MERGE (s6)-[:IMPLICATED_IN {role: 'KINGPIN'}]->(c4)

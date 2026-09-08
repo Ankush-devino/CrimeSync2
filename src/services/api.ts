@@ -1,7 +1,7 @@
 // CrimeSync Central Frontend API Service
 // Connects UI to Live PostgreSQL & Neo4j Backend
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -13,8 +13,10 @@ export interface ApiResponse<T = any> {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('crimesync_jwt_token') : null;
   const headers = {
     "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
@@ -221,6 +223,29 @@ export const api = {
 
   // 8. Auth & Officers
   auth: {
+    login: (credentials: { username?: string; email?: string; badge_number?: string; password?: string }) =>
+      request<{
+        user: {
+          id: string;
+          badge_number: string;
+          full_name: string;
+          email: string;
+          role: string;
+          department: string;
+          city: string;
+          phone: string;
+          is_active: boolean;
+        };
+        token: string;
+        token_type: string;
+        expires_in: number;
+        accessible_cases: string[];
+        gateway: string;
+        security_clearance: string;
+      }>(`/auth/login`, {
+        method: "POST",
+        body: JSON.stringify(credentials),
+      }),
     getOfficers: () => request<any[]>(`/auth/officers`),
     getProfile: () => request<any>(`/auth/me`),
   },
@@ -317,6 +342,100 @@ export const api = {
       properties?: Record<string, any>;
     }) =>
       request<any>(`/timeline/event`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+  },
+
+  // 12. Blockchain Explorer & Immutable Ledger
+  blockchain: {
+    getBlocks: (limit = 10) => request<any[]>(`/blockchain/blocks?limit=${limit}`),
+    getBlockById: (id: string) => request<any>(`/blockchain/blocks/${id}`),
+    verifyProof: (hash: string) =>
+      request<any>(`/blockchain/verify`, {
+        method: "POST",
+        body: JSON.stringify({ hash }),
+      }),
+    getStats: () => request<any>(`/blockchain/stats`),
+  },
+
+  // 13. Audit Trail
+  auditTrail: {
+    getLogs: (params?: { module?: string; userId?: string; search?: string; limit?: number }) => {
+      const qs = params ? `?${new URLSearchParams(params as any).toString()}` : "";
+      return request<any[]>(`/audit-trail${qs}`);
+    },
+    logAction: (payload: {
+      userId?: string;
+      action: string;
+      module: string;
+      resourceId?: string;
+      details?: Record<string, any>;
+    }) =>
+      request<any>(`/audit-trail/log`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    getStats: () => request<any>(`/audit-trail/stats`),
+  },
+
+  // 14. Deception Network & Honeypot Telemetry
+  deception: {
+    getDecoys: () => request<any[]>(`/deception/decoys`),
+    getIncidents: () => request<any[]>(`/deception/incidents`),
+    deployDecoy: (payload: { name: string; type: string; location?: string }) =>
+      request<any>(`/deception/deploy`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    simulate: (sensorId?: string) =>
+      request<any>(`/deception/simulate`, {
+        method: "POST",
+        body: JSON.stringify({ sensorId }),
+      }),
+    getStats: () => request<any>(`/deception/stats`),
+  },
+
+  // 15. Identity Security & Biometrics
+  identity: {
+    getProfiles: () => request<any[]>(`/identity/profiles`),
+    getProfile: (id: string) => request<any>(`/identity/profiles/${id}`),
+    verify: (officerId: string) =>
+      request<any>(`/identity/verify`, {
+        method: "POST",
+        body: JSON.stringify({ officerId }),
+      }),
+    escalate: (profileId: string, notes?: string) =>
+      request<any>(`/identity/escalate`, {
+        method: "POST",
+        body: JSON.stringify({ profileId, notes }),
+      }),
+    getStats: () => request<any>(`/identity/stats`),
+  },
+
+  // 16. Attack Graph & Lateral Movement
+  attackGraph: {
+    getKillChain: () => request<any>(`/attack-graph/kill-chain`),
+    isolate: (nodeId: string) =>
+      request<any>(`/attack-graph/isolate`, {
+        method: "POST",
+        body: JSON.stringify({ nodeId }),
+      }),
+    getStats: () => request<any>(`/attack-graph/stats`),
+  },
+
+  // 17. Chain of Custody
+  custody: {
+    getAll: () => request<any[]>(`/custody`),
+    getByEvidence: (evidenceId: string) => request<any[]>(`/custody/${evidenceId}`),
+    logHandover: (payload: {
+      evidenceId: string;
+      handledById?: string;
+      transferredToId?: string;
+      action: string;
+      notes?: string;
+    }) =>
+      request<any>(`/custody/handover`, {
         method: "POST",
         body: JSON.stringify(payload),
       }),

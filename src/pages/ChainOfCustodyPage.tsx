@@ -31,6 +31,7 @@ import {
   Box,
   Sliders
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface ChainOfCustodyPageProps {
   onSelectAction?: (action: string) => void;
@@ -253,6 +254,7 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
   onSelectAction,
   onNavigateTab
 }) => {
+  const { currentUser } = useAuth();
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string>('EV-1246');
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState<boolean>(false);
@@ -273,9 +275,9 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
       setIsSubmittingHandover(false);
       setIsHandoverModalOpen(false);
       if (onSelectAction) {
-        onSelectAction(`Handover initiated for ${currentItem.evidenceId} to ${handoverTo}`);
+        onSelectAction(`Custody of ${currentItem.evidenceId} transferred to ${handoverTo} at ${handoverLocation}`);
       }
-    }, 1200);
+    }, 1000);
   };
 
   // Radial progress gauge
@@ -307,15 +309,15 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
         <div className="flex items-center gap-3 bg-[#081022] px-3.5 py-2 rounded-xl border border-[#14233c] shadow-sm">
           <div className="relative">
             <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-              alt="ACP Raj Verma"
+              src={currentUser.avatar}
+              alt={currentUser.name}
               className="w-9 h-9 rounded-full object-cover border-2 border-cyan-500/60 shadow-[0_0_8px_rgba(6,182,212,0.4)]"
             />
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#081022] absolute bottom-0 right-0" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-white tracking-wide">ACP Raj Verma</span>
-            <span className="text-[10px] text-slate-400 font-medium">Delhi Police • Lead Custodian</span>
+            <span className="text-xs font-bold text-white tracking-wide">{currentUser.name}</span>
+            <span className="text-[10px] text-slate-400 font-medium">{currentUser.department} • Lead Custodian</span>
           </div>
         </div>
       </div>
@@ -762,7 +764,7 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div><strong className="text-slate-400">Evidence ID:</strong> <span className="text-white font-mono">{currentItem.evidenceId}</span></div>
                   <div><strong className="text-slate-400">Artifact:</strong> <span className="text-white">{currentItem.evidenceName}</span></div>
-                  <div><strong className="text-slate-400">Lead Officer:</strong> <span className="text-white">ACP Raj Verma (Delhi Police)</span></div>
+                  <div><strong className="text-slate-400">Lead Officer:</strong> <span className="text-white">{currentUser.name} ({currentUser.department})</span></div>
                   <div><strong className="text-slate-400">Compliance:</strong> <span className="text-emerald-400 font-bold">100% Unbroken Chain</span></div>
                 </div>
 
@@ -860,7 +862,7 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
               <div className="p-3 rounded-xl bg-[#091224] border border-purple-900/60 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">Current Custodian Signature:</span>
-                  <span className="font-mono text-emerald-400 font-bold">ACP Raj Verma (Verified)</span>
+                  <span className="font-mono text-emerald-400 font-bold">{currentUser.name} (Verified)</span>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">Ledger Smart Contract:</span>

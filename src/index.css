@@ -106,3 +106,65 @@
     linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
+
+/* Court Document White Canvas Overrides */
+.dossier-court-page {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dossier-court-page table {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-collapse: collapse !important;
+}
+
+.dossier-court-page thead th {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.dossier-court-page tbody tr {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.dossier-court-page tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+.dossier-court-page tbody tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.dossier-court-page tbody td {
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+.dossier-court-page .info-box-light {
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Court Document Print Styles */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+  
+  header, aside, .no-print {
+    display: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+
+

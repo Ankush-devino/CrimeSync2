@@ -29,6 +29,7 @@ import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
+import { logOfficerAction } from '../services/activityLogger';
 
 interface AiCopilotPageProps {
   onSelectAction?: (action: string) => void;
@@ -44,14 +45,14 @@ interface ChatMessage {
 }
 
 export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) => {
-  const { selectedCaseId, setSelectedCaseId } = useCaseContext();
+  const { selectedCaseId, setSelectedCaseId, cases } = useCaseContext();
   const [inputQuery, setInputQuery] = useState('');
   const [liveContext, setLiveContext] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showHelpBanner, setShowHelpBanner] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeCase: LawCase = getCaseById(selectedCaseId);
+  const activeCase: LawCase = cases.find((c: any) => c.id === selectedCaseId) || getCaseById(selectedCaseId);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -119,6 +120,15 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
     setMessages((prev) => [...prev, userMsg]);
     setInputQuery('');
     setIsLoading(true);
+
+    logOfficerAction({
+      action: `Prompted AI Copilot: "${query.slice(0, 45)}${query.length > 45 ? '...' : ''}"`,
+      module: 'AI Copilot',
+      caseId: activeCase.fir_number || 'CR-2026-0417',
+      status: 'Completed',
+      category: 'COPILOT',
+      details: `ACP Raj Verma submitted neural copilot prompt: "${query}" for ${activeCase.title}`
+    });
 
     try {
       const res = await api.ai.askCopilot(query, undefined, selectedCaseId);

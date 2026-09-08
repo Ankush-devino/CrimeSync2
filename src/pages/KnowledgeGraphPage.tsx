@@ -26,12 +26,14 @@ import {
   CheckCircle2,
   Share2,
   Copy,
-  Check
+  Check,
+  Lock,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
+import { useAuth } from '../context/AuthContext';
 
 interface KnowledgeGraphPageProps {
   onSelectAction?: (action: string) => void;
@@ -124,6 +126,7 @@ function computeCleanLayout(
 
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelectAction }) => {
   const { selectedCaseId, setSelectedCaseId } = useCaseContext();
+  const { currentUser, permissions } = useAuth();
   const [nodes, setNodes] = useState<RenderNode[]>([]);
   const [rawNodes, setRawNodes] = useState<Array<{ id: string; label: string; category: string; properties: any }>>([]);
   const [edges, setEdges] = useState<RenderEdge[]>([]);
@@ -310,17 +313,28 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
 
         {/* Top Controls: Add Node, Case Select & Refresh */}
         <div className="flex items-center gap-2">
-          {/* Add Entity / Node Button */}
-          <button
-            onClick={() => {
-              setNewNodeConnectTo(rawNodes.length > 0 ? rawNodes[0].id : '');
-              setIsAddNodeOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all hover:scale-105"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>Add Entity / Node</span>
-          </button>
+          {/* Add Entity / Node Button (Guarded by RBAC) */}
+          {permissions.canAddSuspects ? (
+            <button
+              onClick={() => {
+                setNewNodeConnectTo(rawNodes.length > 0 ? rawNodes[0].id : '');
+                setIsAddNodeOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all hover:scale-105"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>Add Entity / Node</span>
+            </button>
+          ) : (
+            <button
+              disabled
+              title={`Adding suspect & entity nodes requires Investigator or ACP clearance. Current role: ${currentUser.roleTitle}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700 text-slate-400 text-xs font-bold cursor-not-allowed opacity-75"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Add Node (Restricted)</span>
+            </button>
+          )}
 
           <CaseSelector
             selectedCaseId={selectedCaseId}

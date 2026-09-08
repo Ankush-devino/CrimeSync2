@@ -27,14 +27,15 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
-import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
+import { type LawCase, getCaseById } from '../constants/cases';
+import { useCaseContext } from '../context/CaseContext';
 
 interface AiAgentSandboxPageProps {
   onSelectAction?: (action: string) => void;
 }
 
 interface AgentCard {
-  id: 'query_database' | 'scan_network' | 'cross_reference_dna' | 'generate_dossier';
+  id: string;
   name: string;
   category: string;
   icon: React.ReactNode;
@@ -46,7 +47,7 @@ interface AgentCard {
 }
 
 export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelectAction }) => {
-  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-004');
+  const { selectedCaseId, setSelectedCaseId, cases } = useCaseContext();
   const [caseContext, setCaseContext] = useState<any>(null);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -55,7 +56,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
   const [agentLogs, setAgentLogs] = useState<Array<{ id: string; time: string; agentName: string; message: string; status: string; data?: any }>>([]);
   const [selectedResult, setSelectedResult] = useState<{ agentName: string; message: string; data?: any; time: string; actionType?: string } | null>(null);
 
-  const activeCase: LawCase = getCaseById(selectedCaseId);
+  const activeCase: LawCase = cases.find((c: any) => c.id === selectedCaseId) || getCaseById(selectedCaseId);
 
   // Load specific case context when selectedCaseId changes
   useEffect(() => {

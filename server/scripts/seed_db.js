@@ -78,7 +78,38 @@ async function initPostgres() {
       );
     }
 
-    // 4. Financial Transactions (Indian Banks & UPI)
+    // 4. Custody Chain (Evidence Transfer Records)
+    const custodyRecords = [
+      ['CUS-01', 'EVD-501', 'USR-104', 'COLLECTED', 'USR-103', 'Initial seizure from primary suspect Vivek Deshmukh at Lajpat Nagar', 'ECDSA-secp256k1 (0x81fa901c)'],
+      ['CUS-02', 'EVD-501', 'USR-103', 'ANALYZED', 'USR-103', 'Bit-stream image extracted; forensic write-blocker applied', 'ECDSA-secp256k1 (0x99fe8831)'],
+      ['CUS-03', 'EVD-502', 'USR-101', 'COLLECTED', 'USR-101', 'Physical documents seized and sealed under Section 65B procedure', 'ECDSA-secp256k1 (0x44bc12ef)']
+    ];
+
+    for (const cur of custodyRecords) {
+      await client.query(
+        `INSERT INTO custody_chain (id, evidence_id, handled_by_id, action, transferred_to_id, notes, digital_signature)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING`,
+        cur
+      );
+    }
+
+    // 5. Threats (SIEM Intelligence Alarms)
+    const threats = [
+      ['THR-101', 'CASE-2026-001', 'Stolen AWS Canary IAM Token Replay', 'CREDENTIAL_STUFFING', 'CRITICAL', 'ACTIVE', '185.191.171.42', 'Frankfurt', 'CrimeSync Staging Evidence Vault', 0.99],
+      ['THR-102', 'CASE-2026-002', 'CobaltStrike C2 Beaconing Loop', 'MALWARE_C2', 'CRITICAL', 'CONTAINED', '103.241.12.88', 'Bengaluru', 'SCADA Relay Substation #4', 0.95],
+      ['THR-103', 'CASE-2026-001', 'Spear-Phishing Invoice LNK Drop', 'PHISHING_CAMPAIGN', 'HIGH', 'MITIGATED', '49.36.18.102', 'Mumbai', 'Police Department Finance Portal', 0.88],
+      ['THR-104', 'CASE-2026-003', 'VoIP SIP Gateway Flooding & Exfil', 'DATA_EXFILTRATION', 'HIGH', 'ACTIVE', '182.74.22.19', 'Kolkata', 'Telecom Telephony Trunk', 0.91]
+    ];
+
+    for (const t of threats) {
+      await client.query(
+        `INSERT INTO threats (id, case_id, threat_name, threat_type, severity, status, origin_ip, origin_city, target_infrastructure, risk_score)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING`,
+        t
+      );
+    }
+
+    // 6. Financial Transactions (Indian Banks & UPI)
     const transactions = [
       ['TXN-901', 'CASE-2026-001', 'UPI/2026/99812039', 'SBIN0004921001', 'Rohan Verma (Mule)', 'HDFC0001829032', 'Alok Pandey (Operator)', 'State Bank of India', 450000.00, 'UPI', 0.92],
       ['TXN-902', 'CASE-2026-001', 'RTGS/2026/11029384', 'HDFC0001829032', 'Alok Pandey (Operator)', 'ICIC0009981201', 'Vikramaditya Shinde (Kingpin)', 'HDFC Bank', 2850000.00, 'RTGS', 0.98],
@@ -93,7 +124,7 @@ async function initPostgres() {
       );
     }
 
-    // 5. Geo Intel Events (Indian Crime Coordinates)
+    // 7. Geo Intel Events (Indian Crime Coordinates)
     const geoEvents = [
       ['GEO-01', 'CASE-2026-001', 'SUSPECT_CELL_TOWER_PING', 28.613939, 77.209023, 'Connaught Place Circle', 'New Delhi', 'Delhi'],
       ['GEO-02', 'CASE-2026-001', 'ATM_WITHDRAWAL_FRAUD', 19.076090, 72.877426, 'Bandra Kurla Complex (BKC)', 'Mumbai', 'Maharashtra'],
@@ -109,7 +140,22 @@ async function initPostgres() {
       );
     }
 
-    console.log('✅ PostgreSQL seeded with Indian crime & police records.');
+    // 8. Audit Trail (Officer Activities)
+    const audits = [
+      ['AUD-01', 'USR-101', 'INSPECT_EVIDENCE', 'Evidence DNA', 'EVD-501', '10.240.8.21', '{"action": "Inspected OnePlus 12 digital custody seal", "status": "Success"}'],
+      ['AUD-02', 'USR-101', 'PROMPT_COPILOT', 'AI Copilot', 'CASE-2026-001', '10.240.8.21', '{"query": "Analyze primary money laundering kingpins", "status": "Completed"}'],
+      ['AUD-03', 'USR-102', 'NEO4J_EXPAND_GRAPH', 'Knowledge Graph', 'CASE-2026-002', '10.240.9.14', '{"path": "SCADA C2 Infrastructure link analysis", "status": "Success"}']
+    ];
+
+    for (const a of audits) {
+      await client.query(
+        `INSERT INTO audit_trail (id, user_id, action, module, resource_id, ip_address, details)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb) ON CONFLICT (id) DO NOTHING`,
+        a
+      );
+    }
+
+    console.log('✅ PostgreSQL seeded with Indian crime, threats, custody & police records.');
   } finally {
     client.release();
   }
@@ -130,33 +176,56 @@ async function initNeo4j() {
 
     console.log('🌱 Seeding Neo4j with Knowledge Graph & Blast Radius network...');
 
-    // 2. Clear old demo nodes and seed fresh graph
+    // 2. Seed graph matching strictly on primary IDs
     await session.run(`
       // Create Suspects (Indian Network)
-      MERGE (s1:Suspect {id: 'SUS-01', name: 'Vikramaditya Shinde', alias: 'Vicky Bhai', role: 'Syndicate Kingpin', risk_level: 'CRITICAL', city: 'Mumbai'})
-      MERGE (s2:Suspect {id: 'SUS-02', name: 'Alok Pandey', alias: 'Pandeyji', role: 'Hawala & Crypto Operator', risk_level: 'HIGH', city: 'New Delhi'})
-      MERGE (s3:Suspect {id: 'SUS-03', name: 'Rohan Verma', alias: 'Chintu', role: 'Mule Account Recruiter', risk_level: 'MEDIUM', city: 'Noida'})
-      MERGE (s4:Suspect {id: 'SUS-04', name: 'Meera Krishnan', alias: 'ByteQueen', role: 'Malware Developer & C2 Handler', risk_level: 'HIGH', city: 'Bengaluru'})
-      MERGE (s5:Suspect {id: 'SUS-05', name: 'Sunil Yadav', alias: 'Sunny', role: 'SIM Farm Operator', risk_level: 'MEDIUM', city: 'Hyderabad'})
+      MERGE (s1:Suspect {id: 'SUS-01'})
+      SET s1.name = 'Vikramaditya Shinde', s1.alias = 'Vicky Bhai', s1.role = 'Syndicate Kingpin', s1.risk_level = 'CRITICAL', s1.city = 'Mumbai'
+
+      MERGE (s2:Suspect {id: 'SUS-02'})
+      SET s2.name = 'Alok Pandey', s2.alias = 'Pandeyji', s2.role = 'Hawala & Crypto Operator', s2.risk_level = 'HIGH', s2.city = 'New Delhi'
+
+      MERGE (s3:Suspect {id: 'SUS-03'})
+      SET s3.name = 'Rohan Verma', s3.alias = 'Chintu', s3.role = 'Mule Account Recruiter', s3.risk_level = 'MEDIUM', s3.city = 'Noida'
+
+      MERGE (s4:Suspect {id: 'SUS-04'})
+      SET s4.name = 'Meera Krishnan', s4.alias = 'ByteQueen', s4.role = 'Malware Developer & C2 Handler', s4.risk_level = 'HIGH', s4.city = 'Bengaluru'
+
+      MERGE (s5:Suspect {id: 'SUS-05'})
+      SET s5.name = 'Sunil Yadav', s5.alias = 'Sunny', s5.role = 'SIM Farm Operator', s5.risk_level = 'MEDIUM', s5.city = 'Hyderabad'
 
       // Create Accounts
-      MERGE (a1:Account {account_number: 'SBIN0004921001', bank: 'SBI', holder: 'Rohan Verma', balance_inr: 45000})
-      MERGE (a2:Account {account_number: 'HDFC0001829032', bank: 'HDFC', holder: 'Alok Pandey', balance_inr: 3200000})
-      MERGE (a3:Account {account_number: 'ICIC0009981201', bank: 'ICICI', holder: 'Vikramaditya Shinde', balance_inr: 12500000})
+      MERGE (a1:Account {account_number: 'SBIN0004921001'})
+      SET a1.bank = 'SBI', a1.holder = 'Rohan Verma', a1.balance_inr = 45000
+
+      MERGE (a2:Account {account_number: 'HDFC0001829032'})
+      SET a2.bank = 'HDFC', a2.holder = 'Alok Pandey', a2.balance_inr = 3200000
+
+      MERGE (a3:Account {account_number: 'ICIC0009981201'})
+      SET a3.bank = 'ICICI', a3.holder = 'Vikramaditya Shinde', a3.balance_inr = 12500000
 
       // Create Phone Numbers
-      MERGE (p1:Phone {phone_number: '+91-9811099881', carrier: 'Jio', suspect_id: 'SUS-01'})
-      MERGE (p2:Phone {phone_number: '+91-9822088772', carrier: 'Airtel', suspect_id: 'SUS-02'})
-      MERGE (p3:Phone {phone_number: '+91-9833077663', carrier: 'Vodafone Idea', suspect_id: 'SUS-03'})
+      MERGE (p1:Phone {phone_number: '+91-9811099881'})
+      SET p1.carrier = 'Jio', p1.suspect_id = 'SUS-01'
+
+      MERGE (p2:Phone {phone_number: '+91-9822088772'})
+      SET p2.carrier = 'Airtel', p2.suspect_id = 'SUS-02'
+
+      MERGE (p3:Phone {phone_number: '+91-9833077663'})
+      SET p3.carrier = 'Vodafone Idea', p3.suspect_id = 'SUS-03'
 
       // Create Cyber Assets & IPs
-      MERGE (ip1:IPAddress {ip: '103.241.12.88', isp: 'ACT Fibernet', location: 'Bengaluru', status: 'ACTIVE_C2'})
-      MERGE (ip2:IPAddress {ip: '49.36.18.102', isp: 'Jio 5G', location: 'Mumbai', status: 'PROXY_HOP'})
+      MERGE (ip1:IPAddress {ip: '103.241.12.88'})
+      SET ip1.isp = 'ACT Fibernet', ip1.location = 'Bengaluru', ip1.status = 'ACTIVE_C2'
+
+      MERGE (ip2:IPAddress {ip: '49.36.18.102'})
+      SET ip2.isp = 'Jio 5G', ip2.location = 'Mumbai', ip2.status = 'PROXY_HOP'
 
       // Create Case Node
-      MERGE (c1:Case {id: 'CASE-2026-001', title: 'Operation Trishul', status: 'INVESTIGATING'})
+      MERGE (c1:Case {id: 'CASE-2026-001'})
+      SET c1.title = 'Operation Trishul', c1.status = 'INVESTIGATING'
 
-      // Create Relationships (Financial Flow, Link Analysis, Attack Paths)
+      // Create Relationships
       MERGE (s3)-[:OPERATES_ACCOUNT]->(a1)
       MERGE (s2)-[:OPERATES_ACCOUNT]->(a2)
       MERGE (s1)-[:OPERATES_ACCOUNT]->(a3)

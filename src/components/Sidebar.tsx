@@ -21,12 +21,15 @@ import {
   Scale,
 } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+  const { currentUser } = useAuth();
   return (
     <aside className="w-56 bg-[#040813] border-r border-[#111e33] flex flex-col flex-shrink-0 select-none overflow-y-auto h-screen z-20">
       {/* Brand Header */}
@@ -317,6 +320,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         </div>
 
         <p className="text-[8.5px] text-slate-500 font-mono">Last checked: 10:42:12 PM</p>
+      </div>
+
+      {/* ─── OFFICER RBAC BADGE (BOTTOM RAIL) ───────────────────────── */}
+      <div className="p-2 mx-2 mb-2 rounded-lg bg-[#061026] border border-blue-500/40 text-[11px] space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="font-extrabold text-white text-[11px] truncate max-w-[110px]">
+            {currentUser.name}
+          </span>
+          <span
+            className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase ${
+              currentUser.role === 'ACP'
+                ? 'bg-purple-950 text-purple-300 border border-purple-600/60'
+                : currentUser.role === 'INSPECTOR'
+                ? 'bg-blue-950 text-blue-300 border border-blue-600/60'
+                : currentUser.role === 'SUB_INSPECTOR'
+                ? 'bg-amber-950 text-amber-300 border border-amber-600/60'
+                : 'bg-emerald-950 text-emerald-300 border border-emerald-600/60'
+            }`}
+          >
+            {currentUser.role.replace('_', ' ')}
+          </span>
+        </div>
+        <div className="text-[9.5px] text-slate-400 font-mono flex items-center justify-between">
+          <span>{currentUser.badgeNumber}</span>
+          <span className="text-cyan-300 font-bold">L{currentUser.clearanceCode} Clear</span>
+        </div>
       </div>
     </aside>
   );

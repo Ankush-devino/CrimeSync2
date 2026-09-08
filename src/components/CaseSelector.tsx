@@ -1,10 +1,13 @@
 import React from 'react';
 import { Briefcase, ChevronDown } from 'lucide-react';
-import { ALL_CASES, type LawCase } from '../constants/cases';
+import { type LawCase, getCaseById } from '../constants/cases';
+import { useCaseContext } from '../context/CaseContext';
+import { useAuth } from '../context/AuthContext';
 
 interface CaseSelectorProps {
   selectedCaseId: string;
   onSelectCase: (caseId: string) => void;
+  cases?: any[];
   allowAll?: boolean;
   allLabel?: string;
   className?: string;
@@ -13,11 +16,19 @@ interface CaseSelectorProps {
 export const CaseSelector: React.FC<CaseSelectorProps> = ({
   selectedCaseId,
   onSelectCase,
+  cases: propCases,
   allowAll = false,
-  allLabel = 'All Cases (Global Syndicate)',
+  allLabel = 'All Authorized Cases',
   className = '',
 }) => {
-  const activeCase: LawCase | undefined = ALL_CASES.find((c) => c.id === selectedCaseId);
+  const { cases: contextCases } = useCaseContext();
+  const { permissions } = useAuth();
+
+  const caseList = (propCases && propCases.length > 0) ? propCases : contextCases;
+  const activeCase: LawCase | undefined = caseList.find((c: any) => c.id === selectedCaseId) || getCaseById(selectedCaseId);
+
+  // allowAll should only be available if the officer has supervisory clearance (canViewAllCases)
+  const canShowAll = allowAll && permissions.canViewAllCases;
 
   return (
     <div className={`flex items-center gap-2 bg-slate-900 border border-slate-700/90 hover:border-slate-600 rounded-xl px-3 py-1.5 shadow-md transition-colors ${className}`}>
@@ -33,12 +44,12 @@ export const CaseSelector: React.FC<CaseSelectorProps> = ({
           }}
           className="appearance-none bg-transparent text-xs font-bold text-white pr-7 focus:outline-none cursor-pointer max-w-[280px] sm:max-w-[340px] truncate"
         >
-          {allowAll && (
+          {canShowAll && (
             <option value="ALL" className="bg-slate-900 text-slate-200">
               🌐 {allLabel}
             </option>
           )}
-          {ALL_CASES.map((c) => (
+          {caseList.map((c: any) => (
             <option key={c.id} value={c.id} className="bg-slate-900 text-slate-200 py-1">
               [{c.fir_number?.split('/')[1] || c.id}] {c.title}
             </option>

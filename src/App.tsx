@@ -7,6 +7,9 @@ import { SearchModal } from './components/Modals/SearchModal';
 import { ActionModal } from './components/Modals/ActionModal';
 import { AnalysisModal } from './components/Modals/AnalysisModal';
 import { CaseProvider } from './context/CaseContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { LoginScreen } from './components/Auth/LoginScreen';
+import { logOfficerAction } from './services/activityLogger';
 
 // Pages
 import { CommandCenterPage } from './pages/CommandCenterPage';
@@ -191,16 +194,153 @@ const PLACEHOLDER_PAGES: Record<
   },
 };
 
-// ─── Main App Component ───────────────────────────────────────────────────────
-export const App: React.FC = () => {
+// ─── Main App Content Component ────────────────────────────────────────────────
+const AppContent: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('command-center');
   const [selectedNode, setSelectedNode] = useState<NetworkNode | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+  const handleNavigateTab = (tab: string) => {
+    setActiveTab(tab);
+    const moduleActions: Record<string, { action: string; module: string; details: string; category: any }> = {
+      'command-center': {
+        action: 'Supervised Central Command Center',
+        module: 'Command Center',
+        details: 'Monitored real-time network topology, active suspect centrality, and priority live alerts',
+        category: 'CASES'
+      },
+      'investigations': {
+        action: 'Reviewed Active Case Dossier',
+        module: 'Investigations',
+        details: 'Audited evidence manifest, suspect timeline, and legal penal codes for Case #CR-2026-0417',
+        category: 'CASES'
+      },
+      'ai-copilot': {
+        action: 'Consulted AI Copilot Intelligence',
+        module: 'AI Copilot',
+        details: 'Prompted neural copilot for Hawala syndicate financial link synthesis and case strategy',
+        category: 'COPILOT'
+      },
+      'knowledge-graph': {
+        action: 'Queried Neo4j Knowledge Graph',
+        module: 'Knowledge Graph',
+        details: 'Traversed multi-degree entity links connecting suspect burner CDRs to offshore shell accounts',
+        category: 'GRAPH'
+      },
+      'time-machine': {
+        action: 'Reconstructed 4D Crime Time Machine',
+        module: 'Time Machine',
+        details: 'Cross-referenced minute-by-minute CDR tower handoffs with synchronized CCTV footage',
+        category: 'TIMELINE'
+      },
+      'geo-intelligence': {
+        action: 'Executed Satellite Geo-Intelligence Sweep',
+        module: 'Geo Intelligence',
+        details: 'Triangulated cell tower clusters and suspect GPS tracking coordinates in South Delhi',
+        category: 'GEO'
+      },
+      'financial-intelligence': {
+        action: 'Analyzed Hawala Transaction Trails',
+        module: 'Financial Intelligence',
+        details: 'Audited layered suspicious money transfers exceeding ₹50,00,000 threshold',
+        category: 'CASES'
+      },
+      'identity-security': {
+        action: 'Audited Biometric Identity Profiles',
+        module: 'Identity Security',
+        details: 'Verified facial biometric records and detected synthetic duplicate identity flags',
+        category: 'CASES'
+      },
+      'attack-graph': {
+        action: 'Inspected Adversary Attack Kill-Chain',
+        module: 'Attack Graph',
+        details: 'Traced MITRE lateral movement vectors and unauthorized socket egress pathways',
+        category: 'CASES'
+      },
+      'deception-network': {
+        action: 'Monitored Active Honeypot Tripwires',
+        module: 'Deception Network',
+        details: 'Checked AWS canary tokens, decoy FIR documents, and unauthorized access alarms',
+        category: 'CASES'
+      },
+      'blast-radius': {
+        action: 'Simulated Threat Blast Radius',
+        module: 'Blast Radius',
+        details: 'Ran 3-hop cascade propagation risk simulation for compromised server nodes',
+        category: 'CASES'
+      },
+      'ai-sandbox': {
+        action: 'Evaluated AI Agent Sandbox Attack Tests',
+        module: 'AI Sandbox',
+        details: 'Supervised gVisor microVM containerized agent prompt injection security suite',
+        category: 'COPILOT'
+      },
+      'threat-alerts': {
+        action: 'Triaged High-Severity SIEM Alerts',
+        module: 'Threat Alerts',
+        details: 'Reviewed Suricata IDS and Wazuh EDR automated incident response alerts',
+        category: 'CASES'
+      },
+      'evidence-dna': {
+        action: 'Verified Evidence DNA & Blockchain Hash',
+        module: 'Evidence DNA',
+        details: 'Computed SHA-256 digital fingerprint match for seized hard drive NAND image EV-1246',
+        category: 'EVIDENCE'
+      },
+      'chain-of-custody': {
+        action: 'Supervised Chain of Custody Handover',
+        module: 'Chain of Custody',
+        details: 'Approved digital custody sign-off for physical evidence transfer to Central Lab',
+        category: 'EVIDENCE'
+      },
+      'blockchain-explorer': {
+        action: 'Inspected Immutable Evidence Ledger',
+        module: 'Blockchain Explorer',
+        details: 'Audited block #15842 cryptographic Merkle root and transaction nonce verification',
+        category: 'EVIDENCE'
+      },
+      'reports': {
+        action: 'Generated Section 65B Forensic Dossier',
+        module: 'Reports & Dossiers',
+        details: 'Exported signed court-ready electronic evidence compliance package',
+        category: 'REPORT'
+      }
+    };
+
+    const actionItem = moduleActions[tab];
+    if (actionItem && tab !== 'audit-trail') {
+      logOfficerAction({
+        action: actionItem.action,
+        module: actionItem.module,
+        caseId: 'CR-2026-0417',
+        status: 'Success',
+        category: actionItem.category,
+        details: actionItem.details
+      });
+    }
+  };
+
+  const handleAction = (actionName: string | null) => {
+    setSelectedAction(actionName);
+    if (actionName) {
+      logOfficerAction({
+        action: actionName,
+        module: 'Command Center',
+        caseId: 'CR-2026-0417',
+        status: 'Success',
+        details: `ACP Raj Verma initiated ${actionName}`
+      });
+    }
+  };
+
   const handleSelectAlert = (alert: AlertItem) => {
-    setSelectedAction(`Alert Inspection: ${alert.title}`);
+    handleAction(`Alert Inspection: ${alert.title}`);
   };
 
   const renderPage = () => {
@@ -399,48 +539,56 @@ export const App: React.FC = () => {
     activeTab === 'audit-trail';
 
   return (
-    <CaseProvider>
-      <div className="h-screen bg-[#050811] text-slate-100 flex flex-col font-sans overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-200">
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left Navigation Sidebar */}
-          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="h-screen bg-[#050811] text-slate-100 flex flex-col font-sans overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-200">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Navigation Sidebar */}
+        <Sidebar activeTab={activeTab} setActiveTab={handleNavigateTab} />
 
-          {/* Right Column: Header + Main Content + Footer */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            {/* Sticky Header */}
-            <Header
-              activeTab={activeTab}
-              onOpenSearch={() => setIsSearchOpen(true)}
-              onOpenAlerts={() => setSelectedAction('Security Alerts Audit')}
-            />
+        {/* Right Column: Header + Main Content + Footer */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Sticky Header */}
+          <Header
+            activeTab={activeTab}
+            onOpenSearch={() => setIsSearchOpen(true)}
+            onOpenAlerts={() => setSelectedAction('Security Alerts Audit')}
+          />
 
-            {/* Page Content */}
-            <main
-              className={`flex-1 min-h-0 bg-[#050811] cyber-grid-bg ${
-                pageHandlesOwnScroll ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
-              }`}
-            >
-              {renderPage()}
-            </main>
+          {/* Page Content */}
+          <main
+            className={`flex-1 min-h-0 bg-[#050811] cyber-grid-bg ${
+              pageHandlesOwnScroll ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
+            }`}
+          >
+            {renderPage()}
+          </main>
 
-            {/* Bottom Sticky Intelligence Feed Ticker (only on Command Center) */}
-            {activeTab === 'command-center' && (
-              <IntelligenceTicker onViewAll={() => setSelectedAction('Global Intelligence Wire')} />
-            )}
-          </div>
+          {/* Bottom Sticky Intelligence Feed Ticker (only on Command Center) */}
+          {activeTab === 'command-center' && (
+            <IntelligenceTicker onViewAll={() => setSelectedAction('Global Intelligence Wire')} />
+          )}
         </div>
-
-        {/* Interactive Modals */}
-        <SuspectModal node={selectedNode} onClose={() => setSelectedNode(null)} />
-        <SearchModal
-          isOpen={isSearchOpen}
-          onClose={() => setIsSearchOpen(false)}
-          onSelectNode={(node) => setSelectedNode(node)}
-        />
-        <ActionModal actionName={selectedAction} onClose={() => setSelectedAction(null)} />
-        <AnalysisModal isOpen={isAnalysisOpen} onClose={() => setIsAnalysisOpen(false)} />
       </div>
-    </CaseProvider>
+
+      {/* Interactive Modals */}
+      <SuspectModal node={selectedNode} onClose={() => setSelectedNode(null)} />
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectNode={(node) => setSelectedNode(node)}
+      />
+      <ActionModal actionName={selectedAction} onClose={() => setSelectedAction(null)} />
+      <AnalysisModal isOpen={isAnalysisOpen} onClose={() => setIsAnalysisOpen(false)} />
+    </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <CaseProvider>
+        <AppContent />
+      </CaseProvider>
+    </AuthProvider>
   );
 };
 
