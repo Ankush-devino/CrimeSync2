@@ -37,6 +37,9 @@ import {
   insiderThreatsData,
   stegoWatermarkSamples,
 } from '../data/mockData';
+import { printCourtDossier } from '../utils/courtDossierPrinter';
+import { buildDossierForCase } from '../services/dossierService';
+import { ALL_CASES } from '../constants/cases';
 import type {
   DeceptionAsset,
   TripwireIncident,
@@ -1714,12 +1717,18 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
                 </button>
                 <button
                   onClick={() => {
-                    if (onSelectAction) onSelectAction(`Exporting Court-Ready PDF on ${selectedIncident.incidentRef}`);
+                    const fallbackCase = ALL_CASES[0];
+                    const dossier = buildDossierForCase(fallbackCase);
+                    dossier.reportName = `Deception Incident Dossier — ${selectedIncident.incidentRef}`;
+                    dossier.summary = `Deception tripwire incident report for ${selectedIncident.incidentRef}. Triggered by IP ${selectedIncident.sourceIp} against decoy asset ${selectedIncident.decoyName}. Cryptographically sealed under Section 65B BSA 2023.`;
+                    if (onSelectAction) onSelectAction(`Exported Court-Ready PDF Dossier: ${selectedIncident.incidentRef}`);
+                    printCourtDossier(dossier);
                     setSelectedIncident(null);
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs"
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs cursor-pointer shadow-md flex items-center gap-1.5"
                 >
-                  Export Court Dossier
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export Court Dossier</span>
                 </button>
               </div>
             </div>
