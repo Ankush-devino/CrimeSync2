@@ -1223,7 +1223,7 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
               <div className="flex items-center gap-2">
                 <HelpCircle className="w-5 h-5 text-purple-400" />
                 <h3 className="font-extrabold text-base text-white">
-                  HOW DO USERS & JUDGES KNOW EVIDENCE IS REALLY STORED ON BLOCKCHAIN?
+                  HOW THE EVIDENCE IS REALLY STORED ON BLOCKCHAIN?
                 </h3>
               </div>
               <button
