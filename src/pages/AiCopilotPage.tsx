@@ -30,6 +30,7 @@ import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 import { logOfficerAction } from '../services/activityLogger';
+import { FormattedAiResponse } from '../components/FormattedAiResponse';
 
 interface AiCopilotPageProps {
   onSelectAction?: (action: string) => void;
@@ -277,7 +278,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
                           : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none shadow-sm'
                       }`}
                     >
-                      <div className="whitespace-pre-line font-sans">{msg.text}</div>
+                      <FormattedAiResponse text={msg.text} isUser={isUser} />
 
                       {/* Confidence Score Pill */}
                       {!isUser && msg.confidenceScore && (
