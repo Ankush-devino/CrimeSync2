@@ -196,6 +196,15 @@ export function authRoutes(): Router {
     }
   });
 
+  router.get("/users", async (_req: Request, res: Response) => {
+    try {
+      const users = await authService.getAllUsers();
+      res.json(formatResponse(true, users, "Officers registry retrieved successfully"));
+    } catch (err: any) {
+      res.status(500).json(formatResponse(false, null, undefined, err.message));
+    }
+  });
+
   router.post("/login", async (req: Request, res: Response) => {
     try {
       const { username, email, badge_number, password } = req.body;

@@ -407,14 +407,17 @@ export const api = {
   // 12. Blockchain Explorer & Immutable Ledger
   blockchain: {
     getBlocks: (limit = 10) => request<any[]>(`/blockchain/blocks?limit=${limit}`),
-    getBlockById: (id: string) => request<any>(`/blockchain/blocks/${id}`),
+    getBlock: (id: string) => request<any>(`/blockchain/blocks/${encodeURIComponent(id)}`),
+    getBlockById: (id: string) => request<any>(`/blockchain/blocks/${encodeURIComponent(id)}`),
     verifyProof: (hash: string) =>
       request<any>(`/blockchain/verify`, {
         method: "POST",
         body: JSON.stringify({ hash }),
       }),
+    auditChain: () => request<any>(`/blockchain/audit`),
     getStats: () => request<any>(`/blockchain/stats`),
   },
+
 
   // 13. Audit Trail
   auditTrail: {
@@ -501,20 +504,42 @@ export const api = {
     getStats: () => request<any>(`/attack-graph/stats`),
   },
 
-  // 17. Chain of Custody
+  // 17. Chain of Custody (Immutable Ledger)
   custody: {
-    getAll: () => request<any[]>(`/custody`),
-    getByEvidence: (evidenceId: string) => request<any[]>(`/custody/${evidenceId}`),
+    getAll: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any[]>(`/custody${qs}`);
+    },
+    getByEvidence: (evidenceId: string) => request<any>(`/custody/${encodeURIComponent(evidenceId)}`),
+    getStats: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any>(`/custody/stats${qs}`);
+    },
+    getManifest: (evidenceId: string) => request<any>(`/custody/manifest/${encodeURIComponent(evidenceId)}`),
     logHandover: (payload: {
       evidenceId: string;
-      handledById?: string;
-      transferredToId?: string;
-      action: string;
-      notes?: string;
+      recipientName: string;
+      recipientBadge?: string;
+      destinationLocation: string;
+      action?: string;
+      reasonNotes: string;
+      currentOfficerName?: string;
+      currentOfficerBadge?: string;
     }) =>
       request<any>(`/custody/handover`, {
         method: "POST",
         body: JSON.stringify(payload),
       }),
+    verifyChain: (evidenceId: string) =>
+      request<any>(`/custody/verify`, {
+        method: "POST",
+        body: JSON.stringify({ evidenceId }),
+      }),
+  },
+
+  // 18. Users & Officers
+  users: {
+    getAll: () => request<any[]>(`/auth/users`),
   },
 };
+
