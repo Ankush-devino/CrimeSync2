@@ -158,14 +158,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
       {/* Main Header Row */}
       <div className="px-4 h-16 flex items-center justify-between gap-3">
         {/* Left: Page Title & Subtitle */}
-        {activeTab !== 'ai-copilot' && (
-          <div className="flex-shrink-0 max-w-[200px] xl:max-w-xs hidden md:block">
-            <h1 className="text-xs sm:text-sm font-extrabold text-white tracking-wide leading-tight truncate">
-              {meta.title}
-            </h1>
-            <p className="text-[10px] text-slate-400 leading-tight truncate">{meta.subtitle}</p>
-          </div>
-        )}
+        <div className="flex-shrink-0 max-w-[200px] xl:max-w-xs hidden md:block">
+          <h1 className="text-xs sm:text-sm font-extrabold text-white tracking-wide leading-tight truncate">
+            {meta.title}
+          </h1>
+          <p className="text-[10px] text-slate-400 leading-tight truncate">{meta.subtitle}</p>
+        </div>
 
         {/* ─── GLOBAL ACTIVE CASE SWITCHER (TOP BAR SELECTOR) ─────────── */}
         <div className="relative" ref={caseSwitcherRef}>
@@ -211,10 +209,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                 <div className="space-y-0.5">
                   <div className="text-xs font-extrabold text-white flex items-center gap-2">
                     <FolderKanban className="w-4 h-4 text-blue-400" />
-                    <span>Authorized Active Cases ({cases.length})</span>
+                    <span>Active Cases ({cases.length})</span>
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    Scoped to role: <strong className="text-blue-300">{currentUser.roleTitle}</strong>
+                    Full System Access: <strong className="text-blue-300">{currentUser.roleTitle}</strong>
                   </div>
                 </div>
                 <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40">
@@ -459,7 +457,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                   </div>
                 </div>
 
-                {/* Lock Terminal / Logout Button */}
+                {/* Reset Session Button */}
                 <div className="pt-1 border-t border-slate-800">
                   <button
                     type="button"
@@ -467,10 +465,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                       setShowProfileMenu(false);
                       logout();
                     }}
-                    className="w-full py-2 px-3 rounded-lg bg-red-950/70 hover:bg-red-900 border border-red-600/50 text-red-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="w-full py-2 px-3 rounded-lg bg-blue-950/70 hover:bg-blue-900 border border-blue-600/50 text-blue-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Lock Terminal & Sign Out</span>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Reset Session State</span>
                   </button>
                 </div>
               </div>

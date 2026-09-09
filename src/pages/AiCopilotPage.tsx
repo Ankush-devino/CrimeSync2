@@ -52,9 +52,24 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
   const [showHelpBanner, setShowHelpBanner] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeCase: LawCase = cases.find((c: any) => c.id === selectedCaseId) || getCaseById(selectedCaseId);
+  const fallbackCase = getCaseById(selectedCaseId) || ALL_CASES[0];
+  const matchedCase = cases?.find((c: any) => c.id === selectedCaseId);
+  const activeCase: LawCase = {
+    ...fallbackCase,
+    ...(matchedCase || {}),
+    lead_suspect: matchedCase?.lead_suspect || fallbackCase.lead_suspect || 'Suspect Network',
+    lead_suspect_role: matchedCase?.lead_suspect_role || fallbackCase.lead_suspect_role || 'Primary Suspect',
+    lead_investigator_name: matchedCase?.lead_investigator_name || fallbackCase.lead_investigator_name || 'ACP Rajeshwar Sharma',
+    badge_number: matchedCase?.badge_number || fallbackCase.badge_number || 'DEL-IPS-8821',
+    tracked_money_inr: Number(matchedCase?.tracked_money_inr ?? fallbackCase.tracked_money_inr ?? 0),
+    evidence_count: Number(matchedCase?.evidence_count ?? fallbackCase.evidence_count ?? 1),
+    title: matchedCase?.title || fallbackCase.title || 'Investigation Case',
+    fir_number: matchedCase?.fir_number || fallbackCase.fir_number || 'FIR/2026/001',
+    jurisdiction_city: matchedCase?.jurisdiction_city || fallbackCase.jurisdiction_city || 'National Cyber Command',
+    priority: (matchedCase?.priority || fallbackCase.priority || 'HIGH') as any,
+  };
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'welcome',
       sender: 'copilot',
@@ -88,14 +103,14 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
 
   const handleCaseChange = (caseId: string) => {
     setSelectedCaseId(caseId);
-    const chosen = getCaseById(caseId);
+    const chosen = getCaseById(caseId) || ALL_CASES[0];
     setMessages((prev) => [
       ...prev,
       {
         id: `switch-${Date.now()}`,
         sender: 'copilot',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `Switched active context to **${chosen.title}** (${chosen.fir_number}).\n\nJurisdiction: **${chosen.jurisdiction_city}** | Priority: **${chosen.priority}**.\nLead Suspect: **${chosen.lead_suspect}** (${chosen.lead_suspect_role}).\n\nAsk me anything about suspects, financial transactions, or evidence in this case.`,
+        text: `Switched active context to **${chosen.title}** (${chosen.fir_number}).\n\nJurisdiction: **${chosen.jurisdiction_city}** | Priority: **${chosen.priority}**.\nLead Suspect: **${chosen.lead_suspect || 'Suspect Network'}** (${chosen.lead_suspect_role || 'Primary Suspect'}).\n\nAsk me anything about suspects, financial transactions, or evidence in this case.`,
         recommendations: [
           `Who is the primary kingpin in ${chosen.title}?`,
           `Show high-risk bank transfers for ${chosen.title}`,
@@ -127,7 +142,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
       caseId: activeCase.fir_number || 'CR-2026-0417',
       status: 'Completed',
       category: 'COPILOT',
-      details: `ACP Raj Verma submitted neural copilot prompt: "${query}" for ${activeCase.title}`
+      details: `Officer submitted neural copilot prompt: "${query}" for ${activeCase.title}`
     });
 
     try {
@@ -146,7 +161,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
         id: `copilot-${Date.now()}`,
         sender: 'copilot',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `Based on your database query, records for **${activeCase.title}** were analyzed.\n\n• Primary Kingpin: **${activeCase.lead_suspect}** (${activeCase.lead_suspect_role})\n• Total Illicit Volume: **₹${activeCase.tracked_money_inr.toLocaleString('en-IN')}**\n• Evidence Status: SHA-256 Validated under Section 65B Bharatiya Sakshya Adhiniyam 2023.`,
+        text: `Based on your database query, records for **${activeCase.title}** were analyzed.\n\n• Primary Kingpin: **${activeCase.lead_suspect}** (${activeCase.lead_suspect_role})\n• Total Illicit Volume: **₹${Number(activeCase.tracked_money_inr || 0).toLocaleString('en-IN')}**\n• Evidence Status: SHA-256 Validated under Section 65B Bharatiya Sakshya Adhiniyam 2023.`,
         recommendations: [
           'Run Financial Fraud Detective Agent',
           'Export Court-Ready Section 65B Dossier',
@@ -162,9 +177,9 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
   const dbSuspects = liveContext?.suspects || [];
   const dbEvidence = liveContext?.evidence || [];
   const dbTransactions = liveContext?.financial_transactions || [];
-  const totalMoney = dbTransactions.length > 0 
+  const totalMoney: number = dbTransactions.length > 0 
     ? dbTransactions.reduce((sum: number, t: any) => sum + Number(t.amount_inr || 0), 0)
-    : activeCase.tracked_money_inr;
+    : Number(activeCase.tracked_money_inr || 0);
 
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">

@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CaseSelector } from '../components/CaseSelector';
-import { type LawCase, getCaseById } from '../constants/cases';
+import { type LawCase, getCaseById, ALL_CASES } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 
 interface AiAgentSandboxPageProps {
@@ -56,7 +56,22 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
   const [agentLogs, setAgentLogs] = useState<Array<{ id: string; time: string; agentName: string; message: string; status: string; data?: any }>>([]);
   const [selectedResult, setSelectedResult] = useState<{ agentName: string; message: string; data?: any; time: string; actionType?: string } | null>(null);
 
-  const activeCase: LawCase = cases.find((c: any) => c.id === selectedCaseId) || getCaseById(selectedCaseId);
+  const fallbackCase = getCaseById(selectedCaseId) || ALL_CASES[0];
+  const matchedCase = cases?.find((c: any) => c.id === selectedCaseId);
+  const activeCase: LawCase = {
+    ...fallbackCase,
+    ...(matchedCase || {}),
+    lead_suspect: matchedCase?.lead_suspect || fallbackCase.lead_suspect || 'Suspect Network',
+    lead_suspect_role: matchedCase?.lead_suspect_role || fallbackCase.lead_suspect_role || 'Primary Suspect',
+    lead_investigator_name: matchedCase?.lead_investigator_name || fallbackCase.lead_investigator_name || 'ACP Rajeshwar Sharma',
+    badge_number: matchedCase?.badge_number || fallbackCase.badge_number || 'DEL-IPS-8821',
+    tracked_money_inr: Number(matchedCase?.tracked_money_inr ?? fallbackCase.tracked_money_inr ?? 0),
+    evidence_count: Number(matchedCase?.evidence_count ?? fallbackCase.evidence_count ?? 1),
+    title: matchedCase?.title || fallbackCase.title || 'Investigation Case',
+    fir_number: matchedCase?.fir_number || fallbackCase.fir_number || 'FIR/2026/001',
+    jurisdiction_city: matchedCase?.jurisdiction_city || fallbackCase.jurisdiction_city || 'National Cyber Command',
+    priority: (matchedCase?.priority || fallbackCase.priority || 'HIGH') as any,
+  };
 
   // Load specific case context when selectedCaseId changes
   useEffect(() => {
@@ -168,7 +183,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
           case_title: activeCase.title,
           fir_number: activeCase.fir_number,
           investigating_officer: activeCase.lead_investigator_name,
-          ai_executive_summary: `AI Intelligence Assessment: Investigation into "${activeCase.title}" exhibits a sophisticated syndicate structure. Primary Kingpin ${activeCase.lead_suspect} is directly correlated with tracked illicit capital flow of ₹${activeCase.tracked_money_inr.toLocaleString('en-IN')}. ${activeCase.evidence_count} evidence exhibits verified.`,
+          ai_executive_summary: `AI Intelligence Assessment: Investigation into "${activeCase.title}" exhibits a sophisticated syndicate structure. Primary Kingpin ${activeCase.lead_suspect} is directly correlated with tracked illicit capital flow of ₹${Number(activeCase.tracked_money_inr || 0).toLocaleString('en-IN')}. ${activeCase.evidence_count} evidence exhibits verified.`,
           statutory_note: "Certified under Section 65B Bharatiya Sakshya Adhiniyam 2023",
         },
       };
@@ -195,9 +210,9 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
   const caseEvidence = caseContext?.evidence || [];
   const caseTxns = caseContext?.financial_transactions || [];
   const caseSuspects = caseContext?.suspects || [];
-  const totalMoney = caseTxns.length > 0 
+  const totalMoney: number = caseTxns.length > 0 
     ? caseTxns.reduce((sum: number, t: any) => sum + Number(t.amount_inr || 0), 0)
-    : activeCase.tracked_money_inr;
+    : Number(activeCase.tracked_money_inr || 0);
 
   return (
     <div className="flex-1 p-4 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
@@ -242,7 +257,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
         <div className="flex items-center gap-4 text-[11px]">
           <div>
             <span className="text-slate-500 block text-[10px]">Tracked Capital Flow</span>
-            <span className="font-bold text-emerald-400">₹{totalMoney.toLocaleString('en-IN')}</span>
+            <span className="font-bold text-emerald-400">₹{Number(totalMoney || 0).toLocaleString('en-IN')}</span>
           </div>
           <div>
             <span className="text-slate-500 block text-[10px]">Evidence Exhibits</span>

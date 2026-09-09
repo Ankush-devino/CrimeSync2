@@ -7,8 +7,7 @@ import { SearchModal } from './components/Modals/SearchModal';
 import { ActionModal } from './components/Modals/ActionModal';
 import { AnalysisModal } from './components/Modals/AnalysisModal';
 import { CaseProvider } from './context/CaseContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { LoginScreen } from './components/Auth/LoginScreen';
+import { AuthProvider } from './context/AuthContext';
 import { logOfficerAction } from './services/activityLogger';
 
 // Pages
@@ -196,16 +195,11 @@ const PLACEHOLDER_PAGES: Record<
 
 // ─── Main App Content Component ────────────────────────────────────────────────
 const AppContent: React.FC = () => {
-  const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('command-center');
   const [selectedNode, setSelectedNode] = useState<NetworkNode | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
-
-  if (!isAuthenticated) {
-    return <LoginScreen />;
-  }
   const handleNavigateTab = (tab: string) => {
     setActiveTab(tab);
     const moduleActions: Record<string, { action: string; module: string; details: string; category: any }> = {

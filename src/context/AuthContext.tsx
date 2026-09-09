@@ -37,27 +37,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(stored);
         if (parsed) {
           parsed.avatar = getOfficerAvatar(parsed.id || parsed.badgeNumber || parsed.email, parsed.name, parsed.avatar);
-          if (!parsed.accessibleCases || parsed.accessibleCases.length === 0 || (parsed.accessibleCases.includes('*') && parsed.role !== 'LEAD_INVESTIGATOR' && parsed.role !== 'ACP' && parsed.role !== 'ADMIN')) {
-            parsed.accessibleCases = OFFICER_EXPLICIT_CASE_ACCESS[parsed.id] || OFFICER_EXPLICIT_CASE_ACCESS[parsed.badgeNumber] || ROLE_CASE_MAPPINGS[parsed.role] || ['CASE-2026-002', 'CASE-2026-005'];
-          }
+          parsed.accessibleCases = ['*'];
           return parsed;
         }
       }
     } catch {
       // Fallback
     }
-    return DEFAULT_INITIAL_OFFICER;
+    return {
+      ...DEFAULT_INITIAL_OFFICER,
+      accessibleCases: ['*'],
+    };
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem(AUTH_TOKEN_KEY) || null;
+    return localStorage.getItem(AUTH_TOKEN_KEY) || 'crimesync_default_token';
   });
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const status = localStorage.getItem(AUTH_STATUS_KEY);
-    const existingToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    return status === 'true' && Boolean(existingToken);
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
 
   // Derived permissions based on currentUser.role
   const permissions = useMemo(() => {
@@ -109,22 +106,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     []
   );
 
-  // Logout Handler
+  // Reset Session Handler
   const logout = useCallback(() => {
     logOfficerAction({
-      action: `Officer Terminal Session Locked`,
+      action: `Officer Terminal Session Reset`,
       module: 'Security & Auth',
       caseId: currentUser.badgeNumber,
       status: 'Authorized',
       category: 'AUTH',
-      details: `${currentUser.name} signed out. Terminal locked.`,
+      details: `${currentUser.name} reset session.`,
     });
 
-    setIsAuthenticated(false);
-    setToken(null);
+    setCurrentUser({
+      ...DEFAULT_INITIAL_OFFICER,
+      accessibleCases: ['*'],
+    });
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
-    localStorage.setItem(AUTH_STATUS_KEY, 'false');
+    localStorage.setItem(AUTH_STATUS_KEY, 'true');
     sessionStorage.clear();
   }, [currentUser]);
 
