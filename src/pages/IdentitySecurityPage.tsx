@@ -167,8 +167,6 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
   const { selectedCaseId, cases, setSelectedCaseId } = useCaseContext();
   const { currentUser } = useAuth();
 
-  // Active View Tab
-  const [activeTab, setActiveTab] = useState<'match' | 'trail' | 'watchlist' | 'behavior'>('match');
 
   // Backend Data State
   const [profiles, setProfiles] = useState<OfficerBiometricProfile[]>([]);
@@ -729,66 +727,8 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
         </div>
       </div>
 
-      {/* ─── Navigation Tabs ─── */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#142342] pb-2">
-        <button
-          onClick={() => setActiveTab('match')}
-          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-            activeTab === 'match'
-              ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/60 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'bg-[#081023] text-slate-400 border border-[#142342] hover:text-slate-200'
-          }`}
-        >
-          <UserCheck className="w-4 h-4" />
-          <span>Biometric Match &amp; Pattern Profiles</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('trail')}
-          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-            activeTab === 'trail'
-              ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/60 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'bg-[#081023] text-slate-400 border border-[#142342] hover:text-slate-200'
-          }`}
-        >
-          <Activity className="w-4 h-4" />
-          <span>Identity Audit Trail &amp; Hack Alerts</span>
-          <span className="px-1.5 py-0.2 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono">
-            {filteredTrailEvents.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('watchlist')}
-          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-            activeTab === 'watchlist'
-              ? 'bg-red-600/20 text-red-300 border border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.2)]'
-              : 'bg-[#081023] text-slate-400 border border-[#142342] hover:text-slate-200'
-          }`}
-        >
-          <AlertOctagon className="w-4 h-4 text-red-400" />
-          <span>Compromised &amp; Doppelganger Watchlist</span>
-          <span className="px-1.5 py-0.2 rounded-full bg-red-950 text-red-300 border border-red-500/40 text-[10px] font-mono">
-            {watchlist.filter((w) => w.status === 'ACTIVE_ALERT').length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('behavior')}
-          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-            activeTab === 'behavior'
-              ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/60 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'bg-[#081023] text-slate-400 border border-[#142342] hover:text-slate-200'
-          }`}
-        >
-          <Laptop className="w-4 h-4" />
-          <span>Baseline vs Live Dynamics</span>
-        </button>
-      </div>
-
-      {/* ─── TAB 1: BIOMETRIC MATCH & PATTERN PROFILES ─── */}
-      {activeTab === 'match' && (
-        <div className="space-y-4">
+      {/* ─── SECTION 1: OFFICER BIOMETRIC & BEHAVIORAL PATTERN PROFILES ─── */}
+      <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
             {/* Left: Officer Profile Selection List (Spans 4 cols on lg) */}
             <div className="lg:col-span-4 rounded-xl bg-[#070e1f] border border-[#132342] p-3.5 flex flex-col justify-between shadow-md">
@@ -1192,11 +1132,28 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
             </div>
           )}
         </div>
-      )}
 
-      {/* ─── TAB 2: IDENTITY AUDIT TRAIL & HACK ALERTS ─── */}
-      {activeTab === 'trail' && (
-        <div className="space-y-4">
+      {/* ─── SECTION 2: REAL-TIME IDENTITY AUDIT TRAIL & HACK ALERTS ─── */}
+      <div className="space-y-4 mt-6">
+        <div className="flex items-center justify-between pb-2 border-b border-[#142342]">
+          <div>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <Activity className="w-4 h-4 text-cyan-400" />
+              Real-Time Identity Audit Trail &amp; Hack Alerts ({filteredTrailEvents.length})
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Cryptographically verified, immutable authentication events and intruder dissimilarity telemetry
+            </p>
+          </div>
+
+          <button
+            onClick={handleExportCSV}
+            className="px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-slate-200 hover:text-white hover:border-cyan-500/60 flex items-center gap-1.5 transition-all shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Export CSV</span>
+          </button>
+        </div>
           {/* Search & Category Filter Pills */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#081023] border border-[#142342] rounded-xl p-3">
             <div className="relative flex-1">
@@ -1412,231 +1369,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
             )}
           </div>
         </div>
-      )}
 
-      {/* ─── TAB 3: COMPROMISED & DOPPELGANGER WATCHLIST ─── */}
-      {activeTab === 'watchlist' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-[#142342]">
-            <div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <AlertOctagon className="w-4 h-4 text-red-400" />
-                Compromised Accounts &amp; Doppelganger Watchlist ({watchlist.length})
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Sessions flagged for severe pattern dissimilarity, impossible travel, or credential cloning
-              </p>
-            </div>
-
-            <button
-              onClick={() => handleEscalateWatchlist('insp_r_sharma')}
-              className="px-3 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 border border-red-500/60 text-red-300 text-xs font-bold flex items-center gap-1.5 shadow"
-            >
-              <Flame className="w-3.5 h-3.5" />
-              <span>Escalate All to CSOC</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {watchlist.map((item) => (
-              <div
-                key={item.id}
-                className={`p-4 rounded-xl border transition-all shadow-md flex flex-col justify-between space-y-3 ${
-                  item.isAccountHijacked
-                    ? 'bg-[#160508] border-red-500/80 hover:border-red-400'
-                    : 'bg-[#090e1f] border-[#1a2c4e] hover:border-red-500/60'
-                }`}
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-full bg-red-950/80 border border-red-500/60 flex items-center justify-center text-red-400 font-bold shrink-0">
-                        {item.isAccountHijacked ? <Skull className="w-4.5 h-4.5 animate-pulse" /> : <Users className="w-4.5 h-4.5" />}
-                      </div>
-                      <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-2">
-                          <span>{item.officerName}</span>
-                          <span className="text-xs font-mono text-slate-400">({item.badgeNumber})</span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          Flagged {item.timeAgo} · {item.anomalyType.replace(/_/g, ' ')}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase border ${
-                          item.severity === 'CRITICAL'
-                            ? 'bg-rose-950 border-rose-500 text-rose-300'
-                            : 'bg-amber-950 border-amber-500 text-amber-300'
-                        }`}
-                      >
-                        {item.severity}
-                      </span>
-                      {item.isAccountHijacked && (
-                        <span className="px-1.5 py-0.2 rounded bg-red-900 text-white text-[8.5px] font-black uppercase tracking-wider animate-pulse">
-                          HACK DETECTED
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-slate-300 mt-3 leading-relaxed bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
-                    {item.flagReason}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 mt-2.5 text-[11px] text-slate-400 font-mono">
-                    <div>
-                      <span className="text-[9.5px] text-slate-500 block">DEVICE INTRUDER</span>
-                      <span className="text-slate-200">{item.deviceInfo}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9.5px] text-slate-500 block">LOCATION TELEMETRY</span>
-                      <span className="text-slate-200">{item.location}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="pt-3 border-t border-[#142444] flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-mono font-bold text-red-400">
-                    Dissimilarity: {item.dissimilarityScore || 88.6}%
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleStartVerificationScan(item.profileId)}
-                      className="px-2.5 py-1 rounded bg-[#0e1c36] hover:bg-cyan-900/40 border border-[#1d355f] text-cyan-300 text-xs font-semibold"
-                    >
-                      Re-Challenge
-                    </button>
-                    <button
-                      onClick={() => {
-                        const prof = profiles.find((p) => p.id === item.profileId) || currentProfile;
-                        handleOpenQuarantine(prof);
-                      }}
-                      className="px-3 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow"
-                    >
-                      Kill Switch
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ─── TAB 4: BEHAVIORAL DYNAMICS & GEO-CONSISTENCY ─── */}
-      {activeTab === 'behavior' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-          <div className="lg:col-span-6 rounded-xl bg-[#070e1f] border border-[#132342] p-4 flex flex-col justify-between shadow-md">
-            <div>
-              <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
-                <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
-                  <Laptop className="w-4 h-4 text-cyan-400" />
-                  Live Keystroke &amp; Mouse Dynamics
-                </span>
-                <span className="px-2 py-0.5 rounded bg-cyan-950 text-[10px] text-cyan-300 border border-cyan-500/40 font-mono">
-                  Enrolled Baseline Envelope
-                </span>
-              </div>
-
-              <div className="py-6 flex flex-col items-center justify-center">
-                <div className="w-full h-24 flex items-center bg-[#040813] rounded-lg p-2 border border-[#101c34]">
-                  <svg className="w-full h-full stroke-cyan-400 fill-none" viewBox="0 0 400 60">
-                    <rect x="0" y="12" width="400" height="36" fill="rgba(6, 182, 212, 0.05)" />
-                    <path
-                      d="M0 30 L30 30 L45 14 L60 46 L75 30 L100 30 L115 8 L130 52 L145 30 L170 18 L185 42 L200 10 L215 50 L230 30 L260 30 L275 22 L290 38 L310 30 L340 15 L355 45 L370 30 L400 30"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="drop-shadow-[0_0_8px_rgba(6,182,212,0.7)]"
-                    />
-                  </svg>
-                </div>
-                <p className="text-[11px] text-slate-400 font-mono text-center mt-3">
-                  Flight-time dwell variance · 24-sample continuous biometric envelope
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#12203c] text-center text-xs">
-              <div className="bg-[#050b18] p-2 rounded border border-[#101c34]">
-                <span className="text-[10px] text-slate-400 block">DWELL TIME</span>
-                <span className="font-mono font-bold text-emerald-400">84 ms ± 3ms</span>
-              </div>
-              <div className="bg-[#050b18] p-2 rounded border border-[#101c34]">
-                <span className="text-[10px] text-slate-400 block">FLIGHT TIME</span>
-                <span className="font-mono font-bold text-emerald-400">112 ms ± 6ms</span>
-              </div>
-              <div className="bg-[#050b18] p-2 rounded border border-[#101c34]">
-                <span className="text-[10px] text-slate-400 block">VELOCITY DRIFT</span>
-                <span className="font-mono font-bold text-cyan-300">1.2% (Nominal)</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-6 space-y-3.5">
-            <div className="rounded-xl bg-[#070e1f] border border-[#132342] p-4 shadow-md">
-              <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
-                <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-amber-400" />
-                  Login Geo-Consistency Breakdown
-                </span>
-              </div>
-
-              <div className="space-y-2.5 pt-3 text-xs">
-                <div className="flex items-center justify-between py-1 border-b border-[#101c34]">
-                  <span className="text-slate-300">Delhi HQ Command Room B (Registered Primary)</span>
-                  <span className="text-emerald-400 font-bold font-mono">96% nominal</span>
-                </div>
-                <div className="flex items-center justify-between py-1 border-b border-[#101c34]">
-                  <span className="text-slate-300">Field Tablet Terminal (Lajpat Nagar)</span>
-                  <span className="text-emerald-400 font-bold font-mono">89% confidence</span>
-                </div>
-                <div className="flex items-center justify-between py-1 border-b border-[#101c34]">
-                  <span className="text-slate-300">Gov VPN Gateway (Gurugram Node)</span>
-                  <span className="text-amber-400 font-bold font-mono">61% heightened check</span>
-                </div>
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-slate-300">Unrecognized Cell Tower (Pune Sector 12)</span>
-                  <span className="text-red-400 font-bold font-mono">12% [KILL SWITCH ENFORCED]</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-[#070e1f] border border-[#132342] p-4 shadow-md">
-              <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
-                <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
-                  <Key className="w-4 h-4 text-emerald-400" />
-                  Department Credential Health &amp; Zero-Trust Compliance
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-3 text-xs font-mono">
-                <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
-                  <span className="text-[10px] text-slate-400 font-sans block">MFA ENROLLMENT</span>
-                  <span className="text-emerald-400 font-bold text-sm">{stats.mfaEnrollment || '17 / 18'} ({stats.totalActiveAccounts ? Math.round(((stats.verifiedIdentities || 16) / stats.totalActiveAccounts) * 100) : 94}%)</span>
-                </div>
-                <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
-                  <span className="text-[10px] text-slate-400 font-sans block">HARDWARE FIDO2 ADOPTION</span>
-                  <span className="text-cyan-300 font-bold text-sm">{stats.hardwareKeyAdoptionRate || '89%'} Enrolled</span>
-                </div>
-                <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
-                  <span className="text-[10px] text-slate-400 font-sans block">STALE CREDENTIALS (&gt;90d)</span>
-                  <span className="text-amber-400 font-bold text-sm">{stats.staleCredentials ?? 1} Account{(stats.staleCredentials ?? 1) === 1 ? '' : 's'}</span>
-                </div>
-                <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
-                  <span className="text-[10px] text-slate-400 font-sans block">ACTIVE QUARANTINES</span>
-                  <span className="text-rose-400 font-bold text-sm">{stats.quarantinedSessions ?? 1} Session{(stats.quarantinedSessions ?? 1) === 1 ? '' : 's'} Blocked</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ─── MODAL 1: LIVE BIOMETRIC VERIFICATION SCANNER ─── */}
       {isVerifyingModalOpen && (
