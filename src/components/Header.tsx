@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
   });
 
   return (
-    <header className="bg-[#040814]/95 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md flex-shrink-0">
+    <header className="bg-[#040814] border-b border-slate-800/80 sticky top-0 z-[1000] backdrop-blur-md flex-shrink-0">
       {/* Main Header Row */}
       <div className="px-4 h-16 flex items-center justify-between gap-3">
         {/* Left: Page Title & Subtitle */}
@@ -203,7 +203,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
 
           {/* Case Switcher Dropdown */}
           {showCaseSwitcher && (
-            <div className="absolute left-0 top-full mt-2 w-84 sm:w-96 bg-[#061026] border border-blue-500/60 rounded-xl shadow-[0_15px_50px_rgba(0,0,0,0.9)] z-[100] overflow-hidden flex flex-col max-h-[500px] backdrop-blur-xl">
+            <div className="absolute left-0 top-full mt-2 w-84 sm:w-96 bg-[#061026] border border-blue-500/60 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-[1100] overflow-hidden flex flex-col max-h-[500px]">
               {/* Dropdown Header */}
               <div className="p-3 border-b border-slate-800 bg-[#040c20] flex items-center justify-between">
                 <div className="space-y-0.5">

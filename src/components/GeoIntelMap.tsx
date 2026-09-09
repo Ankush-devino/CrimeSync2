@@ -250,7 +250,7 @@ export const GeoIntelMap: React.FC<GeoIntelMapProps> = ({
         <div style="padding: 12px; min-width: 220px; font-family: Inter, sans-serif;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
             <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: ${pinColor}; background: ${glowColor}; padding: 2px 6px; border-radius: 4px;">
-              ${m.type.replace('_', ' ')}
+              ${m.type.replace(/_/g, ' ')}
             </span>
             <span style="font-size: 10px; color: #94a3b8; font-family: monospace;">${m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'ACTIVE'}</span>
           </div>
@@ -367,16 +367,13 @@ export const GeoIntelMap: React.FC<GeoIntelMapProps> = ({
             ` : ''}
           </div>
         `;
-        marker.bindPopup(popupContent, { className: 'cyber-leaflet-popup' });
+        marker.bindPopup(popupContent, { className: 'cyber-leaflet-popup', autoPan: false, offset: [0, -14] });
         marker.on('click', () => onSelectItem({ ...track, currentWaypoint: wp }));
         marker.addTo(group);
 
         if (isLatest) {
           if (mapInstanceRef.current) {
             mapInstanceRef.current.panTo([wp.latitude, wp.longitude], { animate: true, duration: 0.8 });
-          }
-          if (playbackIndex !== undefined) {
-            marker.openPopup();
           }
         }
       });

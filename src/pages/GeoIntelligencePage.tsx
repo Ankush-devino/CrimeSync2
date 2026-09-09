@@ -67,7 +67,7 @@ interface GeoIntelligencePageProps {
 export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
   onSelectAction,
 }) => {
-  const { selectedCaseId, selectedCase } = useCaseContext();
+  const { selectedCaseId, selectedCase, cases, setSelectedCaseId } = useCaseContext();
 
   // State for data
   const [markers, setMarkers] = useState<GeoMarkerItem[]>([]);
@@ -169,23 +169,38 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
 
       if (hotspotsRes) {
         setMarkers(
-          hotspotsRes.map((h: any) => ({
-            id: h.id,
-            type: h.event_type || 'CRIME_SCENE',
-            title: h.title || h.location_name,
-            description: h.description || '',
-            lat: Number(h.latitude),
-            lng: Number(h.longitude),
-            locationName: h.location_name || `${h.city}, ${h.state}`,
-            severity: h.severity || 'HIGH',
-            timestamp: h.timestamp,
-            suspectName: h.suspect_name,
-            confidence: h.confidence,
-            evidenceHash: h.evidence_hash,
-            radiusMeters: h.radius_meters || 400,
-            caseId: h.case_id,
-            caseTitle: h.case_title,
-          }))
+          hotspotsRes.map((h: any) => {
+            const cleanType = (h.event_type || 'CRIME_SCENE').replace(/_/g, ' ');
+            const readableTitle =
+              h.title && h.title.trim() && h.title !== h.location_name
+                ? h.title
+                : cleanType
+                    .toLowerCase()
+                    .replace(/\b\w/g, (c: string) => c.toUpperCase());
+
+            const formattedLocation =
+              h.location_name && h.city && !h.location_name.toLowerCase().includes(h.city.toLowerCase())
+                ? `${h.location_name}, ${h.city}`
+                : h.location_name || (h.city ? `${h.city}, ${h.state || 'India'}` : 'Field Evidence Coordinate');
+
+            return {
+              id: h.id,
+              type: h.event_type || 'CRIME_SCENE',
+              title: readableTitle,
+              description: h.description || '',
+              lat: Number(h.latitude),
+              lng: Number(h.longitude),
+              locationName: formattedLocation,
+              severity: h.severity || 'HIGH',
+              timestamp: h.timestamp,
+              suspectName: h.suspect_name,
+              confidence: h.confidence,
+              evidenceHash: h.evidence_hash,
+              radiusMeters: h.radius_meters || 400,
+              caseId: h.case_id,
+              caseTitle: h.case_title,
+            };
+          })
         );
       }
 
@@ -517,6 +532,34 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
 
         {/* Header Controls */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Interactive Case Selector */}
+          <div className="relative flex items-center">
+            <div className="absolute left-2.5 pointer-events-none text-amber-400">
+              <Shield className="w-3.5 h-3.5" />
+            </div>
+            <select
+              value={selectedCaseId}
+              onChange={(e) => setSelectedCaseId(e.target.value)}
+              className="pl-8 pr-8 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] hover:border-amber-500/60 focus:border-amber-500 text-xs font-semibold text-amber-300 font-mono focus:outline-none transition-all cursor-pointer appearance-none shadow-sm"
+              title="Select Active Investigation Case"
+            >
+              {cases && cases.length > 0 ? (
+                cases.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-[#091122] text-slate-200 font-sans">
+                    {c.id} — {c.title || c.name || 'Investigation'}
+                  </option>
+                ))
+              ) : (
+                <option value={selectedCaseId} className="bg-[#091122] text-slate-200">
+                  {selectedCaseId}
+                </option>
+              )}
+            </select>
+            <div className="absolute right-2.5 pointer-events-none text-slate-400">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
           {/* City / Jurisdiction Selector */}
           <div className="relative">
             <button
@@ -966,7 +1009,7 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Hotspots ({filteredMarkers.length})
+              Checkpoints ({suspectTracks[0]?.waypoints?.length || 0})
             </button>
             <button
               onClick={() => setActiveTab('suspects')}
@@ -1003,7 +1046,7 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
               onClick={() => setActiveTab('clusters')}
               className={`flex-1 py-1.5 text-[11px] font-semibold rounded-md transition-all ${
                 activeTab === 'clusters'
-                  ? 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+                  ? 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -1023,25 +1066,25 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
             />
           </div>
 
-          {/* Tab 1: Live Hotspots & 4D Timeline Checkpoints */}
+          {/* Tab 1: 4D Suspect Movement Trail Checkpoints */}
           {activeTab === 'hotspots' && (
             <div className="rounded-xl bg-[#081023] border border-[#132342] p-3 flex flex-col space-y-3 max-h-[500px] overflow-y-auto">
               <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
                 <div>
                   <span className="text-xs font-extrabold text-slate-200 tracking-wider uppercase block">
-                    ACTIVE CRIME SCENES & SIGHTINGS
+                    SUSPECT GPS TRAIL & CHECKPOINTS
                   </span>
                   <span className="text-[10px] text-slate-400">
-                    Chronological 4D Timeline & Incident Feed
+                    Chronological 4D Timeline & Forensic Checkpoints
                   </span>
                 </div>
                 <span className="text-[10px] text-cyan-400 font-mono font-bold bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
-                  {suspectTracks.reduce((s, t) => s + (t.waypoints?.length || 0), 0) + filteredMarkers.length} Events
+                  {suspectTracks[0]?.waypoints?.length || 0} Checkpoints
                 </span>
               </div>
 
-              {/* Section 1: 4D Suspect Movement Trail Checkpoints */}
-              {suspectTracks.length > 0 && (
+              {/* 4D Suspect Movement Trail Checkpoints */}
+              {suspectTracks.length > 0 ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-[11px] font-bold text-amber-400 uppercase tracking-wide">
                     <span className="flex items-center gap-1.5">
@@ -1106,59 +1149,11 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
                     );
                   })}
                 </div>
-              )}
-
-              {/* Section 2: Case Crime Scenes & Hotspot Nodes */}
-              <div className="space-y-2 pt-2 border-t border-slate-800">
-                <div className="text-[11px] font-bold text-purple-400 uppercase tracking-wide flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Verified Crime Scenes & Evidence Hotspots</span>
+              ) : (
+                <div className="p-6 text-center text-xs text-slate-400">
+                  No suspect movement trails recorded for this case.
                 </div>
-
-                {filteredMarkers.map((m) => (
-                  <div
-                    key={m.id}
-                    onClick={() => {
-                      setSelectedItem(m);
-                    }}
-                    className="p-2.5 rounded-lg bg-[#0c162b] border border-[#192b4d] hover:border-purple-500/60 cursor-pointer transition-all space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${
-                          m.severity === 'CRITICAL'
-                            ? 'bg-red-950 text-red-300 border border-red-500/40'
-                            : m.severity === 'HIGH'
-                            ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
-                            : 'bg-blue-950 text-blue-300 border border-blue-500/40'
-                        }`}
-                      >
-                        {m.type.replace('_', ' ')}
-                      </span>
-                      <span className="text-[10px] text-cyan-400 font-mono font-bold">
-                        {m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'ACTIVE'}
-                      </span>
-                    </div>
-
-                    <div className="text-xs font-bold text-white leading-snug">{m.title}</div>
-                    <div className="text-[11px] text-slate-300 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-cyan-400" />
-                      <span>{m.locationName}</span>
-                    </div>
-
-                    <div className="text-[10px] text-slate-400 line-clamp-2">
-                      {m.description}
-                    </div>
-
-                    {m.suspectName && (
-                      <div className="text-[10px] text-red-400 font-semibold flex items-center justify-between pt-1 border-t border-slate-800">
-                        <span>Suspect: {m.suspectName}</span>
-                        {m.confidence && <span>AI: {m.confidence}% Match</span>}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
           )}
 

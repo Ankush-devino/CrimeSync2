@@ -16,6 +16,16 @@
 .leaflet-container {
   background: #060b17 !important;
   font-family: 'Inter', sans-serif !important;
+  z-index: 1 !important;
+}
+
+.leaflet-pane {
+  z-index: 2 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 3 !important;
 }
 
 .leaflet-tile {
@@ -254,6 +264,19 @@
     size: A4;
     margin: 15mm;
   }
+}
+
+@keyframes moneyFlowDash {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.flow-dash-anim {
+  animation: moneyFlowDash 1.2s linear infinite;
 }
 
 

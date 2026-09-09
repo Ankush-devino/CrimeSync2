@@ -646,13 +646,13 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 1. CASE-2026-004: Kolkata
   "CASE-2026-004": {
     nodes: [
-      { id: "NODE-V1", label: "US Tech Support Victims", sublabel: "38 Overseas Wires", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 180 },
-      { id: "NODE-M1", label: "Mule Tier 1 (HDFC Burrabazar)", sublabel: "Subhashis Roy", type: "MULE_TIER_1", balance: 120000, risk_score: 88, status: "ACTIVE", x: 250, y: 110 },
-      { id: "NODE-M2", label: "Mule Tier 1 (ICICI Salt Lake)", sublabel: "Anirban Mukherjee", type: "MULE_TIER_1", balance: 240000, risk_score: 85, status: "ACTIVE", x: 250, y: 250 },
-      { id: "NODE-AG", label: "Aggregator (SBI Sector V)", sublabel: "Debashis Banerjee", type: "AGGREGATOR", balance: 845000, risk_score: 96, status: "ACTIVE", x: 460, y: 180 },
-      { id: "NODE-CR", label: "OTC USDT Desk (Burrabazar)", sublabel: "Wallet: 0x9f182a4d...", type: "CRYPTO_GATEWAY", balance: 1480000, risk_score: 98, status: "ACTIVE", x: 670, y: 110 },
-      { id: "NODE-HW", label: "Hawala Cash Drop (Park St)", sublabel: "Prakash Angadia", type: "HAWALA_DROP", balance: 650000, risk_score: 92, status: "ACTIVE", x: 670, y: 250 },
-      { id: "NODE-OFF", label: "Offshore Vault (Dubai OTC)", sublabel: "Cold Storage 0x33b4...", type: "OFFSHORE", balance: 750000, risk_score: 99, status: "ACTIVE", x: 860, y: 180 },
+      { id: "NODE-V1", label: "US Tech Support Victims", sublabel: "38 Overseas Wires", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Mule Tier 1 (HDFC Burrabazar)", sublabel: "Subhashis Roy", type: "MULE_TIER_1", balance: 120000, risk_score: 88, status: "ACTIVE", x: 520, y: 90 },
+      { id: "NODE-M2", label: "Mule Tier 1 (ICICI Salt Lake)", sublabel: "Anirban Mukherjee", type: "MULE_TIER_1", balance: 240000, risk_score: 85, status: "ACTIVE", x: 520, y: 350 },
+      { id: "NODE-AG", label: "Aggregator (SBI Sector V)", sublabel: "Debashis Banerjee", type: "AGGREGATOR", balance: 845000, risk_score: 96, status: "ACTIVE", x: 980, y: 220 },
+      { id: "NODE-CR", label: "OTC USDT Desk (Burrabazar)", sublabel: "Wallet: 0x9f182a4d...", type: "CRYPTO_GATEWAY", balance: 1480000, risk_score: 98, status: "ACTIVE", x: 1440, y: 90 },
+      { id: "NODE-HW", label: "Hawala Cash Drop (Park St)", sublabel: "Prakash Angadia", type: "HAWALA_DROP", balance: 650000, risk_score: 92, status: "ACTIVE", x: 1440, y: 350 },
+      { id: "NODE-OFF", label: "Offshore Vault (Dubai OTC)", sublabel: "Cold Storage 0x33b4...", type: "OFFSHORE", balance: 750000, risk_score: 99, status: "ACTIVE", x: 1900, y: 220 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 1850000, channel: "Wire/NEFT", timestamp: "09:20 AM", is_suspicious: true, hop_label: "Hop 1: Placement" },
@@ -668,11 +668,11 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 2. CASE-2026-001: New Delhi
   "CASE-2026-001": {
     nodes: [
-      { id: "NODE-V1", label: "Phished PSU Pensioners", sublabel: "14 Account Breaches", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 70, y: 180 },
-      { id: "NODE-M1", label: "Jan Dhan Mule 1 (PNB)", sublabel: "Rameshwar Dayal", type: "MULE_TIER_1", balance: 65000, risk_score: 85, status: "ACTIVE", x: 260, y: 120 },
-      { id: "NODE-M2", label: "Jan Dhan Mule 2 (SBI)", sublabel: "Kishan Lal", type: "MULE_TIER_1", balance: 95000, risk_score: 82, status: "ACTIVE", x: 260, y: 250 },
-      { id: "NODE-AG", label: "Aggregator Hub (SBI Lajpat)", sublabel: "Aman Khan", type: "AGGREGATOR", balance: 580000, risk_score: 94, status: "ACTIVE", x: 480, y: 180 },
-      { id: "NODE-HW", label: "Chandni Chowk Bullion Hawala", sublabel: "Token: #DEL-CC-4410", type: "HAWALA_DROP", balance: 2760000, risk_score: 95, status: "ACTIVE", x: 720, y: 180 },
+      { id: "NODE-V1", label: "Phished PSU Pensioners", sublabel: "14 Account Breaches", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Jan Dhan Mule 1 (PNB)", sublabel: "Rameshwar Dayal", type: "MULE_TIER_1", balance: 65000, risk_score: 85, status: "ACTIVE", x: 520, y: 90 },
+      { id: "NODE-M2", label: "Jan Dhan Mule 2 (SBI)", sublabel: "Kishan Lal", type: "MULE_TIER_1", balance: 95000, risk_score: 82, status: "ACTIVE", x: 520, y: 350 },
+      { id: "NODE-AG", label: "Aggregator Hub (SBI Lajpat)", sublabel: "Aman Khan", type: "AGGREGATOR", balance: 580000, risk_score: 94, status: "ACTIVE", x: 980, y: 220 },
+      { id: "NODE-HW", label: "Chandni Chowk Bullion Hawala", sublabel: "Token: #DEL-CC-4410", type: "HAWALA_DROP", balance: 2760000, risk_score: 95, status: "ACTIVE", x: 1440, y: 220 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 1240000, channel: "UPI", timestamp: "10:05 AM", is_suspicious: true, hop_label: "Hop 1: Placement" },
@@ -686,11 +686,11 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 3. CASE-2026-002: Mumbai (GridShield SCADA Breach)
   "CASE-2026-002": {
     nodes: [
-      { id: "NODE-V1", label: "Maha Load Despatch Centre", sublabel: "SCADA Control Relays", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 180 },
-      { id: "NODE-M1", label: "Mule Tier 1 (HDFC BKC)", sublabel: "Meera Krishnan", type: "MULE_TIER_1", balance: 920000, risk_score: 95, status: "ACTIVE", x: 260, y: 110 },
-      { id: "NODE-M2", label: "Cloud Node Escrow (ICICI)", sublabel: "DarkNode Cloud Infra", type: "AGGREGATOR", balance: 380000, risk_score: 90, status: "ACTIVE", x: 260, y: 250 },
-      { id: "NODE-CR", label: "Wasabi CoinJoin Mixer", sublabel: "Monero XMR Stealth Ring", type: "CRYPTO_GATEWAY", balance: 3500000, risk_score: 99, status: "ACTIVE", x: 490, y: 180 },
-      { id: "NODE-OFF", label: "Dark Web Ransom Vault", sublabel: "Bulletproof Hosting Escrow", type: "OFFSHORE", balance: 4800000, risk_score: 99, status: "ACTIVE", x: 740, y: 180 },
+      { id: "NODE-V1", label: "Maha Load Despatch Centre", sublabel: "SCADA Control Relays", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Mule Tier 1 (HDFC BKC)", sublabel: "Meera Krishnan", type: "MULE_TIER_1", balance: 920000, risk_score: 95, status: "ACTIVE", x: 520, y: 90 },
+      { id: "NODE-M2", label: "Cloud Node Escrow (ICICI)", sublabel: "DarkNode Cloud Infra", type: "AGGREGATOR", balance: 380000, risk_score: 90, status: "ACTIVE", x: 520, y: 350 },
+      { id: "NODE-CR", label: "Wasabi CoinJoin Mixer", sublabel: "Monero XMR Stealth Ring", type: "CRYPTO_GATEWAY", balance: 3500000, risk_score: 99, status: "ACTIVE", x: 980, y: 220 },
+      { id: "NODE-OFF", label: "Dark Web Ransom Vault", sublabel: "Bulletproof Hosting Escrow", type: "OFFSHORE", balance: 4800000, risk_score: 99, status: "ACTIVE", x: 1440, y: 220 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 2800000, channel: "RTGS", timestamp: "08:15 AM", is_suspicious: true, hop_label: "Hop 1: Ransom Inflow" },
@@ -704,10 +704,10 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 4. CASE-2026-003: Bengaluru (Operation Garud)
   "CASE-2026-003": {
     nodes: [
-      { id: "NODE-V1", label: "Smurfed E-Commerce Gateways", sublabel: "Counterfeit SIM Gateway", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 180 },
-      { id: "NODE-M1", label: "Mule Tier 1 (Canara Koramangala)", sublabel: "Sunil Yadav", type: "MULE_TIER_1", balance: 180000, risk_score: 87, status: "ACTIVE", x: 260, y: 180 },
-      { id: "NODE-AG", label: "SIM Farm Merchant Hub", sublabel: "Razorpay Shell Corporate", type: "AGGREGATOR", balance: 740000, risk_score: 93, status: "ACTIVE", x: 480, y: 180 },
-      { id: "NODE-HW", label: "Chickpet Electronics Cash Drop", sublabel: "Angadia Courier Drop", type: "HAWALA_DROP", balance: 1620000, risk_score: 91, status: "ACTIVE", x: 720, y: 180 },
+      { id: "NODE-V1", label: "Smurfed E-Commerce Gateways", sublabel: "Counterfeit SIM Gateway", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Mule Tier 1 (Canara Koramangala)", sublabel: "Sunil Yadav", type: "MULE_TIER_1", balance: 180000, risk_score: 87, status: "ACTIVE", x: 520, y: 220 },
+      { id: "NODE-AG", label: "SIM Farm Merchant Hub", sublabel: "Razorpay Shell Corporate", type: "AGGREGATOR", balance: 740000, risk_score: 93, status: "ACTIVE", x: 980, y: 220 },
+      { id: "NODE-HW", label: "Chickpet Electronics Cash Drop", sublabel: "Angadia Courier Drop", type: "HAWALA_DROP", balance: 1620000, risk_score: 91, status: "ACTIVE", x: 1440, y: 220 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 920000, channel: "UPI Smurf", timestamp: "09:10 AM", is_suspicious: true, hop_label: "Hop 1: SIM Micro Debits" },
@@ -719,11 +719,11 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 5. CASE-2026-005: Mumbai (Digital Arrest)
   "CASE-2026-005": {
     nodes: [
-      { id: "NODE-V1", label: "Digital Arrest Victims", sublabel: "Dr. Meenakshi Sundaram", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 70, y: 180 },
-      { id: "NODE-M1", label: "Fake Verification Desk (Axis)", sublabel: "National Legal Escrow", type: "AGGREGATOR", balance: 1450000, risk_score: 98, status: "ACTIVE", x: 280, y: 180 },
-      { id: "NODE-M2", label: "Mule Tier 1 (HDFC Jaipur)", sublabel: "Kunwar Pratap Singh", type: "MULE_TIER_1", balance: 680000, risk_score: 94, status: "ACTIVE", x: 500, y: 120 },
-      { id: "NODE-CR", label: "Dubai USDT OTC Off-Ramp", sublabel: "Wallet: 0x4421...", type: "CRYPTO_GATEWAY", balance: 3500000, risk_score: 99, status: "ACTIVE", x: 500, y: 250 },
-      { id: "NODE-HW", label: "Jaipur Angadia Network", sublabel: "Ratanlal Angadia", type: "HAWALA_DROP", balance: 1650000, risk_score: 95, status: "ACTIVE", x: 730, y: 180 },
+      { id: "NODE-V1", label: "Digital Arrest Victims", sublabel: "Dr. Meenakshi Sundaram", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Fake Verification Desk (Axis)", sublabel: "National Legal Escrow", type: "AGGREGATOR", balance: 1450000, risk_score: 98, status: "ACTIVE", x: 520, y: 220 },
+      { id: "NODE-M2", label: "Mule Tier 1 (HDFC Jaipur)", sublabel: "Kunwar Pratap Singh", type: "MULE_TIER_1", balance: 680000, risk_score: 94, status: "ACTIVE", x: 980, y: 90 },
+      { id: "NODE-CR", label: "Dubai USDT OTC Off-Ramp", sublabel: "Wallet: 0x4421...", type: "CRYPTO_GATEWAY", balance: 3500000, risk_score: 99, status: "ACTIVE", x: 980, y: 350 },
+      { id: "NODE-HW", label: "Jaipur Angadia Network", sublabel: "Ratanlal Angadia", type: "HAWALA_DROP", balance: 1650000, risk_score: 95, status: "ACTIVE", x: 1440, y: 220 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 3500000, channel: "RTGS", timestamp: "01:30 PM", is_suspicious: true, hop_label: "Hop 1: Coerced Transfer" },
@@ -736,10 +736,10 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 6. CASE-2026-006: Ahmedabad (AePS Bypass)
   "CASE-2026-006": {
     nodes: [
-      { id: "NODE-V1", label: "Rural Land Registry Holders", sublabel: "196 Cloned Fingerprints", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 70, y: 180 },
-      { id: "NODE-M1", label: "Micro-ATM CSP Agent (BoB)", sublabel: "Jignesh Patel", type: "MULE_TIER_1", balance: 290000, risk_score: 89, status: "ACTIVE", x: 280, y: 180 },
-      { id: "NODE-AG", label: "Surat Diamond Cash Point", sublabel: "Manek Chowk Bullion", type: "AGGREGATOR", balance: 1670000, risk_score: 96, status: "ACTIVE", x: 500, y: 180 },
-      { id: "NODE-HW", label: "Ahmedabad Angadia Courier", sublabel: "Token: #AHM-MNK-5520", type: "HAWALA_DROP", balance: 1960000, risk_score: 97, status: "ACTIVE", x: 730, y: 180 },
+      { id: "NODE-V1", label: "Rural Land Registry Holders", sublabel: "196 Cloned Fingerprints", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Micro-ATM CSP Agent (BoB)", sublabel: "Jignesh Patel", type: "MULE_TIER_1", balance: 290000, risk_score: 89, status: "ACTIVE", x: 520, y: 220 },
+      { id: "NODE-AG", label: "Surat Diamond Cash Point", sublabel: "Manek Chowk Bullion", type: "AGGREGATOR", balance: 1670000, risk_score: 96, status: "ACTIVE", x: 980, y: 220 },
+      { id: "NODE-HW", label: "Ahmedabad Angadia Courier", sublabel: "Token: #AHM-MNK-5520", type: "HAWALA_DROP", balance: 1960000, risk_score: 97, status: "ACTIVE", x: 1440, y: 220 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 1960000, channel: "AePS Debits", timestamp: "10:45 AM", is_suspicious: true, hop_label: "Hop 1: Biometric Drain" },
@@ -751,11 +751,11 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 7. CASE-2026-007: Bengaluru (Operation Netra - AI Deepfake)
   "CASE-2026-007": {
     nodes: [
-      { id: "NODE-V1", label: "Corporate Exec Targets", sublabel: "High-Profile Blackmail", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 180 },
-      { id: "NODE-M1", label: "Mule Tier 1 (Kotak Koramangala)", sublabel: "Kavita Nair", type: "MULE_TIER_1", balance: 510000, risk_score: 93, status: "ACTIVE", x: 260, y: 180 },
-      { id: "NODE-AG", label: "Deepfake Compute Escrow", sublabel: "GPU Farm Billing Node", type: "AGGREGATOR", balance: 1120000, risk_score: 95, status: "ACTIVE", x: 480, y: 180 },
-      { id: "NODE-CR", label: "Tornado.cash Mixer", sublabel: "Contract: 0x71C8821...", type: "CRYPTO_GATEWAY", balance: 2550000, risk_score: 99, status: "ACTIVE", x: 700, y: 120 },
-      { id: "NODE-OFF", label: "Unhosted Cold Vault", sublabel: "Address: 0x3A91102...", type: "OFFSHORE", balance: 2550000, risk_score: 99, status: "ACTIVE", x: 700, y: 250 },
+      { id: "NODE-V1", label: "Corporate Exec Targets", sublabel: "High-Profile Blackmail", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Mule Tier 1 (Kotak Koramangala)", sublabel: "Kavita Nair", type: "MULE_TIER_1", balance: 510000, risk_score: 93, status: "ACTIVE", x: 520, y: 220 },
+      { id: "NODE-AG", label: "Deepfake Compute Escrow", sublabel: "GPU Farm Billing Node", type: "AGGREGATOR", balance: 1120000, risk_score: 95, status: "ACTIVE", x: 980, y: 220 },
+      { id: "NODE-CR", label: "Tornado.cash Mixer", sublabel: "Contract: 0x71C8821...", type: "CRYPTO_GATEWAY", balance: 2550000, risk_score: 99, status: "ACTIVE", x: 1440, y: 90 },
+      { id: "NODE-OFF", label: "Unhosted Cold Vault", sublabel: "Address: 0x3A91102...", type: "OFFSHORE", balance: 2550000, risk_score: 99, status: "ACTIVE", x: 1440, y: 350 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 2550000, channel: "RTGS", timestamp: "02:00 PM", is_suspicious: true, hop_label: "Hop 1: Extortion Transfer" },
@@ -768,11 +768,11 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 8. CASE-2026-008: Pune (Instant Loan App)
   "CASE-2026-008": {
     nodes: [
-      { id: "NODE-V1", label: "Coerced Loan App Victims", sublabel: "500+ Borrowers", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 70, y: 180 },
-      { id: "NODE-M1", label: "Shell Fintech Escrow (Kotak)", sublabel: "Chirag Mehta", type: "AGGREGATOR", balance: 1840000, risk_score: 97, status: "ACTIVE", x: 280, y: 180 },
-      { id: "NODE-CR", label: "TRC-20 USDT Off-Ramp", sublabel: "38,000 USDT", type: "CRYPTO_GATEWAY", balance: 3150000, risk_score: 98, status: "ACTIVE", x: 500, y: 120 },
-      { id: "NODE-HW", label: "Pune-Hyderabad Angadia", sublabel: "Token: #PUN-VM-1102", type: "HAWALA_DROP", balance: 3130000, risk_score: 95, status: "ACTIVE", x: 500, y: 250 },
-      { id: "NODE-OFF", label: "Offshore Syndicate Core", sublabel: "Dubai Settlement", type: "OFFSHORE", balance: 6280000, risk_score: 99, status: "ACTIVE", x: 730, y: 180 },
+      { id: "NODE-V1", label: "Coerced Loan App Victims", sublabel: "500+ Borrowers", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Shell Fintech Escrow (Kotak)", sublabel: "Chirag Mehta", type: "AGGREGATOR", balance: 1840000, risk_score: 97, status: "ACTIVE", x: 520, y: 220 },
+      { id: "NODE-CR", label: "TRC-20 USDT Off-Ramp", sublabel: "38,000 USDT", type: "CRYPTO_GATEWAY", balance: 3150000, risk_score: 98, status: "ACTIVE", x: 980, y: 90 },
+      { id: "NODE-HW", label: "Pune-Hyderabad Angadia", sublabel: "Token: #PUN-VM-1102", type: "HAWALA_DROP", balance: 3130000, risk_score: 95, status: "ACTIVE", x: 980, y: 350 },
+      { id: "NODE-OFF", label: "Offshore Syndicate Core", sublabel: "Dubai Settlement", type: "OFFSHORE", balance: 6280000, risk_score: 99, status: "ACTIVE", x: 1440, y: 220 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 6280000, channel: "UPI Escrow", timestamp: "03:15 PM", is_suspicious: true, hop_label: "Hop 1: Extortion Inflow" },
@@ -786,11 +786,11 @@ const DEFAULT_FLOW_NETWORKS: Record<string, { nodes: FlowNode[]; links: FlowLink
   // 9. CASE-2026-009: Chennai (Power Grid SCADA Ransomware)
   "CASE-2026-009": {
     nodes: [
-      { id: "NODE-V1", label: "Southern Grid Relays", sublabel: "400kV Substation Relays", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 180 },
-      { id: "NODE-M1", label: "Canara Guindy Mules", sublabel: "Karthik Ramanathan", type: "MULE_TIER_1", balance: 2500000, risk_score: 99, status: "ACTIVE", x: 260, y: 180 },
-      { id: "NODE-AG", label: "Decryption Escrow Desk", sublabel: "Critical Infra Ransom Pool", type: "AGGREGATOR", balance: 7500000, risk_score: 99, status: "ACTIVE", x: 480, y: 180 },
-      { id: "NODE-CR", label: "Bitcoin Multisig Escrow", sublabel: "2.8 BTC Escrow (3J98t1...)", type: "CRYPTO_GATEWAY", balance: 10000000, risk_score: 99, status: "ACTIVE", x: 700, y: 180 },
-      { id: "NODE-OFF", label: "Cold Storage Vault", sublabel: "Air-Gapped Vault 1A1zP1...", type: "OFFSHORE", balance: 10000000, risk_score: 99, status: "ACTIVE", x: 890, y: 180 },
+      { id: "NODE-V1", label: "Southern Grid Relays", sublabel: "400kV Substation Relays", type: "VICTIM", balance: 0, risk_score: 10, status: "ACTIVE", x: 60, y: 220 },
+      { id: "NODE-M1", label: "Canara Guindy Mules", sublabel: "Karthik Ramanathan", type: "MULE_TIER_1", balance: 2500000, risk_score: 99, status: "ACTIVE", x: 520, y: 220 },
+      { id: "NODE-AG", label: "Decryption Escrow Desk", sublabel: "Critical Infra Ransom Pool", type: "AGGREGATOR", balance: 7500000, risk_score: 99, status: "ACTIVE", x: 980, y: 220 },
+      { id: "NODE-CR", label: "Bitcoin Multisig Escrow", sublabel: "2.8 BTC Escrow (3J98t1...)", type: "CRYPTO_GATEWAY", balance: 10000000, risk_score: 99, status: "ACTIVE", x: 1440, y: 220 },
+      { id: "NODE-OFF", label: "Cold Storage Vault", sublabel: "Air-Gapped Vault 1A1zP1...", type: "OFFSHORE", balance: 10000000, risk_score: 99, status: "ACTIVE", x: 1900, y: 220 },
     ],
     links: [
       { id: "L1", source: "NODE-V1", target: "NODE-M1", amount_inr: 10000000, channel: "Emergency Wire", timestamp: "08:30 AM", is_suspicious: true, hop_label: "Hop 1: Ransom Payment" },
