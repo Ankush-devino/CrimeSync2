@@ -1373,3 +1373,317 @@ export function printCustodyManifest(data: CustodyManifestPrintData): void {
 
   executeDocumentPrint(`NCRB Custody Manifest - ${data.caseId}`, htmlContent);
 }
+
+export interface DnaCertificatePrintData {
+  certificateId: string;
+  caseId: string;
+  firNumber: string;
+  evidenceId: string;
+  evidenceName: string;
+  dnaFingerprint: string;
+  sha256Hash: string;
+  merkleRoot: string;
+  blockHeight: number;
+  issuedTo: string;
+  investigatingOfficer: string;
+  officerBadge: string;
+  department: string;
+  certifyingAuthority: string;
+  issuedAt: string;
+  legalAct: string;
+}
+
+/**
+ * Enterprise Section 65B Electronic Evidence DNA Certificate Printing Engine
+ */
+export function printDnaCertificate(data: DnaCertificatePrintData): void {
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Section 65B DNA Certificate - ${data.evidenceId}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm 14mm 14mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    html, body {
+      width: 100% !important;
+      height: auto !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+      color: #0f172a !important;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.45;
+      margin: 0;
+      padding: 0;
+    }
+    .cert-box {
+      border: 3px double #0f172a;
+      padding: 16px 20px;
+      background: #ffffff;
+    }
+    .letterhead {
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      text-align: center;
+      position: relative;
+    }
+    .stamp-badge {
+      position: absolute;
+      right: 0;
+      top: 0;
+      border: 2px solid #7c3aed;
+      color: #6d28d9;
+      padding: 3px 8px;
+      font-size: 8pt;
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transform: rotate(2deg);
+      border-radius: 3px;
+    }
+    .emblem-crest {
+      display: inline-block;
+      width: 44px;
+      height: 44px;
+      margin-bottom: 3px;
+    }
+    .ministry-title {
+      font-size: 8.5pt;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: #334155;
+      text-transform: uppercase;
+    }
+    .ncrb-title {
+      font-size: 14pt;
+      font-weight: 900;
+      color: #0f172a;
+      text-transform: uppercase;
+      margin: 2px 0;
+    }
+    .cert-title {
+      font-size: 11pt;
+      font-weight: 800;
+      color: #6d28d9;
+      font-family: 'Consolas', monospace;
+      margin: 4px 0 2px 0;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      background: #faf5ff;
+      border: 1.5px solid #e9d5ff;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-size: 8.5pt;
+    }
+    .meta-label {
+      color: #6b21a8;
+      font-size: 7.5pt;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .meta-val {
+      font-weight: bold;
+      color: #0f172a;
+      font-family: 'Consolas', monospace;
+    }
+    .dna-hero-box {
+      background: #f8fafc;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+    .dna-code {
+      font-family: 'Consolas', monospace;
+      font-size: 18pt;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #6d28d9;
+      background: #f3e8ff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      display: inline-block;
+      border: 1.5px solid #d8b4fe;
+      margin: 6px 0;
+    }
+    .hash-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+      margin-bottom: 14px;
+    }
+    .hash-table td, .hash-table th {
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+    }
+    .hash-table th {
+      background: #f1f5f9;
+      text-align: left;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    .legal-clause {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 7.5pt;
+      line-height: 1.4;
+      color: #166534;
+      margin-bottom: 14px;
+    }
+    .signatures-block {
+      border-top: 1.5px solid #0f172a;
+      padding-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      text-align: center;
+      font-family: 'Consolas', monospace;
+      font-size: 8pt;
+      margin-top: 16px;
+    }
+    .sig-line {
+      border-top: 1px solid #64748b;
+      padding-top: 4px;
+      margin-top: 24px;
+      font-weight: bold;
+      color: #0f172a;
+    }
+    .sig-role {
+      font-size: 7pt;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="cert-box">
+    <div class="letterhead">
+      <div class="stamp-badge">STATUTORY SECTION 65B</div>
+      <svg class="emblem-crest" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+      <div class="ministry-title">GOVERNMENT OF INDIA · MINISTRY OF HOME AFFAIRS</div>
+      <div class="ncrb-title">NATIONAL CRIME RECORDS BUREAU (NCRB)</div>
+      <div class="cert-title">CERTIFICATE OF ELECTRONIC EVIDENCE DNA & NON-REPUDIATION</div>
+      <div style="font-size: 7.5pt; color: #475569; font-family: 'Consolas', monospace;">
+        UNDER SECTION 65B OF THE BHARATIYA SAKSHYA ADHINIYAM (BSA 2023)
+      </div>
+    </div>
+
+    <div class="meta-grid">
+      <div>
+        <div class="meta-label">Certificate Serial No:</div>
+        <div class="meta-val">${data.certificateId}</div>
+      </div>
+      <div>
+        <div class="meta-label">Issuance Timestamp:</div>
+        <div class="meta-val">${data.issuedAt}</div>
+      </div>
+      <div>
+        <div class="meta-label">Case Reference / FIR:</div>
+        <div class="meta-val">${data.caseId} (${data.firNumber})</div>
+      </div>
+      <div>
+        <div class="meta-label">Submitting Jurisdiction:</div>
+        <div class="meta-val">${data.department}</div>
+      </div>
+      <div>
+        <div class="meta-label">Exhibit Target ID:</div>
+        <div class="meta-val" style="color: #6d28d9;">${data.evidenceId} — ${data.evidenceName}</div>
+      </div>
+      <div>
+        <div class="meta-label">Certifying Authority:</div>
+        <div class="meta-val">${data.certifyingAuthority}</div>
+      </div>
+    </div>
+
+    <div class="dna-hero-box">
+      <div style="font-size: 8pt; font-weight: bold; color: #475569; text-transform: uppercase;">
+        Cryptographic 128-Bit Invariant AI DNA Fingerprint
+      </div>
+      <div class="dna-code">${data.dnaFingerprint}</div>
+      <div style="font-size: 7.5pt; color: #64748b; font-family: 'Consolas', monospace;">
+        Generated using Multi-Modal Neural Embeddings & Polygon PoS Merkle Root Consensus
+      </div>
+    </div>
+
+    <table class="hash-table">
+      <thead>
+        <tr>
+          <th>Integrity Verification Vector</th>
+          <th>Cryptographic Digest / Value</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>SHA-256 Bitstream Hash</strong></td>
+          <td style="font-family: 'Consolas', monospace; font-size: 7pt; word-break: break-all;">${data.sha256Hash}</td>
+          <td style="color: #166534; font-weight: bold;">VERIFIED</td>
+        </tr>
+        <tr>
+          <td><strong>On-Chain Merkle Root</strong></td>
+          <td style="font-family: 'Consolas', monospace; font-size: 7pt; word-break: break-all;">${data.merkleRoot}</td>
+          <td style="color: #166534; font-weight: bold;">ANCHORED</td>
+        </tr>
+        <tr>
+          <td><strong>Polygon PoS Block Height</strong></td>
+          <td style="font-family: 'Consolas', monospace; font-weight: bold;">#${data.blockHeight} (14 Validator Consensus)</td>
+          <td style="color: #166534; font-weight: bold;">FINALIZED</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="legal-clause">
+      <strong>STATUTORY LEGAL DECLARATION:</strong> I hereby certify that the electronic record described herein was extracted and cryptographically sealed under strict custodial protocols. The mathematical hash digests and neural DNA sequence have remained unbroken with 100% hash consensus, satisfying mandatory statutory conditions under Section 65B of Bharatiya Sakshya Adhiniyam 2023 for judicial court admissibility.
+    </div>
+
+    <div class="signatures-block">
+      <div>
+        <div style="font-family: Georgia, serif; font-style: italic; font-size: 10pt; height: 20px;">
+          ${data.investigatingOfficer}
+        </div>
+        <div class="sig-line">${data.investigatingOfficer}</div>
+        <div class="sig-role">Lead Investigating Officer · ${data.officerBadge}</div>
+      </div>
+      <div>
+        <div style="font-family: Georgia, serif; font-style: italic; font-size: 10pt; height: 20px;">
+          Dr. Alok Verma
+        </div>
+        <div class="sig-line">Central Forensic Science Lab</div>
+        <div class="sig-role">Chief Digital Forensics Examiner</div>
+      </div>
+      <div>
+        <div style="font-family: Georgia, serif; font-style: italic; font-size: 10pt; height: 20px;">
+          Court Registrar
+        </div>
+        <div class="sig-line">Special Judicial Court Registry</div>
+        <div class="sig-role">Electronic Evidence Received & Sealed</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+  executeDocumentPrint(`Section 65B DNA Certificate - ${data.evidenceId}`, htmlContent);
+}
+

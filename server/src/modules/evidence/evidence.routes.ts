@@ -1,76 +1,50 @@
 import { Router, Request, Response } from "express";
-import { evidenceService } from "./evidence.service";
-import { formatResponse } from "../../utils/api-response";
+import { evidenceController } from "./evidence.controller";
 
 export function evidenceRoutes(): Router {
   const router = Router();
 
-  router.get("/", async (_req: Request, res: Response) => {
-    try {
-      const items = await evidenceService.getAllEvidence();
-      res.json(formatResponse(true, items, "Evidence registry retrieved"));
-    } catch (err: any) {
-      res.status(500).json(formatResponse(false, null, undefined, err.message));
-    }
-  });
+  // ── EVIDENCE DNA ENDPOINTS ────────────────────────────────────────────────
+  router.get("/dna/profiles", (req: Request, res: Response) =>
+    evidenceController.handleGetDnaProfiles(req, res)
+  );
 
-  router.get("/case/:caseId", async (req: Request, res: Response) => {
-    try {
-      const items = await evidenceService.getEvidenceByCase(req.params.caseId as string);
-      res.json(formatResponse(true, items, "Case evidence retrieved"));
-    } catch (err: any) {
-      res.status(500).json(formatResponse(false, null, undefined, err.message));
-    }
-  });
+  router.get("/dna/stats", (req: Request, res: Response) =>
+    evidenceController.handleGetDnaStats(req, res)
+  );
 
-  router.post("/", async (req: Request, res: Response) => {
-    try {
-      const item = await evidenceService.createEvidence(req.body);
-      res.status(201).json(formatResponse(true, item, "Evidence registered successfully"));
-    } catch (err: any) {
-      res.status(500).json(formatResponse(false, null, undefined, err.message));
-    }
-  });
+  router.get("/dna/profile/:id", (req: Request, res: Response) =>
+    evidenceController.handleGetDnaProfileById(req, res)
+  );
 
-  router.post("/verify", async (req: Request, res: Response) => {
-    try {
-      const { evidenceId, hash } = req.body;
-      const result = await evidenceService.verifyEvidenceHash(evidenceId, hash);
-      if (!result) return res.status(404).json(formatResponse(false, null, undefined, "Evidence record not found"));
-      res.json(formatResponse(true, result, "Evidence integrity check complete"));
-    } catch (err: any) {
-      res.status(500).json(formatResponse(false, null, undefined, err.message));
-    }
-  });
+  router.post("/dna/generate", (req: Request, res: Response) =>
+    evidenceController.handleGenerateDna(req, res)
+  );
 
-  router.put("/:id", async (req: Request, res: Response) => {
-    try {
-      const item = await evidenceService.updateEvidence(req.params.id as string, req.body);
-      if (!item) return res.status(404).json(formatResponse(false, null, undefined, "Evidence record not found"));
-      res.json(formatResponse(true, item, "Evidence record updated successfully"));
-    } catch (err: any) {
-      res.status(500).json(formatResponse(false, null, undefined, err.message));
-    }
-  });
+  router.post("/dna/verify-blockchain", (req: Request, res: Response) =>
+    evidenceController.handleVerifyBlockchain(req, res)
+  );
 
-  router.patch("/:id", async (req: Request, res: Response) => {
-    try {
-      const item = await evidenceService.updateEvidence(req.params.id as string, req.body);
-      if (!item) return res.status(404).json(formatResponse(false, null, undefined, "Evidence record not found"));
-      res.json(formatResponse(true, item, "Evidence record updated successfully"));
-    } catch (err: any) {
-      res.status(500).json(formatResponse(false, null, undefined, err.message));
-    }
-  });
+  router.get("/dna/certificate/:id", (req: Request, res: Response) =>
+    evidenceController.handleGetCertificate(req, res)
+  );
 
-  router.delete("/:id", async (req: Request, res: Response) => {
-    try {
-      const deleted = await evidenceService.deleteEvidence(req.params.id as string);
-      res.json(formatResponse(true, { id: req.params.id, deleted }, "Evidence record deleted successfully"));
-    } catch (err: any) {
-      res.status(500).json(formatResponse(false, null, undefined, err.message));
-    }
-  });
+  // ── STANDARD EVIDENCE REGISTRY ENDPOINTS ──────────────────────────────────
+  router.get("/", (req: Request, res: Response) =>
+    evidenceController.handleGetAllEvidence(req, res)
+  );
+
+  router.get("/case/:caseId", (req: Request, res: Response) =>
+    evidenceController.handleGetEvidenceByCase(req, res)
+  );
+
+  router.post("/", (req: Request, res: Response) =>
+    evidenceController.handleCreateEvidence(req, res)
+  );
+
+  router.post("/verify", (req: Request, res: Response) =>
+    evidenceController.handleVerifyIntegrity(req, res)
+  );
 
   return router;
 }
