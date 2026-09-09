@@ -177,14 +177,16 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
   const [watchlist, setWatchlist] = useState<DoppelgangerWatchlistItem[]>([]);
   const [hackedAlerts, setHackedAlerts] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({
-    verifiedIdentities: 1842,
-    totalActiveAccounts: 1847,
-    doppelgangersFlagged: 5,
-    hackedAccountsDetected: 2,
-    behaviorAnomalies: 14,
-    avgTrustScore: 91,
-    mfaEnrollment: '1,839 / 1,847',
-    hardwareKeyAdoptionRate: '78%'
+    verifiedIdentities: 16,
+    totalActiveAccounts: 18,
+    doppelgangersFlagged: 1,
+    hackedAccountsDetected: 1,
+    behaviorAnomalies: 2,
+    avgTrustScore: 92,
+    mfaEnrollment: '17 / 18',
+    hardwareKeyAdoptionRate: '89%',
+    staleCredentials: 1,
+    quarantinedSessions: 1
   });
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -658,10 +660,10 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               VERIFIED IDENTITIES
             </div>
             <div className="text-2xl font-extrabold text-emerald-400 mt-1">
-              {stats.verifiedIdentities?.toLocaleString('en-IN') || '1,842'}
+              {stats.verifiedIdentities ?? 16}
             </div>
             <div className="text-[11px] font-medium text-slate-400 mt-1">
-              of {stats.totalActiveAccounts?.toLocaleString('en-IN') || '1,847'} active accounts
+              of {stats.totalActiveAccounts ?? 18} assigned investigators
             </div>
           </div>
           <div className="w-10 h-10 rounded-lg bg-emerald-950/80 border border-emerald-500/60 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
@@ -676,8 +678,10 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               HACKED / HIJACKED ALERTS
             </div>
             <div className="text-2xl font-extrabold text-red-500 mt-1 flex items-baseline gap-2">
-              <span>{stats.hackedAccountsDetected || 2}</span>
-              <span className="text-xs font-bold text-red-400 font-mono animate-pulse">CRITICAL</span>
+              <span>{stats.hackedAccountsDetected ?? 1}</span>
+              {(stats.hackedAccountsDetected ?? 1) > 0 && (
+                <span className="text-xs font-bold text-red-400 font-mono animate-pulse">CRITICAL</span>
+              )}
             </div>
             <div className="text-[11px] font-medium text-red-400 flex items-center gap-1 mt-1">
               <span>🚨</span> Pattern Dissimilarity &gt; 85%
@@ -695,7 +699,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               BEHAVIOR &amp; CADENCE DRIFT
             </div>
             <div className="text-2xl font-extrabold text-amber-400 mt-1">
-              {stats.behaviorAnomalies || 14}
+              {stats.behaviorAnomalies ?? 2}
             </div>
             <div className="text-[11px] font-medium text-slate-400 mt-1">
               keystroke, voiceprint &amp; geofence variations
@@ -713,10 +717,10 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               AVG ZERO-TRUST RATING
             </div>
             <div className="text-2xl font-extrabold text-white mt-1">
-              {stats.avgTrustScore || 91}<span className="text-sm font-normal text-slate-400">/100</span>
+              {stats.avgTrustScore ?? 92}<span className="text-sm font-normal text-slate-400">/100</span>
             </div>
             <div className="text-[11px] font-medium text-emerald-400 flex items-center gap-1 mt-1">
-              <span>↑</span> FIDO2 Hardware Adoption: {stats.hardwareKeyAdoptionRate || '78%'}
+              <span>↑</span> FIDO2 Hardware Adoption: {stats.hardwareKeyAdoptionRate || '89%'}
             </div>
           </div>
           <div className="w-10 h-10 rounded-lg bg-cyan-950/80 border border-cyan-500/60 flex items-center justify-center text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
@@ -1614,19 +1618,19 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               <div className="grid grid-cols-2 gap-3 pt-3 text-xs font-mono">
                 <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
                   <span className="text-[10px] text-slate-400 font-sans block">MFA ENROLLMENT</span>
-                  <span className="text-emerald-400 font-bold text-sm">1,839 / 1,847 (99.5%)</span>
+                  <span className="text-emerald-400 font-bold text-sm">{stats.mfaEnrollment || '17 / 18'} ({stats.totalActiveAccounts ? Math.round(((stats.verifiedIdentities || 16) / stats.totalActiveAccounts) * 100) : 94}%)</span>
                 </div>
                 <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
                   <span className="text-[10px] text-slate-400 font-sans block">HARDWARE FIDO2 ADOPTION</span>
-                  <span className="text-cyan-300 font-bold text-sm">78% Enrolled</span>
+                  <span className="text-cyan-300 font-bold text-sm">{stats.hardwareKeyAdoptionRate || '89%'} Enrolled</span>
                 </div>
                 <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
                   <span className="text-[10px] text-slate-400 font-sans block">STALE CREDENTIALS (&gt;90d)</span>
-                  <span className="text-amber-400 font-bold text-sm">37 Accounts</span>
+                  <span className="text-amber-400 font-bold text-sm">{stats.staleCredentials ?? 1} Account{(stats.staleCredentials ?? 1) === 1 ? '' : 's'}</span>
                 </div>
                 <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
                   <span className="text-[10px] text-slate-400 font-sans block">ACTIVE QUARANTINES</span>
-                  <span className="text-rose-400 font-bold text-sm">2 Sessions Blocked</span>
+                  <span className="text-rose-400 font-bold text-sm">{stats.quarantinedSessions ?? 1} Session{(stats.quarantinedSessions ?? 1) === 1 ? '' : 's'} Blocked</span>
                 </div>
               </div>
             </div>

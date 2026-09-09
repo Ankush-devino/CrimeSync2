@@ -830,17 +830,132 @@ export class IdentityService {
   }
 
   async getStats(caseId?: string) {
-    const hackedCount = inMemoryWatchlist.filter((w) => w.isAccountHijacked && w.status === "ACTIVE_ALERT").length;
+    const caseStatsMap: Record<string, any> = {
+      "CASE-2026-004": {
+        verifiedIdentities: 12,
+        totalActiveAccounts: 14,
+        doppelgangersFlagged: 1,
+        hackedAccountsDetected: 1,
+        behaviorAnomalies: 2,
+        avgTrustScore: 88,
+        mfaEnrollment: "13 / 14",
+        hardwareKeyAdoptionRate: "92%",
+        staleCredentials: 1,
+        quarantinedSessions: 1
+      },
+      "CASE-2026-001": {
+        verifiedIdentities: 17,
+        totalActiveAccounts: 18,
+        doppelgangersFlagged: 1,
+        hackedAccountsDetected: 0,
+        behaviorAnomalies: 1,
+        avgTrustScore: 94,
+        mfaEnrollment: "18 / 18",
+        hardwareKeyAdoptionRate: "94%",
+        staleCredentials: 0,
+        quarantinedSessions: 0
+      },
+      "CASE-2026-002": {
+        verifiedIdentities: 11,
+        totalActiveAccounts: 12,
+        doppelgangersFlagged: 0,
+        hackedAccountsDetected: 0,
+        behaviorAnomalies: 1,
+        avgTrustScore: 96,
+        mfaEnrollment: "12 / 12",
+        hardwareKeyAdoptionRate: "100%",
+        staleCredentials: 0,
+        quarantinedSessions: 0
+      },
+      "CASE-2026-003": {
+        verifiedIdentities: 9,
+        totalActiveAccounts: 10,
+        doppelgangersFlagged: 0,
+        hackedAccountsDetected: 0,
+        behaviorAnomalies: 2,
+        avgTrustScore: 92,
+        mfaEnrollment: "10 / 10",
+        hardwareKeyAdoptionRate: "90%",
+        staleCredentials: 0,
+        quarantinedSessions: 0
+      },
+      "CASE-2026-005": {
+        verifiedIdentities: 14,
+        totalActiveAccounts: 15,
+        doppelgangersFlagged: 1,
+        hackedAccountsDetected: 0,
+        behaviorAnomalies: 1,
+        avgTrustScore: 91,
+        mfaEnrollment: "14 / 15",
+        hardwareKeyAdoptionRate: "87%",
+        staleCredentials: 1,
+        quarantinedSessions: 0
+      },
+      "CASE-2026-006": {
+        verifiedIdentities: 9,
+        totalActiveAccounts: 10,
+        doppelgangersFlagged: 0,
+        hackedAccountsDetected: 0,
+        behaviorAnomalies: 1,
+        avgTrustScore: 93,
+        mfaEnrollment: "10 / 10",
+        hardwareKeyAdoptionRate: "90%",
+        staleCredentials: 0,
+        quarantinedSessions: 0
+      },
+      "CASE-2026-007": {
+        verifiedIdentities: 15,
+        totalActiveAccounts: 16,
+        doppelgangersFlagged: 1,
+        hackedAccountsDetected: 0,
+        behaviorAnomalies: 2,
+        avgTrustScore: 90,
+        mfaEnrollment: "15 / 16",
+        hardwareKeyAdoptionRate: "88%",
+        staleCredentials: 1,
+        quarantinedSessions: 0
+      },
+      "CASE-2026-008": {
+        verifiedIdentities: 12,
+        totalActiveAccounts: 14,
+        doppelgangersFlagged: 1,
+        hackedAccountsDetected: 1,
+        behaviorAnomalies: 2,
+        avgTrustScore: 86,
+        mfaEnrollment: "13 / 14",
+        hardwareKeyAdoptionRate: "85%",
+        staleCredentials: 1,
+        quarantinedSessions: 1
+      },
+      "CASE-2026-009": {
+        verifiedIdentities: 12,
+        totalActiveAccounts: 12,
+        doppelgangersFlagged: 0,
+        hackedAccountsDetected: 0,
+        behaviorAnomalies: 1,
+        avgTrustScore: 98,
+        mfaEnrollment: "12 / 12",
+        hardwareKeyAdoptionRate: "100%",
+        staleCredentials: 0,
+        quarantinedSessions: 0
+      }
+    };
+
+    const targetStats = (caseId && caseStatsMap[caseId]) ? caseStatsMap[caseId] : {
+      verifiedIdentities: 16,
+      totalActiveAccounts: 18,
+      doppelgangersFlagged: 1,
+      hackedAccountsDetected: 1,
+      behaviorAnomalies: 3,
+      avgTrustScore: 92,
+      mfaEnrollment: "17 / 18",
+      hardwareKeyAdoptionRate: "89%",
+      staleCredentials: 1,
+      quarantinedSessions: 1
+    };
+
     return {
-      verifiedIdentities: 1842,
-      totalActiveAccounts: 1847,
-      doppelgangersFlagged: inMemoryWatchlist.filter((w) => w.status === "ACTIVE_ALERT").length || 5,
-      hackedAccountsDetected: hackedCount,
-      behaviorAnomalies: 14,
-      avgTrustScore: 91,
-      mfaEnrollment: "1,839 / 1,847",
-      hardwareKeyAdoptionRate: "78%",
-      quarantinedSessions: Object.values(inMemoryProfiles).filter((p) => p.status === "quarantined").length,
+      ...targetStats,
       lastAuditSync: new Date().toISOString()
     };
   }
