@@ -18,6 +18,7 @@ import {
   Radio,
   ExternalLink,
   ChevronRight,
+  ChevronDown,
   X,
   Play,
   Camera,
@@ -25,27 +26,29 @@ import {
   Flame,
   AlertOctagon,
   Sparkles,
-  Download,
   Search,
+  Filter,
+  Download,
   RefreshCw,
   Copy,
   Check,
-  Filter,
-  FileSpreadsheet,
   Zap,
-  Terminal,
+  RadioTower,
+  Sliders,
   FileText,
-  TrendingUp,
-  Cpu,
-  Layers,
-  ChevronDown
+  FileSpreadsheet,
+  Ban,
+  ShieldX,
+  Share2
 } from 'lucide-react';
 import { api } from '../services/api';
-import { logOfficerAction } from '../services/activityLogger';
 import { useCaseContext } from '../context/CaseContext';
+import { useAuth } from '../context/AuthContext';
+import { logOfficerAction } from '../services/activityLogger';
 
 interface IdentitySecurityPageProps {
   onSelectAction?: (action: string) => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
 export interface OfficerBiometricProfile {
@@ -65,664 +68,1053 @@ export interface OfficerBiometricProfile {
   faceConfidence: number;
   deviceInfo: string;
   locationInfo: string;
-  caseId?: string;
   lastActive: string;
-  riskCategory: 'LOW' | 'ELEVATED' | 'CRITICAL_DOPPELGANGER';
-  activeSessionsCount: number;
+  ipAddress: string;
+  assignedCaseId?: string;
 }
 
 export interface IdentityTrailEvent {
   id: string;
-  profile_id: string;
-  identity_name: string;
-  badge_or_alias: string;
-  event_type:
-    | 'BIOMETRIC_VERIFY'
-    | 'SESSION_LOGIN'
-    | 'IMPOSSIBLE_TRAVEL'
-    | 'PRIVILEGE_ELEVATION'
-    | 'MFA_CHALLENGE'
-    | 'QUARANTINE_LOCK'
-    | 'DEVICE_TPM_CHECK'
-    | 'EVIDENCE_VAULT_ACCESS'
-    | 'TOKEN_RENEWAL';
-  severity: 'INFO' | 'WARNING' | 'CRITICAL_ANOMALY';
-  status: 'SUCCESS' | 'BLOCKED' | 'CHALLENGED' | 'FLAGGED';
-  ip_address: string;
-  location: string;
-  device: string;
-  confidence_score: number;
   timestamp: string;
+  timeAgo: string;
+  officerName: string;
+  badgeNumber: string;
+  action: string;
+  category: 'BIOMETRIC_PASS' | 'IMPOSSIBLE_TRAVEL' | 'FAILED_CHALLENGE' | 'SESSION_HIJACK' | 'QUARANTINE_ENFORCED' | 'CREDENTIAL_REFRESH';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
+  status: 'VERIFIED' | 'FLAGGED' | 'BLOCKED' | 'QUARANTINED';
+  caseId: string;
+  deviceInfo: string;
+  ipAddress: string;
+  location: string;
+  confidenceScore: number;
+  hashSha256: string;
   details: string;
-  session_token_hash: string;
-  court_admissible_hash: string;
-  case_id?: string;
+  rawTelemetry?: {
+    faceScore?: number;
+    voiceDriftPercent?: number;
+    typingCadenceDeviation?: number;
+    geoDriftKm?: number;
+    speedKmph?: number;
+  };
 }
 
-export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({ onSelectAction }) => {
-  const { selectedCaseId } = useCaseContext();
+export interface DoppelgangerWatchlistItem {
+  id: string;
+  profileId: string;
+  officerName: string;
+  badgeNumber: string;
+  flagReason: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  flaggedAt: string;
+  timeAgo: string;
+  anomalyType: 'VOICE_DRIFT' | 'IMPOSSIBLE_TRAVEL' | 'KEYBOARD_CADENCE' | 'UNAUTHORIZED_DEVICE' | 'CLONED_SESSION';
+  deviceInfo: string;
+  location: string;
+  status: 'ACTIVE_ALERT' | 'QUARANTINED' | 'INVESTIGATING';
+  confidenceMatch: number;
+}
 
-  // State for data
+export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
+  onSelectAction,
+  onNavigateTab
+}) => {
+  const { selectedCaseId, cases, setSelectedCaseId } = useCaseContext();
+  const { currentUser } = useAuth();
+
+  // Active View Tab
+  const [activeTab, setActiveTab] = useState<'match' | 'trail' | 'watchlist' | 'behavior'>('match');
+
+  // Backend Data State
   const [profiles, setProfiles] = useState<OfficerBiometricProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>('acp_raj_verma');
   const [trailEvents, setTrailEvents] = useState<IdentityTrailEvent[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [watchlist, setWatchlist] = useState<DoppelgangerWatchlistItem[]>([]);
+  const [stats, setStats] = useState<any>({
+    verifiedIdentities: 1842,
+    totalActiveAccounts: 1847,
+    doppelgangersFlagged: 5,
+    behaviorAnomalies: 14,
+    avgTrustScore: 91,
+    mfaEnrollment: '1,839 / 1,847',
+    hardwareKeyAdoptionRate: '78%'
+  });
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Tab & Filter State
-  const [activeTab, setActiveTab] = useState<'trail' | 'biometrics' | 'zerotrust' | 'watchlist'>('trail');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [severityFilter, setSeverityFilter] = useState<string>('ALL');
-  const [eventTypeFilter, setEventTypeFilter] = useState<string>('ALL');
+  // Filter & Search State for Identity Trail tab
+  const [searchFilter, setSearchFilter] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
-  // Modal State
+  // Verification Scanner Modal State
   const [isVerifyingModalOpen, setIsVerifyingModalOpen] = useState<boolean>(false);
   const [scanStep, setScanStep] = useState<number>(0);
-  const [scanResult, setScanResult] = useState<any | null>(null);
+  const [verifyingOfficerId, setVerifyingOfficerId] = useState<string>('acp_raj_verma');
 
+  // Quarantine Modal State
   const [isQuarantineModalOpen, setIsQuarantineModalOpen] = useState<boolean>(false);
   const [targetQuarantineProfile, setTargetQuarantineProfile] = useState<OfficerBiometricProfile | null>(null);
-  const [quarantineReason, setQuarantineReason] = useState<string>(
-    'Doppelgänger mismatch & impossible travel anomaly detected across unauthorized endpoints.'
-  );
-  const [isExecutingQuarantine, setIsExecutingQuarantine] = useState<boolean>(false);
-  const [quarantineSuccess, setQuarantineSuccess] = useState<any | null>(null);
+  const [quarantineReason, setQuarantineReason] = useState<string>('Doppelganger behavioral biometric mismatch detected during active session');
+  const [isQuarantining, setIsQuarantining] = useState<boolean>(false);
 
-  const [isMfaModalOpen, setIsMfaModalOpen] = useState<boolean>(false);
-  const [targetMfaProfile, setTargetMfaProfile] = useState<OfficerBiometricProfile | null>(null);
-  const [mfaSuccess, setMfaSuccess] = useState<any | null>(null);
+  // Simulation Modal State
+  const [isSimulateModalOpen, setIsSimulateModalOpen] = useState<boolean>(false);
+  const [activeDetailModal, setActiveDetailModal] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load Data
+  // Fetch all identity data
   const loadIdentityData = useCallback(async () => {
     setLoading(true);
     try {
-      const [profilesRes, trailsRes, statsRes] = await Promise.all([
-        api.identity.getProfiles(),
-        api.identity.getTrailEvents(),
-        api.identity.getStats(),
+      const caseFilter = selectedCaseId !== 'ALL' ? selectedCaseId : undefined;
+      const [profRes, trailRes, watchRes, statRes] = await Promise.all([
+        api.identity.getProfiles(caseFilter),
+        api.identity.getIdentityTrail({ caseId: caseFilter }),
+        api.identity.getWatchlist(caseFilter),
+        api.identity.getStats(caseFilter)
       ]);
 
-      if (profilesRes && Array.isArray(profilesRes)) {
-        setProfiles(profilesRes);
-        if (!selectedProfileId && profilesRes.length > 0) {
-          setSelectedProfileId(profilesRes[0].id);
+      if (profRes && Array.isArray(profRes)) {
+        setProfiles(profRes);
+        if (profRes.length > 0 && !profRes.some((p) => p.id === selectedProfileId)) {
+          setSelectedProfileId(profRes[0].id);
         }
       }
-      if (trailsRes && Array.isArray(trailsRes)) {
-        setTrailEvents(trailsRes);
+      if (trailRes && Array.isArray(trailRes)) {
+        setTrailEvents(trailRes);
       }
-      if (statsRes) {
-        setStats(statsRes);
+      if (watchRes && Array.isArray(watchRes)) {
+        setWatchlist(watchRes);
+      }
+      if (statRes) {
+        setStats(statRes);
       }
     } catch (err) {
-      console.error('Failed to load identity security data:', err);
+      console.error('Failed to load identity intelligence:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedProfileId]);
+  }, [selectedCaseId]);
 
   useEffect(() => {
     loadIdentityData();
   }, [loadIdentityData]);
 
-  // Current Selected Profile
+  // Selected Profile
   const currentProfile = useMemo(() => {
-    return profiles.find((p) => p.id === selectedProfileId) || profiles[0] || null;
+    return profiles.find((p) => p.id === selectedProfileId) || profiles[0] || {
+      id: 'acp_raj_verma',
+      name: 'ACP Raj Verma',
+      rank: 'Assistant Commissioner of Police',
+      department: 'Special Cyber Crime Cell',
+      badgeNumber: 'DL-POL-8842',
+      enrolledDate: '14 Mar 2024',
+      status: 'live',
+      matchConfidence: 98.6,
+      faceGeometryMatch: true,
+      voiceprintMatch: true,
+      typingCadenceMatch: true,
+      deviceFingerprintMatch: true,
+      badgeCertMatch: true,
+      faceConfidence: 99.2,
+      deviceInfo: 'Dell Latitude 7440 (Encrypted TPM 2.0)',
+      locationInfo: 'Delhi HQ - Command Room B',
+      lastActive: 'Just now',
+      ipAddress: '10.14.22.84',
+      assignedCaseId: 'CASE-2026-001'
+    };
   }, [profiles, selectedProfileId]);
 
-  // Filtered Trails
-  const filteredTrails = useMemo(() => {
+  // Filtered trail events
+  const filteredTrailEvents = useMemo(() => {
     return trailEvents.filter((item) => {
-      if (severityFilter !== 'ALL' && item.severity !== severityFilter) return false;
-      if (eventTypeFilter !== 'ALL' && item.event_type !== eventTypeFilter) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) {
+        return false;
+      }
+      if (searchFilter.trim()) {
+        const q = searchFilter.toLowerCase();
         return (
-          item.identity_name.toLowerCase().includes(q) ||
-          item.badge_or_alias.toLowerCase().includes(q) ||
-          item.event_type.toLowerCase().includes(q) ||
+          item.officerName.toLowerCase().includes(q) ||
+          item.badgeNumber.toLowerCase().includes(q) ||
+          item.action.toLowerCase().includes(q) ||
           item.location.toLowerCase().includes(q) ||
+          item.deviceInfo.toLowerCase().includes(q) ||
           item.details.toLowerCase().includes(q) ||
-          item.ip_address.toLowerCase().includes(q)
+          item.caseId.toLowerCase().includes(q)
         );
       }
       return true;
     });
-  }, [trailEvents, severityFilter, eventTypeFilter, searchQuery]);
+  }, [trailEvents, selectedCategory, searchFilter]);
 
-  // Copy helper
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedHash(text);
-    setTimeout(() => setCopiedHash(null), 2000);
+  // Show Toast Helper
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Start Live Biometric Verification Scan
-  const handleStartVerificationScan = async (profileId?: string) => {
-    const idToVerify = profileId || selectedProfileId;
+  // Trigger Live Verification Scanner
+  const handleStartVerificationScan = (officerId?: string) => {
+    const targetId = officerId || currentProfile.id;
+    setVerifyingOfficerId(targetId);
     setIsVerifyingModalOpen(true);
     setScanStep(1);
-    setScanResult(null);
 
-    setTimeout(() => setScanStep(2), 900);
-    setTimeout(() => setScanStep(3), 1800);
-    setTimeout(async () => {
+    setTimeout(() => setScanStep(2), 700);
+    setTimeout(() => setScanStep(3), 1500);
+    setTimeout(() => {
       setScanStep(4);
-      try {
-        const res = await api.identity.verify(idToVerify);
+      // Call backend API verify
+      api.identity.verify(targetId).then((res) => {
         if (res) {
-          setScanResult(res);
-          loadIdentityData();
           logOfficerAction({
-            action: `Executed Biometric Zero-Trust Identity Verification for ${res.officerName}`,
+            action: 'Executed Zero-Knowledge Biometric Identity Challenge',
             module: 'Identity Security',
-            caseId: selectedCaseId || 'CASE-2026-001',
-            details: `Confidence: ${res.confidence}% | Status: ${res.verified ? 'VERIFIED' : 'FLAGGED_MISMATCH'} | Ref: ${res.trailEventId}`,
-            category: 'AUTH',
+            details: `Validated biometric telemetry for ${res.officerName} (${res.badgeNumber}). Confidence: ${res.confidence}%`,
+            category: 'SECURITY'
           });
-          onSelectAction?.(`Verified Biometric Profile: ${res.officerName} (${res.confidence}%)`);
+          loadIdentityData();
         }
-      } catch (err: any) {
-        alert(`Verification failed: ${err.message}`);
-      }
-    }, 2700);
+      });
+    }, 2400);
+  };
+
+  // Open Quarantine Modal
+  const handleOpenQuarantine = (profile: OfficerBiometricProfile) => {
+    setTargetQuarantineProfile(profile);
+    setIsQuarantineModalOpen(true);
   };
 
   // Execute Quarantine
   const handleExecuteQuarantine = async () => {
     if (!targetQuarantineProfile) return;
-    setIsExecutingQuarantine(true);
+    setIsQuarantining(true);
     try {
-      const res = await api.identity.quarantine({
-        profileId: targetQuarantineProfile.id,
-        reason: quarantineReason,
-        officer_name: 'ACP Raj Verma',
-      });
+      const res = await api.identity.quarantine(targetQuarantineProfile.id, quarantineReason);
       if (res) {
-        setQuarantineSuccess(res);
-        loadIdentityData();
         logOfficerAction({
-          action: `Enforced Zero-Trust Quarantine on ${targetQuarantineProfile.name}`,
+          action: 'Enforced Emergency Officer Session Quarantine & Invalidation',
           module: 'Identity Security',
-          caseId: selectedCaseId || 'CASE-2026-001',
-          details: `Account Quarantined & active sessions revoked. Ticket: ${res.ticketId}. Reason: ${quarantineReason}`,
-          category: 'AUTH',
+          details: `Quarantined ${targetQuarantineProfile.name} (${targetQuarantineProfile.badgeNumber}). Reason: ${quarantineReason}. Ref: ${res.quarantineId}`,
+          category: 'SECURITY'
         });
-        onSelectAction?.(`Quarantined Identity: ${targetQuarantineProfile.name} (${res.ticketId})`);
+        triggerToast(`✓ Session Quarantined for ${targetQuarantineProfile.name}`);
+        setIsQuarantineModalOpen(false);
+        loadIdentityData();
       }
     } catch (err: any) {
-      alert(`Quarantine execution error: ${err.message}`);
+      alert(`Quarantine Error: ${err.message}`);
     } finally {
-      setIsExecutingQuarantine(false);
+      setIsQuarantining(false);
     }
   };
 
-  // Revoke Session
-  const handleRevokeSession = async (profile: OfficerBiometricProfile) => {
+  // Escalate Watchlist to CSOC
+  const handleEscalateWatchlist = async (profileId: string) => {
     try {
-      const res = await api.identity.revokeSession({ profileId: profile.id });
+      const res = await api.identity.escalate(profileId, 'Doppelganger biometric mismatch flagged during live case investigation');
       if (res) {
-        loadIdentityData();
         logOfficerAction({
-          action: `Revoked Active Kerberos Session Tokens for ${profile.name}`,
+          action: 'Escalated Doppelganger Anomaly to CSOC & CERT-In',
           module: 'Identity Security',
-          caseId: selectedCaseId || 'CASE-2026-001',
-          details: `Session token purged from Redis cache. Forced re-auth triggered.`,
-          category: 'AUTH',
+          details: `Dispatched incident ticket #${res.escalationTicket} for ${res.targetOfficer} to Cyber Security Operations Center.`,
+          category: 'SECURITY'
         });
-        alert(`Session token for ${profile.name} revoked successfully.`);
+        triggerToast(`🚨 Escalated to CSOC: Ticket #${res.escalationTicket}`);
+        loadIdentityData();
       }
     } catch (err: any) {
-      alert(`Session revocation error: ${err.message}`);
+      alert(`Escalation Error: ${err.message}`);
     }
   };
 
-  // Dispatch Step-up MFA
-  const handleDispatchMfa = async (profile: OfficerBiometricProfile) => {
-    try {
-      const res = await api.identity.challengeMfa({ profileId: profile.id });
-      if (res) {
-        setMfaSuccess(res);
-        setIsMfaModalOpen(true);
-        loadIdentityData();
-        logOfficerAction({
-          action: `Dispatched Step-Up FIDO2 Hardware Challenge to ${profile.name}`,
-          module: 'Identity Security',
-          caseId: selectedCaseId || 'CASE-2026-001',
-          details: `Challenge ID: ${res.challengeId} | Hardware Security Module Dispatched`,
-          category: 'AUTH',
-        });
-      }
-    } catch (err: any) {
-      alert(`MFA dispatch error: ${err.message}`);
+  // Ingest Simulated Anomaly
+  const handleSimulateAnomaly = (type: 'IMPOSSIBLE_TRAVEL' | 'VOICE_DRIFT' | 'CLONED_KEY' | 'CADENCE_DRIFT') => {
+    let actionText = '';
+    let category: any = 'SESSION_HIJACK';
+    let severity: any = 'CRITICAL';
+    let detailsText = '';
+
+    if (type === 'IMPOSSIBLE_TRAVEL') {
+      actionText = 'Impossible Travel Telemetry Detected: Delhi to Pune in 12 minutes';
+      category = 'IMPOSSIBLE_TRAVEL';
+      detailsText = 'Authentication attempt from Pune cell tower while primary terminal in Delhi HQ is actively authenticated.';
+    } else if (type === 'VOICE_DRIFT') {
+      actionText = 'Voiceprint Spectral Harmonics Drift: 24.8% AI Synthesis Anomaly';
+      category = 'FAILED_CHALLENGE';
+      severity = 'HIGH';
+      detailsText = 'Audio waveform during tactical voice dispatch matched generative deepfake acoustics signature.';
+    } else if (type === 'CLONED_KEY') {
+      actionText = 'Hardware Smart-Card Token Clone Detected: Duplicate Nonce Counter';
+      category = 'SESSION_HIJACK';
+      detailsText = 'Simultaneous cryptographic handshake detected on two distinct physical network adapters.';
+    } else {
+      actionText = 'Keyboard Flight-Time & Dwell-Time Cadence Drift: 32% Anomaly';
+      category = 'FAILED_CHALLENGE';
+      severity = 'MEDIUM';
+      detailsText = 'Keystroke velocity profile significantly deviates from 90-day enrolled baseline envelope.';
     }
+
+    const newEvent: IdentityTrailEvent = {
+      id: `ID-SIM-${Date.now().toString().slice(-4)}`,
+      timestamp: new Date().toISOString(),
+      timeAgo: 'Just now',
+      officerName: 'Insp. R. Sharma',
+      badgeNumber: 'DL-POL-4192',
+      action: actionText,
+      category,
+      severity,
+      status: 'FLAGGED',
+      caseId: selectedCaseId !== 'ALL' ? selectedCaseId : 'CASE-2026-004',
+      deviceInfo: 'Unregistered Terminal #9 (Simulated Anomaly)',
+      ipAddress: '152.57.19.202',
+      location: 'Pune Cyber Cell Sector 12',
+      confidenceScore: 54.2,
+      hashSha256: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+      details: detailsText
+    };
+
+    setTrailEvents((prev) => [newEvent, ...prev]);
+    logOfficerAction({
+      action: `Identity Threat: ${actionText}`,
+      module: 'Identity Security',
+      details: detailsText,
+      caseId: selectedCaseId,
+      category: 'SECURITY'
+    });
+
+    setIsSimulateModalOpen(false);
+    triggerToast(`⚠️ Injected Live Anomaly: ${actionText}`);
   };
 
-  // Export CSV
+  // Copy Hash
+  const handleCopyHash = (hash: string) => {
+    navigator.clipboard.writeText(hash);
+    setCopiedHash(hash);
+    setTimeout(() => setCopiedHash(null), 2000);
+  };
+
+  // Export Trail to CSV
   const handleExportCSV = () => {
-    const headers = [
-      'Event ID',
-      'Identity Name',
-      'Badge / Alias',
-      'Event Type',
-      'Severity',
-      'Status',
-      'Confidence %',
-      'IP Address',
-      'Location',
-      'Device',
-      'Timestamp',
-      'SHA256 Hash',
-      'Details',
-    ];
-    const rows = filteredTrails.map((t) => [
-      t.id,
-      `"${t.identity_name}"`,
-      t.badge_or_alias,
-      t.event_type,
-      t.severity,
-      t.status,
-      t.confidence_score,
-      t.ip_address,
-      `"${t.location}"`,
-      `"${t.device}"`,
-      t.timestamp,
-      t.court_admissible_hash,
-      `"${t.details}"`,
+    const headers = ['Event ID', 'Timestamp', 'Officer Name', 'Badge Number', 'Action', 'Category', 'Severity', 'Status', 'Case ID', 'Device', 'IP Address', 'Location', 'Trust Score', 'SHA-256 Hash', 'Details'];
+    const rows = filteredTrailEvents.map((e) => [
+      e.id,
+      e.timestamp,
+      `"${e.officerName}"`,
+      e.badgeNumber,
+      `"${e.action}"`,
+      e.category,
+      e.severity,
+      e.status,
+      e.caseId,
+      `"${e.deviceInfo}"`,
+      e.ipAddress,
+      `"${e.location}"`,
+      e.confidenceScore,
+      e.hashSha256,
+      `"${e.details}"`
     ]);
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `CRIMESYNC_IDENTITY_AUDIT_TRAIL_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `CRIMESYNC_IDENTITY_TRAIL_${selectedCaseId}_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+    triggerToast('✓ Identity Trail CSV Exported');
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#050811] text-slate-100 p-4 space-y-4 overflow-y-auto">
+    <div className="flex flex-col h-full bg-[#050811] text-slate-100 p-4 space-y-4 overflow-y-auto selection:bg-cyan-600/30 selection:text-cyan-200">
+      
+      {/* ─── Toast Notification ─── */}
+      {toastMessage && (
+        <div className="fixed top-5 right-5 z-50 px-4 py-2.5 rounded-lg bg-[#0c1a36] border border-cyan-500 text-cyan-300 text-xs font-semibold shadow-2xl flex items-center gap-2 animate-bounce">
+          <Sparkles className="w-4 h-4 text-cyan-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* ─── Top Header Section ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#081023] border border-[#142342] rounded-xl p-3.5 shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-sky-950/80 border border-sky-500/50 flex items-center justify-center text-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.3)]">
-            <UserCheck className="w-5 h-5 animate-pulse" />
+          <div className="w-10 h-10 rounded-lg bg-cyan-950/80 border border-cyan-500/50 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+            <ShieldCheck className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-extrabold tracking-wider text-white uppercase">
-                IDENTITY SECURITY &amp; AUDIT TRAIL
+                IDENTITY SECURITY &amp; DOPPELGANGER TRAIL
               </h1>
-              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-sky-950 text-sky-300 border border-sky-500/40">
-                ZERO-TRUST / FIPS-140-3
+              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-cyan-950 text-cyan-300 border border-cyan-500/40">
+                ZERO-TRUST BIOMETRIC SYNCED
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Continuous multi-factor behavioral biometrics, impossible travel doppelgänger detection, and real-time identity audit telemetry
+              Behavioral biometrics, anti-spoofing face/voice harmonics &amp; continuous session authentication trail
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Quick Verify Button */}
+          {/* Interactive Case Selector */}
+          <div className="relative flex items-center">
+            <div className="absolute left-2.5 pointer-events-none text-cyan-400">
+              <Shield className="w-3.5 h-3.5" />
+            </div>
+            <select
+              value={selectedCaseId}
+              onChange={(e) => setSelectedCaseId(e.target.value)}
+              className="pl-8 pr-8 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] hover:border-cyan-500/60 focus:border-cyan-500 text-xs font-semibold text-cyan-300 font-mono focus:outline-none transition-all cursor-pointer appearance-none shadow-sm"
+              title="Select Active Investigation Case"
+            >
+              {cases && cases.length > 0 ? (
+                cases.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-[#091122] text-slate-200 font-sans">
+                    {c.id} — {c.title || c.name || 'Investigation'}
+                  </option>
+                ))
+              ) : (
+                <option value={selectedCaseId} className="bg-[#091122] text-slate-200">
+                  {selectedCaseId}
+                </option>
+              )}
+            </select>
+            <div className="absolute right-2.5 pointer-events-none text-slate-400">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          {/* Simulate Anomaly Trigger */}
           <button
-            onClick={() => handleStartVerificationScan()}
-            className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(37,99,235,0.4)]"
+            onClick={() => setIsSimulateModalOpen(true)}
+            className="px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-amber-300 hover:text-white hover:border-amber-500/60 flex items-center gap-1.5 transition-all shadow-sm"
+            title="Simulate Anomaly for Testing"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Verify Selected Identity</span>
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>Simulate Anomaly</span>
           </button>
 
           {/* Export CSV */}
           <button
             onClick={handleExportCSV}
-            className="px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-slate-200 hover:text-white hover:border-emerald-500/60 flex items-center gap-1.5 transition-all shadow-sm"
+            className="px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-slate-200 hover:text-white hover:border-cyan-500/60 flex items-center gap-1.5 transition-all shadow-sm"
+            title="Export Identity Trail CSV"
           >
-            <Download className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Export Trail CSV</span>
+            <Download className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Export Trail</span>
           </button>
 
-          {/* Refresh */}
+          {/* Verify Now Action Button */}
           <button
-            onClick={loadIdentityData}
-            className="p-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-slate-300 hover:text-white hover:border-blue-500 transition-all shadow-sm"
-            title="Refresh Telemetry"
+            onClick={() => handleStartVerificationScan(currentProfile.id)}
+            className="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(6,182,212,0.4)]"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-400' : ''}`} />
+            <Camera className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Verify Identity Now</span>
           </button>
         </div>
       </div>
 
-      {/* ─── Top 4 Metric KPI Cards ─── */}
+      {/* ─── Top 4 KPI Metric Cards ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Card 1: Verified Active Identities */}
+        {/* Card 1: VERIFIED IDENTITIES */}
         <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] flex items-center justify-between hover:border-emerald-500/40 transition-all shadow-sm">
           <div>
             <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-              ENROLLED IDENTITIES
+              VERIFIED IDENTITIES
             </div>
             <div className="text-2xl font-extrabold text-emerald-400 mt-1">
-              {stats?.activeLiveIdentities?.toLocaleString() || '1,842'}
+              {stats.verifiedIdentities?.toLocaleString('en-IN') || '1,842'}
             </div>
-            <div className="text-[11px] font-medium text-slate-400 mt-0.5">
-              Avg Trust Score: <span className="text-emerald-400 font-bold">{stats?.avgTrustScore || 94.2}%</span>
+            <div className="text-[11px] font-medium text-slate-400 mt-1">
+              of {stats.totalActiveAccounts?.toLocaleString('en-IN') || '1,847'} active officer accounts
             </div>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-950/80 border border-emerald-500/60 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+          <div className="w-10 h-10 rounded-lg bg-emerald-950/80 border border-emerald-500/60 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
             <ShieldCheck className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Card 2: Doppelgängers Flagged */}
+        {/* Card 2: DOPPELGANGERS FLAGGED */}
         <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] flex items-center justify-between hover:border-red-500/40 transition-all shadow-sm">
           <div>
             <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-              DOPPELGÄNGERS FLAGGED
+              DOPPELGANGERS FLAGGED
             </div>
             <div className="text-2xl font-extrabold text-red-500 mt-1">
-              {stats?.flaggedDoppelgangers || 2}
+              {stats.doppelgangersFlagged || watchlist.length || 5}
             </div>
-            <div className="text-[11px] font-medium text-red-400 flex items-center gap-1 mt-0.5">
-              <AlertTriangle className="w-3 h-3" />
-              <span>Geo-drift / impossible travel</span>
+            <div className="text-[11px] font-medium text-red-400 flex items-center gap-1 mt-1">
+              <span>↑</span> 2 compromised sessions isolated
             </div>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-red-950/80 border border-red-500/60 flex items-center justify-center text-red-400 shadow-[0_0_12px_rgba(239,68,68,0.3)]">
+          <div className="w-10 h-10 rounded-lg bg-red-950/80 border border-red-500/60 flex items-center justify-center text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
             <Users className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Card 3: Zero-Trust Quarantined */}
+        {/* Card 3: BEHAVIOR ANOMALIES */}
         <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] flex items-center justify-between hover:border-amber-500/40 transition-all shadow-sm">
           <div>
             <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-              QUARANTINED SESSIONS
+              BEHAVIOR &amp; CADENCE DRIFT
             </div>
             <div className="text-2xl font-extrabold text-amber-400 mt-1">
-              {stats?.quarantinedAccounts || 1}
+              {stats.behaviorAnomalies || 14}
             </div>
-            <div className="text-[11px] font-medium text-slate-400 mt-0.5">
-              <span>Tokens Revoked &amp; Locked</span>
+            <div className="text-[11px] font-medium text-slate-400 mt-1">
+              keystroke dynamics &amp; voiceprint variations
             </div>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-950/80 border border-amber-500/60 flex items-center justify-center text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
-            <Lock className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-lg bg-amber-950/80 border border-amber-500/60 flex items-center justify-center text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+            <Fingerprint className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Card 4: Audit Trail Telemetry Events */}
-        <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] flex items-center justify-between hover:border-blue-500/40 transition-all shadow-sm">
+        {/* Card 4: AVG TRUST SCORE */}
+        <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] flex items-center justify-between hover:border-cyan-500/40 transition-all shadow-sm">
           <div>
             <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-              IDENTITY TRAIL LOGS
+              AVG ZERO-TRUST SCORE
             </div>
-            <div className="text-2xl font-extrabold text-blue-400 mt-1">
-              {stats?.totalTrailEventsCount?.toLocaleString() || '8,426'}
+            <div className="text-2xl font-extrabold text-white mt-1">
+              {stats.avgTrustScore || 91}<span className="text-sm font-normal text-slate-400">/100</span>
             </div>
-            <div className="text-[11px] font-medium text-slate-400 mt-0.5">
-              MFA Adoption: <span className="text-blue-400 font-bold">{stats?.hardwareKeyAdoptionRate || '92.8%'}</span>
+            <div className="text-[11px] font-medium text-emerald-400 flex items-center gap-1 mt-1">
+              <span>↑</span> Hardware FIDO2 adoption: {stats.hardwareKeyAdoptionRate || '78%'}
             </div>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-blue-950/80 border border-blue-500/60 flex items-center justify-center text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.3)]">
+          <div className="w-10 h-10 rounded-lg bg-cyan-950/80 border border-cyan-500/60 flex items-center justify-center text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
             <Activity className="w-5 h-5" />
           </div>
         </div>
       </div>
 
-      {/* ─── Tab Navigation Bar ─── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#142342] pb-2">
-        <div className="flex items-center gap-1.5 bg-[#081023] p-1 rounded-xl border border-[#142342]">
-          <button
-            onClick={() => setActiveTab('trail')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-              activeTab === 'trail'
-                ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5 text-blue-400" />
-            <span>Identity Audit Trail ({filteredTrails.length})</span>
-          </button>
+      {/* ─── Navigation Tabs ─── */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#142342] pb-2">
+        <button
+          onClick={() => setActiveTab('match')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
+            activeTab === 'match'
+              ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/60 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+              : 'bg-[#081023] text-slate-400 border border-[#142342] hover:text-slate-200'
+          }`}
+        >
+          <UserCheck className="w-4 h-4" />
+          <span>Biometric Match &amp; Profiles</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('biometrics')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-              activeTab === 'biometrics'
-                ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-            }`}
-          >
-            <Fingerprint className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Biometric Telemetry &amp; Verification</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('trail')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
+            activeTab === 'trail'
+              ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/60 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+              : 'bg-[#081023] text-slate-400 border border-[#142342] hover:text-slate-200'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>Identity Audit Trail</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono">
+            {filteredTrailEvents.length}
+          </span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('zerotrust')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-              activeTab === 'zerotrust'
-                ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-            }`}
-          >
-            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-            <span>Zero-Trust Access &amp; Quarantine</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('watchlist')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
+            activeTab === 'watchlist'
+              ? 'bg-red-600/20 text-red-300 border border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.2)]'
+              : 'bg-[#081023] text-slate-400 border border-[#142342] hover:text-slate-200'
+          }`}
+        >
+          <AlertOctagon className="w-4 h-4 text-red-400" />
+          <span>Doppelganger Watchlist</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-red-950 text-red-300 border border-red-500/40 text-[10px] font-mono">
+            {watchlist.filter((w) => w.status === 'ACTIVE_ALERT').length}
+          </span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('watchlist')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-              activeTab === 'watchlist'
-                ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
-            }`}
-          >
-            <AlertOctagon className="w-3.5 h-3.5 text-red-400" />
-            <span>Doppelgänger &amp; Geo-Drift Watchlist</span>
-          </button>
-        </div>
-
-        {/* Profile Selector Dropdown */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-semibold hidden sm:inline">Active Officer / Suspect:</span>
-          <div className="relative">
-            <select
-              value={selectedProfileId}
-              onChange={(e) => setSelectedProfileId(e.target.value)}
-              className="pl-3 pr-8 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] hover:border-blue-500 text-xs font-semibold text-sky-300 font-mono focus:outline-none appearance-none cursor-pointer"
-            >
-              {profiles.map((p) => (
-                <option key={p.id} value={p.id} className="bg-[#091122] text-slate-200">
-                  {p.name} ({p.badgeNumber}) — {p.status.toUpperCase()}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
-          </div>
-        </div>
+        <button
+          onClick={() => setActiveTab('behavior')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
+            activeTab === 'behavior'
+              ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/60 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+              : 'bg-[#081023] text-slate-400 border border-[#142342] hover:text-slate-200'
+          }`}
+        >
+          <Laptop className="w-4 h-4" />
+          <span>Behavioral Dynamics &amp; Geo-Consistency</span>
+        </button>
       </div>
 
-      {/* ─── TAB 1: IDENTITY AUDIT TRAIL ─── */}
-      {activeTab === 'trail' && (
-        <div className="space-y-3">
-          {/* Filter and Search Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#081023] border border-[#142342] rounded-xl p-3 shadow-md">
-            <div className="flex flex-1 items-center gap-2 bg-[#0c162b] border border-[#1e335a] rounded-lg px-3 py-1.5">
-              <Search className="w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search audit trail by name, badge, event type, IP, location, or hash..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent text-xs text-slate-100 placeholder-slate-500 focus:outline-none w-full"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-white">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+      {/* ─── TAB 1: BIOMETRIC MATCH & PROFILES ─── */}
+      {activeTab === 'match' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+          {/* Left: Officer Profile Selection List (Spans 4 cols on lg) */}
+          <div className="lg:col-span-4 rounded-xl bg-[#070e1f] border border-[#132342] p-3.5 flex flex-col justify-between shadow-md">
+            <div>
+              <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
+                <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-cyan-400" />
+                  Active Officer Sessions ({profiles.length})
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">Continuous ZK Sync</span>
+              </div>
+
+              <div className="space-y-2 pt-3 text-xs overflow-y-auto max-h-[480px] pr-1">
+                {profiles.map((prof) => {
+                  const isSelected = prof.id === currentProfile.id;
+                  return (
+                    <div
+                      key={prof.id}
+                      onClick={() => setSelectedProfileId(prof.id)}
+                      className={`p-3 rounded-lg cursor-pointer transition-all border ${
+                        isSelected
+                          ? 'bg-cyan-950/40 border-cyan-500/70 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+                          : 'bg-[#050b18] border-[#101c34] hover:bg-slate-800/40 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                            <OfficerAvatarIcon className="w-6 h-6 text-slate-200" />
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-100 text-xs flex items-center gap-1.5">
+                              <span>{prof.name}</span>
+                              {prof.status === 'live' && (
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                              )}
+                            </div>
+                            <div className="text-[10.5px] text-slate-400">
+                              {prof.badgeNumber} · {prof.rank}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider uppercase shrink-0 ${
+                            prof.status === 'live'
+                              ? 'bg-emerald-950 border border-emerald-500 text-emerald-300'
+                              : prof.status === 'quarantined'
+                              ? 'bg-rose-950 border border-rose-500 text-rose-300'
+                              : 'bg-amber-950 border border-amber-500 text-amber-300'
+                          }`}
+                        >
+                          {prof.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-2.5 pt-2 border-t border-[#0f1b33] flex items-center justify-between text-[10px] text-slate-400">
+                        <span className="truncate max-w-[160px]">📍 {prof.locationInfo}</span>
+                        <span className={`font-mono font-bold ${prof.matchConfidence > 75 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {prof.matchConfidence}% confidence
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Severity Filter */}
-              <select
-                value={severityFilter}
-                onChange={(e) => setSeverityFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-slate-300 focus:outline-none"
+            {/* Quick Challenge Trigger */}
+            <div className="pt-3 border-t border-[#12203c] mt-3">
+              <button
+                onClick={() => handleStartVerificationScan(currentProfile.id)}
+                className="w-full py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow"
               >
-                <option value="ALL">All Severities</option>
-                <option value="CRITICAL_ANOMALY">Critical Anomalies</option>
-                <option value="WARNING">Warnings</option>
-                <option value="INFO">Info / Normal</option>
-              </select>
-
-              {/* Event Type Filter */}
-              <select
-                value={eventTypeFilter}
-                onChange={(e) => setEventTypeFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-slate-300 focus:outline-none"
-              >
-                <option value="ALL">All Event Types</option>
-                <option value="BIOMETRIC_VERIFY">Biometric Verification</option>
-                <option value="IMPOSSIBLE_TRAVEL">Impossible Travel</option>
-                <option value="PRIVILEGE_ELEVATION">Privilege Elevation</option>
-                <option value="QUARANTINE_LOCK">Quarantine Lock</option>
-                <option value="DEVICE_TPM_CHECK">Device TPM Check</option>
-                <option value="EVIDENCE_VAULT_ACCESS">Evidence Vault Access</option>
-              </select>
+                <Camera className="w-4 h-4" />
+                <span>Re-Challenge {currentProfile.name.split(' ')[0]}</span>
+              </button>
             </div>
           </div>
 
-          {/* Audit Trail Event Cards */}
+          {/* Right: Detailed Biometric Telemetry & Radar (Spans 8 cols on lg) */}
+          <div className="lg:col-span-8 rounded-xl bg-[#070e1f] border border-[#132342] p-4 flex flex-col justify-between shadow-md">
+            <div>
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#12203c]">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-emerald-400" />
+                    Biometric Identity Profile — {currentProfile.name}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-semibold flex items-center gap-1 border ${
+                    currentProfile.status === 'live'
+                      ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-400'
+                      : currentProfile.status === 'quarantined'
+                      ? 'bg-rose-950/80 border-rose-500/60 text-rose-400'
+                      : 'bg-amber-950/80 border-amber-500/60 text-amber-400'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${currentProfile.status === 'live' ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
+                    {currentProfile.status} session
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveDetailModal('biometric_log')}
+                    className="text-[11px] font-medium text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1"
+                  >
+                    <span>Full Biometric Log</span>
+                    <span className="text-xs">→</span>
+                  </button>
+
+                  {currentProfile.status !== 'quarantined' && (
+                    <button
+                      onClick={() => handleOpenQuarantine(currentProfile)}
+                      className="px-2.5 py-1 rounded bg-red-950/80 hover:bg-red-900/80 border border-red-500/60 text-red-300 text-[10.5px] font-bold flex items-center gap-1 transition-all"
+                      title="Quarantine this officer session immediately"
+                    >
+                      <Ban className="w-3 h-3 text-red-400" />
+                      <span>Quarantine</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Biometric Analysis Visual Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center py-4">
+                {/* Biometric Scanner Radar Circle (5 cols on md) */}
+                <div className="md:col-span-5 flex flex-col items-center justify-center relative">
+                  <div className="relative w-48 h-48 flex items-center justify-center">
+                    {/* Outer Glow Ring */}
+                    <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 animate-pulse"></div>
+
+                    {/* Inner Radar Rings */}
+                    <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                      <circle
+                        cx="96"
+                        cy="96"
+                        r="84"
+                        fill="none"
+                        stroke="#0a1d33"
+                        strokeWidth="4"
+                      />
+                      <circle
+                        cx="96"
+                        cy="96"
+                        r="84"
+                        fill="none"
+                        stroke={currentProfile.matchConfidence > 75 ? '#10b981' : '#ef4444'}
+                        strokeWidth="4.5"
+                        strokeDasharray="528"
+                        strokeDashoffset={528 - (528 * currentProfile.matchConfidence) / 100}
+                        strokeLinecap="round"
+                        className="transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                      />
+                    </svg>
+
+                    {/* Registered Profile Tag */}
+                    <div className="absolute -top-1 px-2.5 py-0.5 rounded-full bg-[#070e1f] border border-cyan-400/80 text-cyan-300 text-[8.5px] font-bold tracking-wider uppercase flex items-center gap-1 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                      <span>REGISTERED PROFILE</span>
+                      <div className="w-3 h-3 rounded-full bg-cyan-500 flex items-center justify-center text-slate-950 font-bold">
+                        <CheckCircle2 className="w-2.5 h-2.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    {/* Center Officer Avatar Portrait */}
+                    <div className="w-24 h-24 rounded-full bg-[#050b18] border-2 border-cyan-400 flex items-center justify-center overflow-hidden shadow-[0_0_20px_rgba(6,182,212,0.4)] relative">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-blue-900/60 to-slate-900">
+                        <OfficerAvatarIcon className="w-16 h-16 text-slate-100" />
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/20 to-transparent h-4 w-full animate-bounce"></div>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] text-slate-400 font-mono mt-2">
+                    Enrolled {currentProfile.enrolledDate} · Badge {currentProfile.badgeNumber}
+                  </span>
+                </div>
+
+                {/* Right Confidence & Factor Checklist (7 cols on md) */}
+                <div className="md:col-span-7 space-y-3">
+                  <div>
+                    <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                      MATCH CONFIDENCE SCORE
+                    </div>
+                    <div className="text-3xl font-extrabold text-cyan-400 mt-0.5 flex items-baseline gap-2">
+                      <span>{currentProfile.matchConfidence}%</span>
+                      <span className="text-xs font-normal text-slate-400 font-sans">
+                        {currentProfile.matchConfidence > 75 ? 'Optimal zero-trust baseline' : 'Anomalous deviation detected'}
+                      </span>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="h-2 w-full bg-[#0c1830] rounded-full overflow-hidden mt-1.5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          currentProfile.matchConfidence > 75
+                            ? 'bg-emerald-400 shadow-[0_0_10px_#10b981]'
+                            : 'bg-rose-500 shadow-[0_0_10px_#f43f5e]'
+                        }`}
+                        style={{ width: `${currentProfile.matchConfidence}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* 5 Biometric Factor Rows */}
+                  <div className="space-y-2 text-xs pt-1">
+                    {/* Factor 1: Face Geometry */}
+                    <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
+                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Face Geometry &amp; 3D Depth Map</span>
+                      </span>
+                      <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.faceGeometryMatch ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {currentProfile.faceGeometryMatch ? '✓ Valid (99.2%)' : '✗ Mismatch (61.0%)'}
+                      </span>
+                    </div>
+
+                    {/* Factor 2: Voiceprint */}
+                    <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
+                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                        <Radio className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Voiceprint Acoustic Resonance (24-Band FFT)</span>
+                      </span>
+                      <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.voiceprintMatch ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {currentProfile.voiceprintMatch ? '✓ Valid' : '⚠ Acoustic Drift (22%)'}
+                      </span>
+                    </div>
+
+                    {/* Factor 3: Typing Cadence */}
+                    <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
+                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                        <Laptop className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Keystroke Flight &amp; Dwell Dynamics</span>
+                      </span>
+                      <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.typingCadenceMatch ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {currentProfile.typingCadenceMatch ? '✓ Nominal' : '⚠ Cadence Variance'}
+                      </span>
+                    </div>
+
+                    {/* Factor 4: Device + Location */}
+                    <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
+                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Device TPM 2.0 &amp; BSSID Geolocation</span>
+                      </span>
+                      <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.deviceFingerprintMatch ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {currentProfile.deviceFingerprintMatch ? '✓ Verified Hardware' : '✗ Unenrolled Device'}
+                      </span>
+                    </div>
+
+                    {/* Factor 5: Badge Cert */}
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Smart-Card X.509 Cryptographic Cert</span>
+                      </span>
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1 text-[11px]">
+                        ✓ Police Root CA Valid
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Officer Metadata Footer */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-3 border-t border-[#12203c] text-[11px] bg-[#050b18]/60 p-2.5 rounded-lg">
+              <div>
+                <span className="text-slate-400 block text-[10px]">REGISTERED HARDWARE</span>
+                <span className="text-slate-200 font-semibold font-mono">{currentProfile.deviceInfo}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">CURRENT GEO LOCATION</span>
+                <span className="text-slate-200 font-semibold">{currentProfile.locationInfo}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">SESSION IP ADDRESS</span>
+                <span className="text-cyan-300 font-mono font-semibold">{currentProfile.ipAddress}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 2: IDENTITY AUDIT TRAIL ─── */}
+      {activeTab === 'trail' && (
+        <div className="space-y-4">
+          {/* Search & Category Filter Pills */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#081023] border border-[#142342] rounded-xl p-3">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Search identity trail by officer, badge, IP, device, action or case..."
+                className="w-full pl-9 pr-4 py-1.5 bg-[#050b18] border border-[#162747] rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+              />
+            </div>
+
+            {/* Category Chips */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: 'ALL', label: 'All Events' },
+                { id: 'BIOMETRIC_PASS', label: 'Biometric Pass' },
+                { id: 'IMPOSSIBLE_TRAVEL', label: 'Impossible Travel' },
+                { id: 'SESSION_HIJACK', label: 'Session Hijack' },
+                { id: 'FAILED_CHALLENGE', label: 'Failed Challenge' },
+                { id: 'QUARANTINE_ENFORCED', label: 'Quarantines' }
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
+                    selectedCategory === cat.id
+                      ? 'bg-cyan-600/30 text-cyan-300 border border-cyan-500/60'
+                      : 'bg-[#050b18] text-slate-400 border border-[#142342] hover:text-slate-200'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chronological Event Feed */}
           <div className="space-y-2.5">
-            {filteredTrails.length === 0 ? (
-              <div className="p-8 text-center bg-[#081023] border border-[#142342] rounded-xl text-slate-400 text-xs">
-                No identity audit events match your active filters.
+            {filteredTrailEvents.length === 0 ? (
+              <div className="p-8 text-center bg-[#070e1f] border border-[#132342] rounded-xl text-slate-400 text-xs">
+                No identity trail logs matching your search criteria.
               </div>
             ) : (
-              filteredTrails.map((event) => {
-                const isCritical = event.severity === 'CRITICAL_ANOMALY';
-                const isWarning = event.severity === 'WARNING';
-
+              filteredTrailEvents.map((evt) => {
+                const isExpanded = expandedEventId === evt.id;
                 return (
                   <div
-                    key={event.id}
-                    className={`p-3.5 rounded-xl border transition-all ${
-                      isCritical
-                        ? 'bg-red-950/20 border-red-500/40 hover:border-red-500'
-                        : isWarning
-                        ? 'bg-amber-950/20 border-amber-500/40 hover:border-amber-500'
-                        : 'bg-[#081023] border-[#142342] hover:border-blue-500/50'
+                    key={evt.id}
+                    className={`rounded-xl border transition-all ${
+                      evt.severity === 'CRITICAL'
+                        ? 'bg-[#12060c] border-rose-900/60 hover:border-rose-500/80'
+                        : evt.severity === 'HIGH'
+                        ? 'bg-[#140b05] border-amber-900/60 hover:border-amber-500/80'
+                        : 'bg-[#070e1f] border-[#132342] hover:border-cyan-500/50'
                     }`}
                   >
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 border-b border-[#142342]/60 pb-2.5">
-                      <div className="flex items-center gap-2.5">
+                    {/* Event Summary Bar */}
+                    <div
+                      onClick={() => setExpandedEventId(isExpanded ? null : evt.id)}
+                      className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer"
+                    >
+                      <div className="flex items-start sm:items-center gap-3">
                         <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            isCritical
-                              ? 'bg-red-950 border border-red-500/60 text-red-400'
-                              : isWarning
-                              ? 'bg-amber-950 border border-amber-500/60 text-amber-400'
-                              : 'bg-blue-950 border border-blue-500/60 text-blue-400'
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                            evt.severity === 'CRITICAL'
+                              ? 'bg-rose-950 border-rose-500/60 text-rose-400'
+                              : evt.severity === 'HIGH'
+                              ? 'bg-amber-950 border-amber-500/60 text-amber-400'
+                              : 'bg-cyan-950 border-cyan-500/60 text-cyan-400'
                           }`}
                         >
-                          {isCritical ? (
-                            <AlertOctagon className="w-4 h-4 animate-bounce" />
-                          ) : isWarning ? (
+                          {evt.severity === 'CRITICAL' ? (
+                            <AlertOctagon className="w-4 h-4" />
+                          ) : evt.severity === 'HIGH' ? (
                             <AlertTriangle className="w-4 h-4" />
                           ) : (
-                            <CheckCircle2 className="w-4 h-4" />
+                            <ShieldCheck className="w-4 h-4" />
                           )}
                         </div>
 
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-white">{event.identity_name}</span>
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-[#0c162b] text-slate-300 border border-slate-700">
-                              {event.badge_or_alias}
-                            </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-xs text-white">{evt.action}</span>
                             <span
-                              className={`px-2 py-0.2 rounded text-[9.5px] font-extrabold ${
-                                event.status === 'SUCCESS'
-                                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
-                                  : event.status === 'FLAGGED' || event.status === 'BLOCKED'
-                                  ? 'bg-red-950 text-red-300 border border-red-500/40'
-                                  : 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                              className={`px-2 py-0.2 rounded text-[9px] font-extrabold uppercase border ${
+                                evt.status === 'VERIFIED'
+                                  ? 'bg-emerald-950 border-emerald-500/60 text-emerald-300'
+                                  : evt.status === 'QUARANTINED'
+                                  ? 'bg-rose-950 border-rose-500/60 text-rose-300'
+                                  : 'bg-amber-950 border-amber-500/60 text-amber-300'
                               }`}
                             >
-                              {event.status}
+                              {evt.status}
                             </span>
                           </div>
-                          <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
-                            <span className="font-mono text-blue-400 font-semibold">{event.event_type}</span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-slate-500" />
-                              {event.location}
-                            </span>
-                            <span>•</span>
-                            <span className="font-mono text-slate-400">{event.ip_address}</span>
+                          <div className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-2">
+                            <span className="text-slate-200 font-semibold">{evt.officerName}</span>
+                            <span>({evt.badgeNumber})</span>
+                            <span>·</span>
+                            <span>📍 {evt.location}</span>
+                            <span>·</span>
+                            <span className="font-mono text-cyan-300">{evt.caseId}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
                         <div className="text-right">
-                          <div className="text-xs font-semibold text-slate-200">
-                            Confidence: <span className={event.confidence_score > 75 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>{event.confidence_score}%</span>
+                          <span className="text-[11px] font-mono font-bold text-slate-300 block">{evt.timeAgo}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {new Date(evt.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180 text-cyan-400' : ''}`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Expandable Technical Details Tray */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-1 border-t border-[#12203c] space-y-3 text-xs bg-[#050b18]/70 rounded-b-xl">
+                        <p className="text-slate-300 leading-relaxed">{evt.details}</p>
+
+                        {/* Technical Metadata Pills */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-[#030712] p-3 rounded-lg border border-[#101c34] font-mono text-[11px]">
+                          <div>
+                            <span className="text-slate-500 text-[9.5px] block">HARDWARE &amp; OS DEVICE</span>
+                            <span className="text-slate-200">{evt.deviceInfo}</span>
                           </div>
-                          <div className="text-[10.5px] font-mono text-slate-400 flex items-center justify-end gap-1">
-                            <Clock className="w-3 h-3 text-slate-500" />
-                            {new Date(event.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          <div>
+                            <span className="text-slate-500 text-[9.5px] block">IP &amp; BSSID TELEMETRY</span>
+                            <span className="text-cyan-300">{evt.ipAddress}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 text-[9.5px] block">BIOMETRIC CONFIDENCE</span>
+                            <span className={`font-bold ${evt.confidenceScore > 75 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {evt.confidenceScore}% match
+                            </span>
                           </div>
                         </div>
 
-                        {isCritical && (
+                        {/* Cryptographic SHA-256 Hash Chain */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-[#0f1b33]">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-500 font-mono uppercase">SHA-256 PROOF:</span>
+                            <span className="text-[10.5px] font-mono text-slate-400 truncate max-w-[280px] sm:max-w-md">
+                              {evt.hashSha256}
+                            </span>
+                          </div>
+
                           <button
-                            onClick={() => {
-                              const prof = profiles.find((p) => p.id === event.profile_id);
-                              if (prof) {
-                                setTargetQuarantineProfile(prof);
-                                setIsQuarantineModalOpen(true);
-                              }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyHash(evt.hashSha256);
                             }}
-                            className="px-2.5 py-1 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-semibold flex items-center gap-1 shadow-[0_0_10px_rgba(239,68,68,0.4)]"
+                            className="text-[10.5px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-mono shrink-0"
                           >
-                            <Lock className="w-3 h-3" />
-                            <span>Quarantine</span>
+                            {copiedHash === evt.hashSha256 ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copy Hash</span>
+                              </>
+                            )}
                           </button>
-                        )}
+                        </div>
                       </div>
-                    </div>
-
-                    <p className="text-xs text-slate-300 mt-2 leading-relaxed">{event.details}</p>
-
-                    {/* Forensic Court Hash Seal */}
-                    <div className="mt-2.5 pt-2 border-t border-[#142342]/40 flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-slate-400">
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 uppercase font-bold">Sec 65B Hash:</span>
-                        <span className="text-slate-300 bg-[#060b17] px-2 py-0.5 rounded border border-[#142342] truncate max-w-[280px] sm:max-w-[400px]">
-                          {event.court_admissible_hash}
-                        </span>
-                        <button
-                          onClick={() => handleCopy(event.court_admissible_hash)}
-                          className="text-slate-400 hover:text-white p-0.5 rounded"
-                          title="Copy SHA-256 Hash"
-                        >
-                          {copiedHash === event.court_admissible_hash ? (
-                            <Check className="w-3 h-3 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500">Device:</span>
-                        <span className="text-slate-300">{event.device}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 );
               })
@@ -731,389 +1123,219 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({ onSe
         </div>
       )}
 
-      {/* ─── TAB 2: BIOMETRIC TELEMETRY & VERIFICATION ─── */}
-      {activeTab === 'biometrics' && currentProfile && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left Column: Biometric Radar & Match Breakdown (8 cols) */}
-          <div className="lg:col-span-8 space-y-4">
-            <div className="bg-[#081023] border border-[#142342] rounded-xl p-4 shadow-lg space-y-4">
-              <div className="flex items-center justify-between border-b border-[#142342] pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-blue-950/80 border border-blue-500/60 flex items-center justify-center text-blue-400 font-bold text-lg">
-                    {currentProfile.name
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .slice(0, 2)}
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-white flex items-center gap-2">
-                      <span>{currentProfile.name}</span>
-                      <span className="px-2 py-0.2 rounded text-[10px] font-mono bg-blue-950 text-blue-300 border border-blue-500/40">
-                        {currentProfile.badgeNumber}
-                      </span>
-                    </h2>
-                    <p className="text-xs text-slate-400">{currentProfile.rank} • {currentProfile.department}</p>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-2xl font-extrabold text-emerald-400">
-                    {currentProfile.matchConfidence}%
-                  </div>
-                  <div className="text-[10.5px] font-semibold text-slate-400 uppercase">
-                    BIOMETRIC CONFIDENCE
-                  </div>
-                </div>
-              </div>
-
-              {/* 5 Biometric Vectors Breakdown */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 1. Facial Landmark Mesh */}
-                <div className="p-3 rounded-lg bg-[#060b17] border border-[#142342] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                      <Camera className="w-4 h-4 text-emerald-400" />
-                      <span>Facial 68-Point Mesh</span>
-                    </div>
-                    {currentProfile.faceGeometryMatch ? (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                        MATCH ({currentProfile.faceConfidence}%)
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-500/40">
-                        MISMATCH ({currentProfile.faceConfidence}%)
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${currentProfile.faceGeometryMatch ? 'bg-emerald-500' : 'bg-red-500'}`}
-                      style={{ width: `${currentProfile.faceConfidence}%` }}
-                    />
-                  </div>
-                  <p className="text-[10.5px] text-slate-400">
-                    Continuous facial contour tracking via camera iris &amp; jawline telemetry.
-                  </p>
-                </div>
-
-                {/* 2. Voiceprint Spectral Waveform */}
-                <div className="p-3 rounded-lg bg-[#060b17] border border-[#142342] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                      <Radio className="w-4 h-4 text-sky-400" />
-                      <span>Voice Acoustic Formant</span>
-                    </div>
-                    {currentProfile.voiceprintMatch ? (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                        CONFIRMED (96.4%)
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-500/40">
-                        DIVERGENT (34.0%)
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${currentProfile.voiceprintMatch ? 'bg-emerald-500' : 'bg-red-500'}`}
-                      style={{ width: currentProfile.voiceprintMatch ? '96%' : '34%' }}
-                    />
-                  </div>
-                  <p className="text-[10.5px] text-slate-400">
-                    Fundamental pitch frequency &amp; vocal tract acoustic spectrogram match.
-                  </p>
-                </div>
-
-                {/* 3. Typing Cadence Dynamics */}
-                <div className="p-3 rounded-lg bg-[#060b17] border border-[#142342] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                      <Laptop className="w-4 h-4 text-purple-400" />
-                      <span>Keystroke Flight Dynamics</span>
-                    </div>
-                    {currentProfile.typingCadenceMatch ? (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                        BASELINE MATCH
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-500/40">
-                        ANOMALOUS RHYTHM
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${currentProfile.typingCadenceMatch ? 'bg-purple-500' : 'bg-red-500'}`}
-                      style={{ width: currentProfile.typingCadenceMatch ? '92%' : '28%' }}
-                    />
-                  </div>
-                  <p className="text-[10.5px] text-slate-400">
-                    Inter-key latency and dwell-time entropy matching enrolled officer baseline.
-                  </p>
-                </div>
-
-                {/* 4. Hardware TPM & Device Endorsement */}
-                <div className="p-3 rounded-lg bg-[#060b17] border border-[#142342] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                      <Cpu className="w-4 h-4 text-blue-400" />
-                      <span>Hardware TPM 2.0 Cert</span>
-                    </div>
-                    {currentProfile.deviceFingerprintMatch ? (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
-                        FIPS VERIFIED
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-500/40">
-                        UNAUTHORIZED DEVICE
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${currentProfile.deviceFingerprintMatch ? 'bg-blue-500' : 'bg-red-500'}`}
-                      style={{ width: currentProfile.deviceFingerprintMatch ? '99%' : '12%' }}
-                    />
-                  </div>
-                  <p className="text-[10.5px] text-slate-400">
-                    Hardware PKI root endorsement signature verification.
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#142342]">
-                <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-blue-400" />
-                  <span>{currentProfile.locationInfo}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleStartVerificationScan(currentProfile.id)}
-                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Run Verification Scan</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleDispatchMfa(currentProfile)}
-                    className="px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] hover:border-purple-500 text-xs font-semibold text-purple-300 flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Key className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Push Hardware MFA</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Identity Metadata & Active Sessions (4 cols) */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="bg-[#081023] border border-[#142342] rounded-xl p-4 shadow-lg space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-sky-400" />
-                <span>Zero-Trust Credential Seal</span>
-              </h3>
-
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-[#060b17] border border-[#142342] flex items-center justify-between">
-                  <span className="text-slate-400">Status:</span>
-                  <span
-                    className={`font-bold font-mono uppercase ${
-                      currentProfile.status === 'live'
-                        ? 'text-emerald-400'
-                        : currentProfile.status === 'flagged'
-                        ? 'text-red-400'
-                        : 'text-amber-400'
-                    }`}
-                  >
-                    {currentProfile.status}
-                  </span>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-[#060b17] border border-[#142342] flex items-center justify-between">
-                  <span className="text-slate-400">Enrolled On:</span>
-                  <span className="font-mono text-slate-200">{currentProfile.enrolledDate}</span>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-[#060b17] border border-[#142342] flex items-center justify-between">
-                  <span className="text-slate-400">Active Sessions:</span>
-                  <span className="font-mono text-blue-400 font-bold">{currentProfile.activeSessionsCount}</span>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-[#060b17] border border-[#142342]">
-                  <div className="text-slate-400 mb-1">Registered Device:</div>
-                  <div className="font-mono text-slate-200 text-[11px] truncate">{currentProfile.deviceInfo}</div>
-                </div>
-              </div>
-
-              {/* Zero-Trust Quarantine Button */}
-              <button
-                onClick={() => {
-                  setTargetQuarantineProfile(currentProfile);
-                  setIsQuarantineModalOpen(true);
-                }}
-                className="w-full py-2 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/50 text-red-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_12px_rgba(239,68,68,0.2)]"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Enforce Zero-Trust Quarantine</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── TAB 3: ZERO-TRUST ACCESS & QUARANTINE CONTROLS ─── */}
-      {activeTab === 'zerotrust' && (
+      {/* ─── TAB 3: DOPPELGANGER WATCHLIST & QUARANTINES ─── */}
+      {activeTab === 'watchlist' && (
         <div className="space-y-4">
-          <div className="bg-[#081023] border border-[#142342] rounded-xl p-4 shadow-lg space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-[#142342]">
             <div>
               <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Lock className="w-4 h-4 text-amber-400" />
-                <span>Active Account Privilege Governance &amp; Session Controls</span>
+                <AlertOctagon className="w-4 h-4 text-red-400" />
+                Active Doppelganger &amp; Impersonation Alerts ({watchlist.length})
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Revoke compromised session tokens, enforce air-gap evidence locks, and force hardware biometric attestation
+                Flagged sessions exhibiting biometric drift, impossible travel, or credential cloning
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {profiles.map((p) => (
-                <div
-                  key={p.id}
-                  className="p-3.5 rounded-xl bg-[#060b17] border border-[#142342] hover:border-slate-600 transition-all space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-xs text-white">{p.name}</div>
-                      <div className="text-[10.5px] font-mono text-slate-400">{p.badgeNumber}</div>
+            <button
+              onClick={() => handleEscalateWatchlist('insp_r_sharma')}
+              className="px-3 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 border border-red-500/60 text-red-300 text-xs font-bold flex items-center gap-1.5 shadow"
+            >
+              <Flame className="w-3.5 h-3.5" />
+              <span>Escalate All to CSOC</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {watchlist.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 rounded-xl bg-[#090e1f] border border-[#1a2c4e] hover:border-red-500/60 transition-all shadow-md flex flex-col justify-between space-y-3"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-full bg-red-950/80 border border-red-500/60 flex items-center justify-center text-red-400 font-bold shrink-0">
+                        <Users className="w-4.5 h-4.5" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm text-white flex items-center gap-2">
+                          <span>{item.officerName}</span>
+                          <span className="text-xs font-mono text-slate-400">({item.badgeNumber})</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          Flagged {item.timeAgo} · {item.anomalyType.replace('_', ' ')}
+                        </div>
+                      </div>
                     </div>
+
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                        p.status === 'live'
-                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
-                          : p.status === 'quarantined'
-                          ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
-                          : 'bg-red-950 text-red-300 border border-red-500/40'
+                      className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase border ${
+                        item.severity === 'CRITICAL'
+                          ? 'bg-rose-950 border-rose-500 text-rose-300'
+                          : 'bg-amber-950 border-amber-500 text-amber-300'
                       }`}
                     >
-                      {p.status.toUpperCase()}
+                      {item.severity}
                     </span>
                   </div>
 
-                  <div className="text-[11px] text-slate-300 space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Trust Score:</span>
-                      <span className="font-bold text-emerald-400">{p.matchConfidence}%</span>
+                  <p className="text-xs text-slate-300 mt-3 leading-relaxed bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
+                    {item.flagReason}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 mt-2.5 text-[11px] text-slate-400 font-mono">
+                    <div>
+                      <span className="text-[9.5px] text-slate-500 block">DEVICE</span>
+                      <span className="text-slate-200">{item.deviceInfo}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Active Sessions:</span>
-                      <span className="font-mono text-blue-400 font-bold">{p.activeSessionsCount}</span>
+                    <div>
+                      <span className="text-[9.5px] text-slate-500 block">LOCATION</span>
+                      <span className="text-slate-200">{item.location}</span>
                     </div>
-                    <div className="truncate text-slate-400 text-[10.5px]">{p.deviceInfo}</div>
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#142342]">
+                {/* Action Buttons */}
+                <div className="pt-3 border-t border-[#142444] flex items-center justify-between gap-2">
+                  <span className={`text-[11px] font-mono font-bold ${item.confidenceMatch > 70 ? 'text-amber-400' : 'text-red-400'}`}>
+                    Biometric: {item.confidenceMatch}%
+                  </span>
+
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleRevokeSession(p)}
-                      className="px-2 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center gap-1 transition-all"
+                      onClick={() => handleStartVerificationScan(item.profileId)}
+                      className="px-2.5 py-1 rounded bg-[#0e1c36] hover:bg-cyan-900/40 border border-[#1d355f] text-cyan-300 text-xs font-semibold"
                     >
-                      <XCircle className="w-3 h-3 text-red-400" />
-                      <span>Revoke Token</span>
+                      Re-Challenge
                     </button>
-
                     <button
                       onClick={() => {
-                        setTargetQuarantineProfile(p);
-                        setIsQuarantineModalOpen(true);
+                        const prof = profiles.find((p) => p.id === item.profileId) || currentProfile;
+                        handleOpenQuarantine(prof);
                       }}
-                      className="px-2 py-1.5 rounded bg-red-950/60 hover:bg-red-900/80 border border-red-500/40 text-red-300 text-[11px] font-bold flex items-center justify-center gap-1 transition-all"
+                      className="px-3 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow"
                     >
-                      <Lock className="w-3 h-3" />
-                      <span>Quarantine</span>
+                      Quarantine Session
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* ─── TAB 4: DOPPELGÄNGER & GEO-DRIFT WATCHLIST ─── */}
-      {activeTab === 'watchlist' && (
-        <div className="space-y-4">
-          <div className="bg-[#081023] border border-[#142342] rounded-xl p-4 shadow-lg space-y-3">
-            <div className="flex items-center justify-between border-b border-[#142342] pb-3">
-              <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <AlertOctagon className="w-4 h-4 text-red-500 animate-pulse" />
-                  <span>High-Priority Doppelgänger &amp; Anomaly Watchlist</span>
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Real-time detection of concurrent logins, stolen credentials, and impossible travel physics violations
+      {/* ─── TAB 4: BEHAVIORAL DYNAMICS & GEO-CONSISTENCY ─── */}
+      {activeTab === 'behavior' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+          {/* Keystroke & Mouse Dynamics Waveform (Spans 6 cols on lg) */}
+          <div className="lg:col-span-6 rounded-xl bg-[#070e1f] border border-[#132342] p-4 flex flex-col justify-between shadow-md">
+            <div>
+              <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
+                <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
+                  <Laptop className="w-4 h-4 text-cyan-400" />
+                  Live Keystroke &amp; Mouse Dynamics
+                </span>
+                <span className="px-2 py-0.5 rounded bg-cyan-950 text-[10px] text-cyan-300 border border-cyan-500/40 font-mono">
+                  Active Baseline: Nominal (98.6%)
+                </span>
+              </div>
+
+              {/* Dynamic Waveform SVG */}
+              <div className="py-6 flex flex-col items-center justify-center">
+                <div className="w-full h-24 flex items-center bg-[#040813] rounded-lg p-2 border border-[#101c34]">
+                  <svg className="w-full h-full stroke-cyan-400 fill-none" viewBox="0 0 400 60">
+                    <rect x="0" y="12" width="400" height="36" fill="rgba(6, 182, 212, 0.05)" />
+                    <path
+                      d="M0 30 L30 30 L45 14 L60 46 L75 30 L100 30 L115 8 L130 52 L145 30 L170 18 L185 42 L200 10 L215 50 L230 30 L260 30 L275 22 L290 38 L310 30 L340 15 L355 45 L370 30 L400 30"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="drop-shadow-[0_0_8px_rgba(6,182,212,0.7)]"
+                    />
+                  </svg>
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono text-center mt-3">
+                  Flight-time dwell variance · 24-sample continuous biometric envelope
                 </p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              {profiles
-                .filter((p) => p.status === 'flagged' || p.status === 'quarantined')
-                .map((flaggedProfile) => (
-                  <div
-                    key={flaggedProfile.id}
-                    className="p-4 rounded-xl bg-red-950/20 border border-red-500/40 hover:border-red-500 transition-all space-y-3"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-red-950 border border-red-500/60 flex items-center justify-center text-red-400 font-bold">
-                          !
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-white">{flaggedProfile.name}</span>
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-red-950 text-red-300 border border-red-500/40">
-                              {flaggedProfile.badgeNumber}
-                            </span>
-                          </div>
-                          <div className="text-xs text-red-300 font-medium">{flaggedProfile.locationInfo}</div>
-                        </div>
-                      </div>
+            <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#12203c] text-center text-xs">
+              <div className="bg-[#050b18] p-2 rounded border border-[#101c34]">
+                <span className="text-[10px] text-slate-400 block">DWELL TIME</span>
+                <span className="font-mono font-bold text-emerald-400">84 ms ± 3ms</span>
+              </div>
+              <div className="bg-[#050b18] p-2 rounded border border-[#101c34]">
+                <span className="text-[10px] text-slate-400 block">FLIGHT TIME</span>
+                <span className="font-mono font-bold text-emerald-400">112 ms ± 6ms</span>
+              </div>
+              <div className="bg-[#050b18] p-2 rounded border border-[#101c34]">
+                <span className="text-[10px] text-slate-400 block">VELOCITY DRIFT</span>
+                <span className="font-mono font-bold text-cyan-300">1.2% (Nominal)</span>
+              </div>
+            </div>
+          </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleStartVerificationScan(flaggedProfile.id)}
-                          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Probe Biometrics</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setTargetQuarantineProfile(flaggedProfile);
-                            setIsQuarantineModalOpen(true);
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-[0_0_12px_rgba(239,68,68,0.4)]"
-                        >
-                          <Lock className="w-3.5 h-3.5" />
-                          <span>Enforce Quarantine</span>
-                        </button>
-                      </div>
-                    </div>
+          {/* Login Geo-Consistency & Credential Health (Spans 6 cols on lg) */}
+          <div className="lg:col-span-6 space-y-3.5">
+            {/* Geo Consistency Card */}
+            <div className="rounded-xl bg-[#070e1f] border border-[#132342] p-4 shadow-md">
+              <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
+                <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-amber-400" />
+                  Login Geo-Consistency Breakdown
+                </span>
+              </div>
 
-                    <div className="p-2.5 rounded-lg bg-[#060b17] border border-[#142342] text-xs text-slate-300 flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        Device Drift: <span className="font-mono text-amber-300">{flaggedProfile.deviceInfo}</span>
-                      </div>
-                      <div>
-                        Biometric Confidence: <span className="font-mono font-bold text-red-400">{flaggedProfile.matchConfidence}%</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-2.5 pt-3 text-xs">
+                <div className="flex items-center justify-between py-1 border-b border-[#101c34]">
+                  <span className="text-slate-300">Delhi HQ Command Room B (Registered Primary)</span>
+                  <span className="text-emerald-400 font-bold font-mono">96% nominal</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-[#101c34]">
+                  <span className="text-slate-300">Field Tablet Terminal (Lajpat Nagar)</span>
+                  <span className="text-emerald-400 font-bold font-mono">89% confidence</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-[#101c34]">
+                  <span className="text-slate-300">Gov VPN Gateway (Gurugram Node)</span>
+                  <span className="text-amber-400 font-bold font-mono">61% heightened check</span>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-slate-300">Unrecognized Cell Tower (Pune Sector 12)</span>
+                  <span className="text-red-400 font-bold font-mono">12% [QUARANTINE ENFORCED]</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Credential Health Card */}
+            <div className="rounded-xl bg-[#070e1f] border border-[#132342] p-4 shadow-md">
+              <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
+                <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-emerald-400" />
+                  Department Credential Health &amp; Zero-Trust Compliance
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-3 text-xs font-mono">
+                <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
+                  <span className="text-[10px] text-slate-400 font-sans block">MFA ENROLLMENT</span>
+                  <span className="text-emerald-400 font-bold text-sm">1,839 / 1,847 (99.5%)</span>
+                </div>
+                <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
+                  <span className="text-[10px] text-slate-400 font-sans block">HARDWARE FIDO2 ADOPTION</span>
+                  <span className="text-cyan-300 font-bold text-sm">78% Enrolled</span>
+                </div>
+                <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
+                  <span className="text-[10px] text-slate-400 font-sans block">STALE CREDENTIALS (&gt;90d)</span>
+                  <span className="text-amber-400 font-bold text-sm">37 Accounts</span>
+                </div>
+                <div className="bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
+                  <span className="text-[10px] text-slate-400 font-sans block">ACTIVE QUARANTINES</span>
+                  <span className="text-rose-400 font-bold text-sm">2 Sessions Blocked</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1121,212 +1343,205 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({ onSe
 
       {/* ─── MODAL 1: LIVE BIOMETRIC VERIFICATION SCANNER ─── */}
       {isVerifyingModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#081023] border border-[#1e335a] rounded-2xl shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-[#142342] pb-3">
-              <div className="flex items-center gap-2">
-                <Fingerprint className="w-5 h-5 text-sky-400 animate-pulse" />
-                <h3 className="font-bold text-sm text-white uppercase tracking-wider">
-                  Live Multi-Factor Biometric Verification Probe
-                </h3>
-              </div>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#081023] border border-cyan-500/60 rounded-2xl p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-[#162747] pb-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                <Camera className="w-4 h-4 text-cyan-400 animate-pulse" />
+                Live Zero-Knowledge Biometric Session Challenge
+              </h3>
               <button
                 onClick={() => setIsVerifyingModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded"
+                className="text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {scanStep < 4 ? (
-              <div className="space-y-4 py-4 text-center">
-                <div className="w-16 h-16 rounded-full bg-blue-950/80 border border-blue-500/60 mx-auto flex items-center justify-center text-blue-400 animate-spin">
-                  <Activity className="w-8 h-8" />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-sm font-bold text-white">
-                    {scanStep === 1 && 'Phase 1: Analyzing 68-Point Facial Landmark Mesh...'}
-                    {scanStep === 2 && 'Phase 2: Acoustic Voiceprint Waveform Spectral Match...'}
-                    {scanStep === 3 && 'Phase 3: Keystroke Rhythm & Hardware TPM Handshake...'}
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    Acquiring live sensor telemetry and comparing against enrolled forensic baseline...
-                  </p>
-                </div>
-
-                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-500 via-sky-400 to-emerald-400 transition-all duration-700"
-                    style={{ width: `${(scanStep / 3) * 100}%` }}
-                  />
-                </div>
+            <div className="text-center py-4 space-y-4">
+              <div className="w-28 h-28 mx-auto rounded-full bg-slate-950 border-2 border-cyan-400 flex items-center justify-center relative overflow-hidden shadow-[0_0_25px_rgba(6,182,212,0.5)]">
+                <OfficerAvatarIcon className="w-20 h-20 text-slate-200" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/30 to-transparent h-6 w-full animate-bounce"></div>
               </div>
-            ) : (
-              <div className="space-y-4 py-2">
-                <div
-                  className={`p-4 rounded-xl border text-center space-y-2 ${
-                    scanResult?.verified
-                      ? 'bg-emerald-950/30 border-emerald-500/50 text-emerald-300'
-                      : 'bg-red-950/30 border-red-500/50 text-red-300'
-                  }`}
-                >
-                  <div className="text-xl font-extrabold uppercase tracking-wider">
-                    {scanResult?.verified ? 'Identity Authenticated & Verified' : 'Biometric Mismatch Flagged!'}
-                  </div>
-                  <div className="text-3xl font-black">{scanResult?.confidence}% Match</div>
-                  <p className="text-xs text-slate-300">{scanResult?.officerName} • {scanResult?.badgeNumber}</p>
-                </div>
 
-                <div className="p-3 rounded-lg bg-[#060b17] border border-[#142342] text-xs space-y-1.5 text-slate-300 font-mono">
-                  <div className="flex justify-between">
-                    <span>Audit Ref:</span>
-                    <span className="text-blue-400">{scanResult?.trailEventId}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Timestamp:</span>
-                    <span>{new Date(scanResult?.verifiedAt || Date.now()).toLocaleTimeString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>FIPS-140-3 Hardware Cert:</span>
-                    <span className="text-emerald-400">PASSED</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setIsVerifyingModalOpen(false)}
-                  className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md"
-                >
-                  Close &amp; Return to Audit Log
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL 2: ZERO-TRUST QUARANTINE MODAL ─── */}
-      {isQuarantineModalOpen && targetQuarantineProfile && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#081023] border border-red-500/50 rounded-2xl shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-[#142342] pb-3">
-              <div className="flex items-center gap-2 text-red-400">
-                <Lock className="w-5 h-5" />
-                <h3 className="font-bold text-sm text-white uppercase tracking-wider">
-                  Enforce Zero-Trust Quarantine
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setIsQuarantineModalOpen(false);
-                  setQuarantineSuccess(null);
-                }}
-                className="text-slate-400 hover:text-white p-1 rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {!quarantineSuccess ? (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-300">
-                  You are enforcing an emergency Zero-Trust Quarantine order on{' '}
-                  <span className="font-bold text-white">{targetQuarantineProfile.name}</span> (
-                  {targetQuarantineProfile.badgeNumber}).
+              <div className="space-y-1.5">
+                <p className="text-xs font-bold text-white">
+                  {scanStep === 1 && '1/4 Scanning 3D facial topology & micro-expressions...'}
+                  {scanStep === 2 && '2/4 Sampling audio harmonics for anti-spoof voiceprint...'}
+                  {scanStep === 3 && '3/4 Verifying keystroke flight timing & mouse dynamics...'}
+                  {scanStep === 4 && '✓ Multi-Factor Biometric Verification Complete: 98.6% Match!'}
                 </p>
-
-                <div className="p-3 rounded-lg bg-red-950/30 border border-red-500/40 text-xs text-red-200 space-y-1">
-                  <div className="font-bold">Automated Enforcement Actions:</div>
-                  <ul className="list-disc list-inside space-y-0.5 text-[11px] text-red-300">
-                    <li>Immediate purge of all active Kerberos &amp; OAuth sessions.</li>
-                    <li>Air-gap lockout from Section 106 BNSS evidence vault.</li>
-                    <li>Dispatches high-priority CSOC alert to Cyber Operations Center.</li>
-                  </ul>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Statutory Grounds / Notes:</label>
-                  <textarea
-                    value={quarantineReason}
-                    onChange={(e) => setQuarantineReason(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-lg bg-[#060b17] border border-[#1e335a] p-2.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    onClick={() => setIsQuarantineModalOpen(false)}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleExecuteQuarantine}
-                    disabled={isExecutingQuarantine}
-                    className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow-lg"
-                  >
-                    {isExecutingQuarantine ? 'Enforcing...' : 'Enforce Order Now'}
-                  </button>
-                </div>
+                <p className="text-[11px] text-slate-400 font-mono">
+                  Officer: {currentProfile.name} ({currentProfile.badgeNumber})
+                </p>
               </div>
-            ) : (
-              <div className="space-y-3 text-center py-2">
-                <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
-                <div className="text-sm font-bold text-white uppercase">Quarantine Executed</div>
-                <div className="p-3 rounded-lg bg-[#060b17] border border-[#142342] text-xs font-mono text-slate-300 text-left space-y-1">
-                  <div>Ticket: <span className="text-red-400 font-bold">{quarantineSuccess.ticketId}</span></div>
-                  <div>Target: <span className="text-white">{quarantineSuccess.targetOfficer}</span></div>
-                  <div>Dispatched: <span className="text-slate-400 text-[10px]">{quarantineSuccess.alertDispatchedTo}</span></div>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsQuarantineModalOpen(false);
-                    setQuarantineSuccess(null);
-                  }}
-                  className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs"
-                >
-                  Done
-                </button>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-[#0c1830] h-2 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-500 shadow-[0_0_10px_#06b6d4]"
+                  style={{ width: `${(scanStep / 4) * 100}%` }}
+                ></div>
               </div>
-            )}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-[#162747]">
+              <button
+                onClick={() => setIsVerifyingModalOpen(false)}
+                className="px-5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs shadow"
+              >
+                {scanStep === 4 ? 'Confirm & Close' : 'Cancel'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ─── MODAL 3: STEP-UP MFA DISPATCH CONFIRMATION ─── */}
-      {isMfaModalOpen && mfaSuccess && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#081023] border border-purple-500/50 rounded-2xl shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-[#142342] pb-3">
-              <div className="flex items-center gap-2 text-purple-400">
-                <Key className="w-5 h-5" />
-                <h3 className="font-bold text-sm text-white uppercase tracking-wider">
-                  Hardware MFA Step-Up Challenge Dispatched
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsMfaModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded"
-              >
+      {/* ─── MODAL 2: QUARANTINE SESSION CONFIRMATION ─── */}
+      {isQuarantineModalOpen && targetQuarantineProfile && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#081023] border border-rose-500/60 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#162747] pb-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                <Ban className="w-4 h-4 text-rose-400" />
+                Enforce Emergency Session Quarantine
+              </h3>
+              <button onClick={() => setIsQuarantineModalOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-center py-2">
-              <div className="w-12 h-12 rounded-full bg-purple-950 border border-purple-500/60 mx-auto flex items-center justify-center text-purple-400 animate-pulse">
-                <Smartphone className="w-6 h-6" />
+            <div className="space-y-3 text-xs">
+              <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-lg text-rose-200">
+                ⚠️ You are about to forcibly terminate and revoke the session token for <strong>{targetQuarantineProfile.name}</strong> ({targetQuarantineProfile.badgeNumber}). This will invalidate all active cryptographic keypairs and disconnect the hardware terminal.
               </div>
-              <div className="text-sm font-bold text-white">{mfaSuccess.prompt}</div>
-              <div className="p-3 rounded-lg bg-[#060b17] border border-[#142342] text-xs font-mono text-slate-300 text-left space-y-1">
-                <div>Challenge Ref: <span className="text-purple-400 font-bold">{mfaSuccess.challengeId}</span></div>
-                <div>Status: <span className="text-amber-400">WAITING_FOR_FIDO2_TAP</span></div>
+
+              <div>
+                <label className="text-slate-300 font-semibold block mb-1">
+                  Reason for Emergency Quarantine (Statutory Audit Trail)
+                </label>
+                <textarea
+                  value={quarantineReason}
+                  onChange={(e) => setQuarantineReason(e.target.value)}
+                  rows={3}
+                  className="w-full p-2.5 bg-[#050b18] border border-[#162747] rounded-lg text-xs text-slate-200 focus:outline-none focus:border-rose-500 font-mono"
+                />
               </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#162747]">
               <button
-                onClick={() => setIsMfaModalOpen(false)}
-                className="w-full py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
+                onClick={() => setIsQuarantineModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-[#0e1c36] hover:bg-slate-800 text-slate-300 text-xs font-semibold"
               >
-                Acknowledge
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteQuarantine}
+                disabled={isQuarantining}
+                className="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow"
+              >
+                <Ban className="w-3.5 h-3.5" />
+                <span>{isQuarantining ? 'Quarantining...' : 'Confirm Session Quarantine'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 3: SIMULATE ANOMALY ─── */}
+      {isSimulateModalOpen && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#081023] border border-amber-500/60 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#162747] pb-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                <Zap className="w-4 h-4 text-amber-400" />
+                Simulate Identity Anomaly Event
+              </h3>
+              <button onClick={() => setIsSimulateModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <p className="text-slate-300 mb-3">
+                Select an anomaly to inject into the live identity security telemetry stream:
+              </p>
+
+              <button
+                onClick={() => handleSimulateAnomaly('IMPOSSIBLE_TRAVEL')}
+                className="w-full p-3 rounded-lg bg-[#050b18] hover:bg-amber-950/40 border border-[#142444] hover:border-amber-500/60 text-left transition-all"
+              >
+                <div className="font-bold text-amber-300 text-xs">📍 Impossible Travel (1,180 km in 12m)</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">Delhi HQ to Pune cell tower impossible flight speed.</div>
+              </button>
+
+              <button
+                onClick={() => handleSimulateAnomaly('VOICE_DRIFT')}
+                className="w-full p-3 rounded-lg bg-[#050b18] hover:bg-amber-950/40 border border-[#142444] hover:border-amber-500/60 text-left transition-all"
+              >
+                <div className="font-bold text-amber-300 text-xs">🎙️ AI Synthetic Voiceprint Drift (24.8%)</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">Detects deepfake pitch quantization during dispatch.</div>
+              </button>
+
+              <button
+                onClick={() => handleSimulateAnomaly('CLONED_KEY')}
+                className="w-full p-3 rounded-lg bg-[#050b18] hover:bg-amber-950/40 border border-[#142444] hover:border-amber-500/60 text-left transition-all"
+              >
+                <div className="font-bold text-amber-300 text-xs">🔑 Cloned Smart-Card Nonce Replay</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">Concurrent cryptographic handshakes on 2 devices.</div>
+              </button>
+
+              <button
+                onClick={() => handleSimulateAnomaly('CADENCE_DRIFT')}
+                className="w-full p-3 rounded-lg bg-[#050b18] hover:bg-amber-950/40 border border-[#142444] hover:border-amber-500/60 text-left transition-all"
+              >
+                <div className="font-bold text-amber-300 text-xs">⌨️ Keystroke Dynamics 32% Deviation</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">Typing cadence flight-time anomaly outside nominal envelope.</div>
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-[#162747]">
+              <button
+                onClick={() => setIsSimulateModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-[#0e1c36] hover:bg-slate-800 text-slate-300 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 4: BIOMETRIC LOG MODAL ─── */}
+      {activeDetailModal === 'biometric_log' && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-[#081023] border border-cyan-500/60 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#162747] pb-3">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Fingerprint className="w-4 h-4 text-cyan-400" />
+                Zero-Knowledge Biometric Audit Log — {currentProfile.name}
+              </h3>
+              <button onClick={() => setActiveDetailModal(null)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3 text-xs text-slate-300 font-mono">
+              <div className="p-3 bg-[#050b18] rounded-lg border border-[#142340] leading-relaxed">
+                All biometric vectors (3D facial landmarks, 24-band voice FFT harmonics, flight-time keystroke tensors) are converted into one-way cryptographic Zero-Knowledge Proofs (ZK-SNARKs). Plaintext biometrics are never transmitted over the network or stored in databases in compliance with Digital Personal Data Protection (DPDP) Act 2023.
+              </div>
+              <div className="p-3 bg-[#030712] rounded-lg border border-[#101c34] text-[11px] space-y-1">
+                <div>ENROLLED CA: <span className="text-cyan-300">National Police PKI Root CA 2024</span></div>
+                <div>KEY TYPE: <span className="text-cyan-300">Ed25519 Hardware TPM Enclave</span></div>
+                <div>LEGAL COMPLIANCE: <span className="text-emerald-400 font-bold">Section 65B Bharatiya Sakshya Adhiniyam 2023</span></div>
+              </div>
+            </div>
+            <div className="flex justify-end pt-2 border-t border-[#162747]">
+              <button
+                onClick={() => setActiveDetailModal(null)}
+                className="px-5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs shadow"
+              >
+                Close
               </button>
             </div>
           </div>
@@ -1336,4 +1551,36 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({ onSe
   );
 };
 
-export default IdentitySecurityPage;
+function OfficerAvatarIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 64 64"
+      fill="currentColor"
+    >
+      {/* Officer Cap */}
+      <path
+        d="M20 18 C20 12 44 12 44 18 L48 22 C48 24 16 24 16 22 Z"
+        fill="#1e3a8a"
+      />
+      <rect x="22" y="16" width="20" height="3" fill="#f59e0b" />
+      {/* Gold Badge on Cap */}
+      <circle cx="32" cy="17.5" r="2" fill="#fbbf24" />
+      {/* Face */}
+      <circle cx="32" cy="30" r="11" fill="#fcd34d" />
+      {/* Hair */}
+      <path d="M22 26 C22 22 42 22 42 26 Z" fill="#1f2937" />
+      {/* Eyes & Mustache */}
+      <circle cx="28" cy="28" r="1.2" fill="#111827" />
+      <circle cx="36" cy="28" r="1.2" fill="#111827" />
+      <path d="M28 34 Q32 32 36 34 Q32 36 28 34" fill="#374151" />
+      {/* Uniform Shoulders */}
+      <path
+        d="M14 52 C14 42 24 40 32 40 C40 40 50 42 50 52 Z"
+        fill="#1e293b"
+      />
+      {/* Tie & Collar */}
+      <polygon points="32,40 28,45 32,54 36,45" fill="#f59e0b" />
+    </svg>
+  );
+}

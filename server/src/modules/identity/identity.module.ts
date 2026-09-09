@@ -1,4 +1,4 @@
-// Team Member 4: Identity Security, Biometrics, Zero-Trust & Identity Audit Trail Module
+// Identity Security, Biometrics, Doppelganger Detection & Identity Trail Module
 import { Router, Request, Response } from "express";
 import { formatResponse } from "../../utils/api-response";
 
@@ -19,46 +19,63 @@ export interface OfficerBiometricProfileDTO {
   faceConfidence: number;
   deviceInfo: string;
   locationInfo: string;
-  caseId?: string;
   lastActive: string;
-  riskCategory: "LOW" | "ELEVATED" | "CRITICAL_DOPPELGANGER";
-  activeSessionsCount: number;
+  ipAddress: string;
+  assignedCaseId?: string;
 }
 
-export interface IdentityTrailEvent {
+export interface IdentityTrailEventDTO {
   id: string;
-  profile_id: string;
-  identity_name: string;
-  badge_or_alias: string;
-  event_type:
-    | "BIOMETRIC_VERIFY"
-    | "SESSION_LOGIN"
-    | "IMPOSSIBLE_TRAVEL"
-    | "PRIVILEGE_ELEVATION"
-    | "MFA_CHALLENGE"
-    | "QUARANTINE_LOCK"
-    | "DEVICE_TPM_CHECK"
-    | "EVIDENCE_VAULT_ACCESS"
-    | "TOKEN_RENEWAL";
-  severity: "INFO" | "WARNING" | "CRITICAL_ANOMALY";
-  status: "SUCCESS" | "BLOCKED" | "CHALLENGED" | "FLAGGED";
-  ip_address: string;
-  location: string;
-  device: string;
-  confidence_score: number;
   timestamp: string;
+  timeAgo: string;
+  officerName: string;
+  badgeNumber: string;
+  action: string;
+  category: "BIOMETRIC_PASS" | "IMPOSSIBLE_TRAVEL" | "FAILED_CHALLENGE" | "SESSION_HIJACK" | "QUARANTINE_ENFORCED" | "CREDENTIAL_REFRESH";
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
+  status: "VERIFIED" | "FLAGGED" | "BLOCKED" | "QUARANTINED";
+  caseId: string;
+  deviceInfo: string;
+  ipAddress: string;
+  location: string;
+  confidenceScore: number;
+  hashSha256: string;
   details: string;
-  session_token_hash: string;
-  court_admissible_hash: string;
-  case_id?: string;
+  rawTelemetry?: {
+    faceScore?: number;
+    voiceDriftPercent?: number;
+    typingCadenceDeviation?: number;
+    geoDriftKm?: number;
+    speedKmph?: number;
+  };
 }
 
-const INITIAL_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
+export interface DoppelgangerWatchlistItemDTO {
+  id: string;
+  profileId: string;
+  officerName: string;
+  badgeNumber: string;
+  flagReason: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+  flaggedAt: string;
+  timeAgo: string;
+  anomalyType: "VOICE_DRIFT" | "IMPOSSIBLE_TRAVEL" | "KEYBOARD_CADENCE" | "UNAUTHORIZED_DEVICE" | "CLONED_SESSION";
+  deviceInfo: string;
+  location: string;
+  status: "ACTIVE_ALERT" | "QUARANTINED" | "INVESTIGATING";
+  confidenceMatch: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// In-Memory Realistic Datasets for Identity Security
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DEFAULT_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
   acp_raj_verma: {
     id: "acp_raj_verma",
     name: "ACP Raj Verma",
     rank: "Assistant Commissioner of Police",
-    department: "Special Cyber Crime Cell, New Delhi",
+    department: "Special Cyber Crime Cell",
     badgeNumber: "DL-POL-8842",
     enrolledDate: "14 Mar 2024",
     status: "live",
@@ -69,18 +86,17 @@ const INITIAL_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     deviceFingerprintMatch: true,
     badgeCertMatch: true,
     faceConfidence: 99.2,
-    deviceInfo: "Dell Latitude 7440 (Encrypted TPM 2.0 / FIPS-140-3)",
-    locationInfo: "Delhi HQ - Cyber Command Room B",
-    caseId: "CASE-2026-001",
+    deviceInfo: "Dell Latitude 7440 (Encrypted TPM 2.0)",
+    locationInfo: "Delhi HQ - Command Room B",
     lastActive: "Just now",
-    riskCategory: "LOW",
-    activeSessionsCount: 1,
+    ipAddress: "10.14.22.84",
+    assignedCaseId: "CASE-2026-001"
   },
   insp_r_sharma: {
     id: "insp_r_sharma",
     name: "Insp. R. Sharma",
     rank: "Inspector",
-    department: "Anti-Hawala & Financial Crimes Unit",
+    department: "Anti-Hawala Unit",
     badgeNumber: "DL-POL-4192",
     enrolledDate: "22 Nov 2023",
     status: "flagged",
@@ -91,18 +107,17 @@ const INITIAL_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     deviceFingerprintMatch: false,
     badgeCertMatch: true,
     faceConfidence: 61.0,
-    deviceInfo: "Unrecognized iPhone 14 Pro (Pune IP / Proxy Route)",
-    locationInfo: "Pune - Unknown Cell Tower (Cell ID: 404-45-8821)",
-    caseId: "CASE-2026-004",
-    lastActive: "4 min ago",
-    riskCategory: "CRITICAL_DOPPELGANGER",
-    activeSessionsCount: 2,
+    deviceInfo: "Unrecognized iPhone 14 Pro (Pune IP)",
+    locationInfo: "Pune - Unknown Cell Tower",
+    lastActive: "4m ago",
+    ipAddress: "152.57.19.202",
+    assignedCaseId: "CASE-2026-004"
   },
   si_verma: {
     id: "si_verma",
     name: "SI Verma",
     rank: "Sub Inspector",
-    department: "Field Cyber Telemetry Unit",
+    department: "Field Intelligence",
     badgeNumber: "DL-POL-7719",
     enrolledDate: "05 Jan 2024",
     status: "flagged",
@@ -113,263 +128,362 @@ const INITIAL_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     deviceFingerprintMatch: false,
     badgeCertMatch: true,
     faceConfidence: 88.4,
-    deviceInfo: "Field Tablet SM-X200 (Geo Telemetry Drift)",
-    locationInfo: "Impossible Travel: Delhi HQ to Pune in 12 min",
-    caseId: "CASE-2026-005",
-    lastActive: "11 min ago",
-    riskCategory: "CRITICAL_DOPPELGANGER",
-    activeSessionsCount: 2,
+    deviceInfo: "Field Tablet SM-X200 (Geo Drift)",
+    locationInfo: "Impossible Travel: Delhi to Pune in 12m",
+    lastActive: "12m ago",
+    ipAddress: "49.204.112.5",
+    assignedCaseId: "CASE-2026-008"
   },
   sp_ananya_sengupta: {
     id: "sp_ananya_sengupta",
     name: "Superintendent Ananya Sengupta",
     rank: "Superintendent of Police",
-    department: "State Financial Intelligence Unit (FIU)",
-    badgeNumber: "WB-POL-0091",
+    department: "Kolkata Cyber Forensics & Anti-Scam Unit",
+    badgeNumber: "WB-POL-1002",
     enrolledDate: "10 Feb 2024",
     status: "live",
-    matchConfidence: 97.4,
+    matchConfidence: 99.4,
     faceGeometryMatch: true,
     voiceprintMatch: true,
     typingCadenceMatch: true,
     deviceFingerprintMatch: true,
     badgeCertMatch: true,
-    faceConfidence: 98.1,
-    deviceInfo: "ThinkPad X1 Carbon (Hardware YubiKey 5C FIPS)",
-    locationInfo: "Kolkata Police HQ - Lalbazar",
-    caseId: "CASE-2026-004",
-    lastActive: "8 min ago",
-    riskCategory: "LOW",
-    activeSessionsCount: 1,
+    faceConfidence: 99.6,
+    deviceInfo: "HP Elite Dragonfly G4 (Gov PKI HSM)",
+    locationInfo: "Lalbazar Cyber HQ, Kolkata",
+    lastActive: "1m ago",
+    ipAddress: "10.22.4.15",
+    assignedCaseId: "CASE-2026-004"
   },
-  dsp_vikram_deshmukh: {
-    id: "dsp_vikram_deshmukh",
-    name: "DSP Vikram Deshmukh",
-    rank: "Deputy Superintendent of Police",
-    department: "SCADA & Critical Infrastructure Defense",
-    badgeNumber: "MH-POL-3304",
+  ct_meena: {
+    id: "ct_meena",
+    name: "Ct. Meena",
+    rank: "Constable",
+    department: "Interception & Surveillance Desk",
+    badgeNumber: "DL-POL-9910",
     enrolledDate: "18 Aug 2024",
-    status: "live",
-    matchConfidence: 96.2,
+    status: "flagged",
+    matchConfidence: 68.2,
     faceGeometryMatch: true,
-    voiceprintMatch: true,
+    voiceprintMatch: false,
     typingCadenceMatch: true,
     deviceFingerprintMatch: true,
     badgeCertMatch: true,
-    faceConfidence: 95.8,
-    deviceInfo: "HP ZBook Fury (Air-gapped Grid Terminal)",
-    locationInfo: "Mumbai State Load Despatch Centre, BKC",
-    caseId: "CASE-2026-002",
-    lastActive: "15 min ago",
-    riskCategory: "LOW",
-    activeSessionsCount: 1,
+    faceConfidence: 94.0,
+    deviceInfo: "Surveillance Console #4 (Audio Filter Drift)",
+    locationInfo: "Delhi HQ - Cyber Cell",
+    lastActive: "18m ago",
+    ipAddress: "10.14.22.99",
+    assignedCaseId: "CASE-2026-005"
   },
-  debashis_banerjee_suspect: {
-    id: "debashis_banerjee_suspect",
-    name: "Debashis Banerjee (Alias: Bobby)",
-    rank: "Syndicate Primary Operative [SUSPECT]",
-    department: "Overseas Tech Support Fraud Network",
-    badgeNumber: "SUSPECT-REF-0412",
-    enrolledDate: "02 Mar 2026",
-    status: "quarantined",
-    matchConfidence: 28.3,
-    faceGeometryMatch: false,
-    voiceprintMatch: false,
+  hc_yadav: {
+    id: "hc_yadav",
+    name: "HC Yadav",
+    rank: "Head Constable",
+    department: "Evidence Digitization & Locker Desk",
+    badgeNumber: "DL-POL-3312",
+    enrolledDate: "03 May 2024",
+    status: "live",
+    matchConfidence: 89.0,
+    faceGeometryMatch: true,
+    voiceprintMatch: true,
     typingCadenceMatch: false,
-    deviceFingerprintMatch: false,
-    badgeCertMatch: false,
-    faceConfidence: 31.0,
-    deviceInfo: "Spoofed MacBook Pro (Tor Onion Router / VPN Handoff)",
-    locationInfo: "Salt Lake Sector V, Kolkata (Burner Cell Gateway)",
-    caseId: "CASE-2026-004",
-    lastActive: "22 min ago",
-    riskCategory: "CRITICAL_DOPPELGANGER",
-    activeSessionsCount: 0,
-  },
+    deviceFingerprintMatch: true,
+    badgeCertMatch: true,
+    faceConfidence: 92.5,
+    deviceInfo: "Evidence Terminal T-09",
+    locationInfo: "Delhi HQ - Evidence Vault",
+    lastActive: "25m ago",
+    ipAddress: "10.14.22.104",
+    assignedCaseId: "CASE-2026-006"
+  }
 };
 
-const INITIAL_TRAIL_EVENTS: IdentityTrailEvent[] = [
+const DEFAULT_TRAIL: IdentityTrailEventDTO[] = [
   {
-    id: "ID-EVT-9901",
-    profile_id: "acp_raj_verma",
-    identity_name: "ACP Raj Verma",
-    badge_or_alias: "DL-POL-8842",
-    event_type: "BIOMETRIC_VERIFY",
+    id: "ID-EVT-901",
+    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+    timeAgo: "2m ago",
+    officerName: "ACP Raj Verma",
+    badgeNumber: "DL-POL-8842",
+    action: "Continuous Zero-Trust Biometric Challenge Passed",
+    category: "BIOMETRIC_PASS",
     severity: "INFO",
-    status: "SUCCESS",
-    ip_address: "10.42.0.12 (Intranet)",
+    status: "VERIFIED",
+    caseId: "CASE-2026-001",
+    deviceInfo: "Dell Latitude 7440 (TPM 2.0)",
+    ipAddress: "10.14.22.84",
     location: "Delhi HQ - Command Room B",
-    device: "Dell Latitude 7440 (TPM 2.0)",
-    confidence_score: 99.2,
-    timestamp: "2026-09-09T11:40:15Z",
-    details: "Continuous facial geometry match and keystroke dynamics within baseline threshold (Entropy: 0.04).",
-    session_token_hash: "0x8f192847a9bc01928374829102938475",
-    court_admissible_hash: "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    case_id: "CASE-2026-001",
+    confidenceScore: 98.6,
+    hashSha256: "8e9f214c7719a8bc441029384710293847102938471029384710293847102938",
+    details: "All 5 zero-knowledge biometrics (Face 3D topology, voice harmonics, typing cadence, device cert, geo-BSSID) validated seamlessly.",
+    rawTelemetry: {
+      faceScore: 99.2,
+      typingCadenceDeviation: 1.2,
+      geoDriftKm: 0.05
+    }
   },
   {
-    id: "ID-EVT-9902",
-    profile_id: "insp_r_sharma",
-    identity_name: "Insp. R. Sharma",
-    badge_or_alias: "DL-POL-4192",
-    event_type: "IMPOSSIBLE_TRAVEL",
-    severity: "CRITICAL_ANOMALY",
+    id: "ID-EVT-902",
+    timestamp: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+    timeAgo: "6m ago",
+    officerName: "Insp. R. Sharma",
+    badgeNumber: "DL-POL-4192",
+    action: "Doppelganger Alert: Face Geometry & Voiceprint Mismatch on Unrecognized Device",
+    category: "SESSION_HIJACK",
+    severity: "CRITICAL",
     status: "FLAGGED",
-    ip_address: "114.143.208.99 (Public WAN)",
-    location: "Pune - Cell Tower 404-45-8821",
-    device: "Unrecognized iPhone 14 Pro",
-    confidence_score: 61.4,
-    timestamp: "2026-09-09T11:34:02Z",
-    details: "High-risk geo-drift: Account authenticated from New Delhi HQ at 11:22 AM and Pune WAN at 11:34 AM (1,400km delta in 12m).",
-    session_token_hash: "0x44918273645192837461928374619283",
-    court_admissible_hash: "sha256:4a5c898b827e8a93b49182734918273491827349182734918273491827349182",
-    case_id: "CASE-2026-004",
+    caseId: "CASE-2026-004",
+    deviceInfo: "Apple iPhone 14 Pro (Unenrolled UDID)",
+    ipAddress: "152.57.19.202",
+    location: "Pune - Cell Tower Sector 12",
+    confidenceScore: 61.4,
+    hashSha256: "11a098bc44910293847102938471029384710293847102938471029384710293",
+    details: "Session opened with legitimate smart-card token but facial recognition scored only 61.0%. Voice harmonics failed anti-spoofing synthesis check.",
+    rawTelemetry: {
+      faceScore: 61.0,
+      voiceDriftPercent: 44.5,
+      geoDriftKm: 1180.0
+    }
   },
   {
-    id: "ID-EVT-9903",
-    profile_id: "si_verma",
-    identity_name: "SI Verma",
-    badge_or_alias: "DL-POL-7719",
-    event_type: "EVIDENCE_VAULT_ACCESS",
-    severity: "WARNING",
-    status: "CHALLENGED",
-    ip_address: "172.16.88.40 (Field VPN)",
-    location: "Jaipur Highway Crossing",
-    device: "Field Tablet SM-X200",
-    confidence_score: 44.8,
-    timestamp: "2026-09-09T11:20:45Z",
-    details: "Attempted extraction of Section 106 BNSS Hawala seized currency serial ledger without active hardware MFA token.",
-    session_token_hash: "0x11223344556677889900112233445566",
-    court_admissible_hash: "sha256:7719283749102938471029384710293847102938471029384710293847102938",
-    case_id: "CASE-2026-005",
+    id: "ID-EVT-903",
+    timestamp: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
+    timeAgo: "14m ago",
+    officerName: "SI Verma",
+    badgeNumber: "DL-POL-7719",
+    action: "Impossible Travel Telemetry Detected: 1,180 km in 12 minutes",
+    category: "IMPOSSIBLE_TRAVEL",
+    severity: "CRITICAL",
+    status: "FLAGGED",
+    caseId: "CASE-2026-008",
+    deviceInfo: "Samsung Galaxy Tab SM-X200",
+    ipAddress: "49.204.112.5",
+    location: "Pune Cyber Cell Base vs Delhi HQ",
+    confidenceScore: 44.8,
+    hashSha256: "33fe441029384710293847102938471029384710293847102938471029384710",
+    details: "Previous authentication at 11:20 AM from Delhi HQ (IP: 10.14.22.10). Next session attempt at 11:32 AM from Pune IP requiring 5,900 km/h flight velocity.",
+    rawTelemetry: {
+      geoDriftKm: 1180.0,
+      speedKmph: 5900.0,
+      faceScore: 88.4
+    }
   },
   {
-    id: "ID-EVT-9904",
-    profile_id: "sp_ananya_sengupta",
-    identity_name: "Superintendent Ananya Sengupta",
-    badge_or_alias: "WB-POL-0091",
-    event_type: "PRIVILEGE_ELEVATION",
-    severity: "INFO",
-    status: "SUCCESS",
-    ip_address: "10.88.1.5 (Secure FIU Enclave)",
-    location: "Lalbazar Police HQ, Kolkata",
-    device: "ThinkPad X1 Carbon (YubiKey FIPS)",
-    confidence_score: 98.1,
-    timestamp: "2026-09-09T11:15:30Z",
-    details: "Elevated statutory judicial authorization for multi-hop bank account freeze order under Section 106 BNSS.",
-    session_token_hash: "0x99001122334455667788990011223344",
-    court_admissible_hash: "sha256:9f83c18b29102938475619283746591029384756192837465910293847561928",
-    case_id: "CASE-2026-004",
+    id: "ID-EVT-904",
+    timestamp: new Date(Date.now() - 22 * 60 * 1000).toISOString(),
+    timeAgo: "22m ago",
+    officerName: "Ct. Meena",
+    badgeNumber: "DL-POL-9910",
+    action: "Voiceprint Acoustic Drift: 22% Variation in Spectral Harmonics",
+    category: "FAILED_CHALLENGE",
+    severity: "MEDIUM",
+    status: "FLAGGED",
+    caseId: "CASE-2026-005",
+    deviceInfo: "Surveillance Desk Console #4",
+    ipAddress: "10.14.22.99",
+    location: "Delhi HQ - Cyber Cell",
+    confidenceScore: 68.2,
+    hashSha256: "77aa119283746192837461928374619283746192837461928374619283746192",
+    details: "Audio challenge response displayed unnatural pitch quantization consistent with AI voice cloning software. Forced fallback to hardware token.",
+    rawTelemetry: {
+      voiceDriftPercent: 22.4,
+      faceScore: 94.0
+    }
   },
   {
-    id: "ID-EVT-9905",
-    profile_id: "debashis_banerjee_suspect",
-    identity_name: "Debashis Banerjee (Alias: Bobby)",
-    badge_or_alias: "SUSPECT-REF-0412",
-    event_type: "QUARANTINE_LOCK",
-    severity: "CRITICAL_ANOMALY",
-    status: "BLOCKED",
-    ip_address: "185.220.101.5 (Tor Exit Node)",
-    location: "Salt Lake Sector V, Kolkata",
-    device: "Spoofed MacBook Pro",
-    confidence_score: 28.3,
-    timestamp: "2026-09-09T10:55:10Z",
-    details: "Hostile credential stuffing attack on FIU gateway blocked. Device MAC and IP added to National Cyber Registry quarantine.",
-    session_token_hash: "0x00000000000000000000000000000000",
-    court_admissible_hash: "sha256:bb19283749102938471029384710293847102938471029384710293847102938",
-    case_id: "CASE-2026-004",
+    id: "ID-EVT-905",
+    timestamp: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+    timeAgo: "35m ago",
+    officerName: "Superintendent Ananya Sengupta",
+    badgeNumber: "WB-POL-1002",
+    action: "Hardware FIDO2 X.509 Cryptographic Certificate Re-validation",
+    category: "CREDENTIAL_REFRESH",
+    severity: "LOW",
+    status: "VERIFIED",
+    caseId: "CASE-2026-004",
+    deviceInfo: "HP Elite Dragonfly G4 (Gov PKI HSM)",
+    ipAddress: "10.22.4.15",
+    location: "Lalbazar Cyber HQ, Kolkata",
+    confidenceScore: 99.4,
+    hashSha256: "99bb881029384710293847102938471029384710293847102938471029384710",
+    details: "Government Hardware Security Module (HSM) key pair validated with National Police PKI Root CA. Zero anomalies detected.",
+    rawTelemetry: {
+      faceScore: 99.6,
+      typingCadenceDeviation: 0.8
+    }
   },
   {
-    id: "ID-EVT-9906",
-    profile_id: "dsp_vikram_deshmukh",
-    identity_name: "DSP Vikram Deshmukh",
-    badge_or_alias: "MH-POL-3304",
-    event_type: "DEVICE_TPM_CHECK",
-    severity: "INFO",
-    status: "SUCCESS",
-    ip_address: "10.22.4.19 (SCADA DMZ)",
-    location: "Mumbai State Load Despatch Centre",
-    device: "HP ZBook Fury (Air-gapped)",
-    confidence_score: 96.2,
-    timestamp: "2026-09-09T10:40:00Z",
-    details: "Hardware TPM 2.0 endorsement key signature verified against Maharashtra Grid SCADA PKI Root Certificate Authority.",
-    session_token_hash: "0x55667788990011223344556677889900",
-    court_admissible_hash: "sha256:6677889900112233445566778899001122334455667788990011223344556677",
-    case_id: "CASE-2026-002",
-  },
+    id: "ID-EVT-906",
+    timestamp: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
+    timeAgo: "50m ago",
+    officerName: "HC Yadav",
+    badgeNumber: "DL-POL-3312",
+    action: "Typing Cadence Deviation: Flight Time & Dwell Time Anomaly",
+    category: "FAILED_CHALLENGE",
+    severity: "MEDIUM",
+    status: "VERIFIED",
+    caseId: "CASE-2026-006",
+    deviceInfo: "Evidence Terminal T-09",
+    ipAddress: "10.14.22.104",
+    location: "Delhi HQ - Evidence Vault",
+    confidenceScore: 89.0,
+    hashSha256: "44cc551029384710293847102938471029384710293847102938471029384710",
+    details: "Typing rhythm variance of 28% from enrolled baseline. Re-authenticated with biometric fingerprint scanner.",
+    rawTelemetry: {
+      typingCadenceDeviation: 28.0,
+      faceScore: 92.5
+    }
+  }
 ];
 
-let inMemoryProfiles: Record<string, OfficerBiometricProfileDTO> = { ...INITIAL_PROFILES };
-let inMemoryTrails: IdentityTrailEvent[] = [...INITIAL_TRAIL_EVENTS];
+const DEFAULT_WATCHLIST: DoppelgangerWatchlistItemDTO[] = [
+  {
+    id: "WL-001",
+    profileId: "insp_r_sharma",
+    officerName: "Insp. R. Sharma",
+    badgeNumber: "DL-POL-4192",
+    flagReason: "Unenrolled iPhone 14 Pro logged in from Pune while primary terminal active in Delhi HQ.",
+    severity: "CRITICAL",
+    flaggedAt: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+    timeAgo: "6m ago",
+    anomalyType: "CLONED_SESSION",
+    deviceInfo: "iPhone 14 Pro (Pune IP)",
+    location: "Pune - Cell Tower Sector 12",
+    status: "ACTIVE_ALERT",
+    confidenceMatch: 61.4
+  },
+  {
+    id: "WL-002",
+    profileId: "si_verma",
+    officerName: "SI Verma",
+    badgeNumber: "DL-POL-7719",
+    flagReason: "Impossible travel alert: Delhi HQ to Pune (1,180 km) in 12 minutes.",
+    severity: "CRITICAL",
+    flaggedAt: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
+    timeAgo: "14m ago",
+    anomalyType: "IMPOSSIBLE_TRAVEL",
+    deviceInfo: "Samsung Tab SM-X200",
+    location: "Pune vs Delhi",
+    status: "ACTIVE_ALERT",
+    confidenceMatch: 44.8
+  },
+  {
+    id: "WL-003",
+    profileId: "ct_meena",
+    officerName: "Ct. Meena",
+    badgeNumber: "DL-POL-9910",
+    flagReason: "Voiceprint drift 22.4% with synthetic AI harmonics detected.",
+    severity: "MEDIUM",
+    flaggedAt: new Date(Date.now() - 22 * 60 * 1000).toISOString(),
+    timeAgo: "22m ago",
+    anomalyType: "VOICE_DRIFT",
+    deviceInfo: "Surveillance Desk Console #4",
+    location: "Delhi HQ - Cyber Cell",
+    status: "INVESTIGATING",
+    confidenceMatch: 68.2
+  },
+  {
+    id: "WL-004",
+    profileId: "hc_yadav",
+    officerName: "HC Yadav",
+    badgeNumber: "DL-POL-3312",
+    flagReason: "Keyboard cadence variance of 28% outside nominal typing envelope.",
+    severity: "MEDIUM",
+    flaggedAt: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
+    timeAgo: "50m ago",
+    anomalyType: "KEYBOARD_CADENCE",
+    deviceInfo: "Evidence Terminal T-09",
+    location: "Delhi HQ - Evidence Vault",
+    status: "INVESTIGATING",
+    confidenceMatch: 89.0
+  }
+];
+
+let inMemoryProfiles = { ...DEFAULT_PROFILES };
+let inMemoryTrail = [...DEFAULT_TRAIL];
+let inMemoryWatchlist = [...DEFAULT_WATCHLIST];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service Class
+// ─────────────────────────────────────────────────────────────────────────────
 
 export class IdentityService {
-  async listProfiles(): Promise<OfficerBiometricProfileDTO[]> {
-    return Object.values(inMemoryProfiles);
+  async listProfiles(caseId?: string): Promise<OfficerBiometricProfileDTO[]> {
+    const list = Object.values(inMemoryProfiles);
+    if (caseId && caseId !== "ALL") {
+      const caseFiltered = list.filter((p) => p.assignedCaseId === caseId);
+      if (caseFiltered.length > 0) return caseFiltered;
+    }
+    return list;
   }
 
   async getProfile(id: string): Promise<OfficerBiometricProfileDTO | null> {
     return inMemoryProfiles[id] || null;
   }
 
-  async getTrailEvents(filters?: {
-    profile_id?: string;
-    severity?: string;
-    event_type?: string;
-    case_id?: string;
-    limit?: number;
-  }): Promise<IdentityTrailEvent[]> {
-    let result = [...inMemoryTrails];
-
-    if (filters?.profile_id && filters.profile_id !== "ALL") {
-      result = result.filter((e) => e.profile_id === filters.profile_id);
+  async getIdentityTrail(caseId?: string, category?: string, search?: string): Promise<IdentityTrailEventDTO[]> {
+    let result = [...inMemoryTrail];
+    if (caseId && caseId !== "ALL") {
+      const caseFiltered = result.filter((e) => e.caseId === caseId);
+      if (caseFiltered.length > 0) result = caseFiltered;
     }
-    if (filters?.severity && filters.severity !== "ALL") {
-      result = result.filter((e) => e.severity === filters.severity);
+    if (category && category !== "ALL") {
+      result = result.filter((e) => e.category === category);
     }
-    if (filters?.event_type && filters.event_type !== "ALL") {
-      result = result.filter((e) => e.event_type === filters.event_type);
+    if (search && search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (e) =>
+          e.officerName.toLowerCase().includes(q) ||
+          e.badgeNumber.toLowerCase().includes(q) ||
+          e.action.toLowerCase().includes(q) ||
+          e.location.toLowerCase().includes(q) ||
+          e.deviceInfo.toLowerCase().includes(q) ||
+          e.details.toLowerCase().includes(q)
+      );
     }
-    if (filters?.case_id && filters.case_id !== "ALL") {
-      result = result.filter((e) => e.case_id === filters.case_id);
-    }
-
-    // Sort newest first
-    result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    if (filters?.limit) {
-      result = result.slice(0, filters.limit);
-    }
-
     return result;
+  }
+
+  async getWatchlist(caseId?: string): Promise<DoppelgangerWatchlistItemDTO[]> {
+    return inMemoryWatchlist;
   }
 
   async verifyIdentity(officerId: string) {
     const profile = inMemoryProfiles[officerId] || inMemoryProfiles.acp_raj_verma;
     const isVerified = profile.matchConfidence > 75;
 
-    // Append trail event
-    const newEvent: IdentityTrailEvent = {
+    // Log this verification into the identity trail
+    const newEvent: IdentityTrailEventDTO = {
       id: `ID-EVT-${Date.now().toString().slice(-4)}`,
-      profile_id: profile.id,
-      identity_name: profile.name,
-      badge_or_alias: profile.badgeNumber,
-      event_type: "BIOMETRIC_VERIFY",
-      severity: isVerified ? "INFO" : "CRITICAL_ANOMALY",
-      status: isVerified ? "SUCCESS" : "FLAGGED",
-      ip_address: "10.42.0.12 (Intranet / Live Probe)",
-      location: profile.locationInfo,
-      device: profile.deviceInfo,
-      confidence_score: profile.matchConfidence,
       timestamp: new Date().toISOString(),
+      timeAgo: "Just now",
+      officerName: profile.name,
+      badgeNumber: profile.badgeNumber,
+      action: isVerified
+        ? "Live Zero-Knowledge Biometric Session Challenge Succeeded"
+        : "Live Biometric Challenge Failed: Biometric Drift Detected",
+      category: isVerified ? "BIOMETRIC_PASS" : "FAILED_CHALLENGE",
+      severity: isVerified ? "INFO" : "HIGH",
+      status: isVerified ? "VERIFIED" : "FLAGGED",
+      caseId: profile.assignedCaseId || "CASE-2026-001",
+      deviceInfo: profile.deviceInfo,
+      ipAddress: profile.ipAddress,
+      location: profile.locationInfo,
+      confidenceScore: profile.matchConfidence,
+      hashSha256: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(""),
       details: isVerified
-        ? `Live multi-factor biometric telemetry matched: Face Geometry (${profile.faceConfidence}%), Voiceprint OK, Typing Cadence OK.`
-        : `Biometric mismatch flagged! Confidence ${profile.matchConfidence}% is below mandatory threshold of 75%.`,
-      session_token_hash: `0x${Date.now().toString(16)}8f192847a9bc`,
-      court_admissible_hash: `sha256:${Date.now().toString(16)}e3b0c44298fc1c149afbf4c8996fb924`,
-      case_id: profile.caseId,
+        ? `Continuous verification validated face (${profile.faceConfidence}%), voiceprint, typing cadence, and hardware TPM certificates.`
+        : `Biometric matching confidence dropped to ${profile.matchConfidence}%. Session placed under heightened scrutiny.`,
+      rawTelemetry: {
+        faceScore: profile.faceConfidence,
+        typingCadenceDeviation: 1.4,
+        geoDriftKm: 0.02
+      }
     };
 
-    inMemoryTrails.unshift(newEvent);
+    inMemoryTrail.unshift(newEvent);
 
     return {
       verified: isVerified,
@@ -382,150 +496,120 @@ export class IdentityService {
         voiceprint: profile.voiceprintMatch,
         typingCadence: profile.typingCadenceMatch,
         deviceFingerprint: profile.deviceFingerprintMatch,
-        badgeCertificate: profile.badgeCertMatch,
+        badgeCertificate: profile.badgeCertMatch
       },
-      trailEventId: newEvent.id,
-      verifiedAt: newEvent.timestamp,
+      verifiedAt: new Date().toISOString(),
+      eventId: newEvent.id
     };
   }
 
-  async quarantineIdentity(profileId: string, reason?: string, officer_name = "ACP Raj Verma") {
+  async quarantineSession(profileId: string, reason?: string) {
     const profile = inMemoryProfiles[profileId] || inMemoryProfiles.insp_r_sharma;
     profile.status = "quarantined";
-    profile.activeSessionsCount = 0;
-    profile.riskCategory = "CRITICAL_DOPPELGANGER";
 
-    const ticketId = `CSOC-QUARANTINE-${Date.now().toString().slice(-4)}`;
-
-    const newEvent: IdentityTrailEvent = {
-      id: `ID-EVT-${Date.now().toString().slice(-4)}`,
-      profile_id: profile.id,
-      identity_name: profile.name,
-      badge_or_alias: profile.badgeNumber,
-      event_type: "QUARANTINE_LOCK",
-      severity: "CRITICAL_ANOMALY",
-      status: "BLOCKED",
-      ip_address: "10.0.0.1 (CSOC Core Gateway)",
-      location: "Central Security Operations Center, New Delhi",
-      device: "National Cyber Command Enforcement Agent",
-      confidence_score: 0,
-      timestamp: new Date().toISOString(),
-      details: `Zero-Trust Quarantine executed by ${officer_name}. Reason: ${reason || "Doppelgänger mismatch and suspicious impossible travel."}. All Kerberos tokens and active sessions revoked. Ref: ${ticketId}`,
-      session_token_hash: "0x00000000000000000000000000000000",
-      court_admissible_hash: `sha256:quarantine_${Date.now()}`,
-      case_id: profile.caseId,
-    };
-
-    inMemoryTrails.unshift(newEvent);
-
-    return {
-      success: true,
-      ticketId,
-      targetOfficer: profile.name,
-      badgeNumber: profile.badgeNumber,
-      status: "QUARANTINED_ACTIVE_SESSIONS_REVOKED",
-      alertDispatchedTo: "Cyber Security Operations Center (CSOC) New Delhi & Central Forensic Science Laboratory (CFSL)",
-      reason: reason || "Doppelganger biometric mismatch flagged by behavioral zero-trust engine",
-      quarantinedAt: newEvent.timestamp,
-    };
-  }
-
-  async revokeSession(profileId: string, sessionId?: string) {
-    const profile = inMemoryProfiles[profileId];
-    if (profile) {
-      profile.activeSessionsCount = Math.max(0, profile.activeSessionsCount - 1);
+    // Update watchlist item if exists
+    const watchItem = inMemoryWatchlist.find((w) => w.profileId === profileId);
+    if (watchItem) {
+      watchItem.status = "QUARANTINED";
     }
 
-    const newEvent: IdentityTrailEvent = {
-      id: `ID-EVT-${Date.now().toString().slice(-4)}`,
-      profile_id: profileId,
-      identity_name: profile?.name || profileId,
-      badge_or_alias: profile?.badgeNumber || "BADGE-REF",
-      event_type: "TOKEN_RENEWAL",
-      severity: "WARNING",
-      status: "SUCCESS",
-      ip_address: "10.42.0.1 (Identity Access Gateway)",
-      location: "Active Directory Domain Controller",
-      device: "Kerberos Key Distribution Centre (KDC)",
-      confidence_score: 100,
+    // Log quarantine event
+    const newEvent: IdentityTrailEventDTO = {
+      id: `ID-EVT-Q-${Date.now().toString().slice(-4)}`,
       timestamp: new Date().toISOString(),
-      details: `Active session token ${sessionId || "SESS-CURRENT-TOKEN"} immediately purged from Redis session cache. User required to re-authenticate with hardware FIPS key.`,
-      session_token_hash: "0xREVOKED_TOKEN_PURGED",
-      court_admissible_hash: `sha256:revoke_${Date.now()}`,
-      case_id: profile?.caseId,
+      timeAgo: "Just now",
+      officerName: profile.name,
+      badgeNumber: profile.badgeNumber,
+      action: "Emergency Officer Session Quarantine & Token Invalidation Enforced",
+      category: "QUARANTINE_ENFORCED",
+      severity: "CRITICAL",
+      status: "QUARANTINED",
+      caseId: profile.assignedCaseId || "CASE-2026-004",
+      deviceInfo: profile.deviceInfo,
+      ipAddress: profile.ipAddress,
+      location: profile.locationInfo,
+      confidenceScore: 0.0,
+      hashSha256: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(""),
+      details: reason || `Officer session ${profile.badgeNumber} forcibly terminated and revoked by Security Operations Desk.`
     };
 
-    inMemoryTrails.unshift(newEvent);
+    inMemoryTrail.unshift(newEvent);
 
     return {
       success: true,
-      profileId,
-      message: "Session token successfully revoked. Forced re-authentication triggered.",
-      revokedAt: newEvent.timestamp,
+      quarantineId: `QUARANTINE-REF-${Date.now().toString().slice(-6)}`,
+      targetOfficer: profile.name,
+      badgeNumber: profile.badgeNumber,
+      status: "QUARANTINED",
+      revocationTime: new Date().toISOString(),
+      reason: reason || "Doppelganger biometric mismatch"
     };
   }
 
-  async challengeMfa(profileId: string) {
-    const profile = inMemoryProfiles[profileId];
-    const challengeId = `MFA-CHALLENGE-${Date.now().toString().slice(-4)}`;
+  async escalateToSoc(profileId: string, notes?: string) {
+    const profile = inMemoryProfiles[profileId] || inMemoryProfiles.insp_r_sharma;
+    profile.status = "quarantined";
 
-    const newEvent: IdentityTrailEvent = {
-      id: `ID-EVT-${Date.now().toString().slice(-4)}`,
-      profile_id: profileId,
-      identity_name: profile?.name || profileId,
-      badge_or_alias: profile?.badgeNumber || "BADGE-REF",
-      event_type: "MFA_CHALLENGE",
-      severity: "WARNING",
-      status: "CHALLENGED",
-      ip_address: "10.42.0.1",
-      location: "FIDO2 / WebAuthn Broker",
-      device: "Hardware Security Module (HSM)",
-      confidence_score: 85,
+    const ticketId = `CSOC-INC-${Date.now().toString().slice(-6)}`;
+
+    // Add high severity trail event
+    inMemoryTrail.unshift({
+      id: `ID-EVT-ESC-${Date.now().toString().slice(-4)}`,
       timestamp: new Date().toISOString(),
-      details: `Step-up FIDO2 / YubiKey Hardware challenge dispatched. Challenge ID: ${challengeId}.`,
-      session_token_hash: "0xCHALLENGE_PENDING",
-      court_admissible_hash: `sha256:challenge_${Date.now()}`,
-      case_id: profile?.caseId,
-    };
-
-    inMemoryTrails.unshift(newEvent);
+      timeAgo: "Just now",
+      officerName: profile.name,
+      badgeNumber: profile.badgeNumber,
+      action: `Escalated to CSOC & CERT-In: Incident Ticket #${ticketId}`,
+      category: "SESSION_HIJACK",
+      severity: "CRITICAL",
+      status: "FLAGGED",
+      caseId: profile.assignedCaseId || "CASE-2026-001",
+      deviceInfo: profile.deviceInfo,
+      ipAddress: profile.ipAddress,
+      location: profile.locationInfo,
+      confidenceScore: profile.matchConfidence,
+      hashSha256: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(""),
+      details: notes || `Doppelganger alert escalated to Cyber Security Operations Center for emergency hardware revocation and forensic imaging.`
+    });
 
     return {
       success: true,
-      challengeId,
-      profileId,
-      prompt: "Touch Hardware Security Key or provide live facial geometry verification.",
-      dispatchedAt: newEvent.timestamp,
+      escalationTicket: ticketId,
+      targetOfficer: profile.name,
+      badgeNumber: profile.badgeNumber,
+      status: "QUARANTINED_PENDING_FORENSIC_REVIEW",
+      alertDispatchedTo: "Cyber Security Operations Center (CSOC) New Delhi & CERT-In",
+      notes: notes || "Doppelganger biometric mismatch flagged by behavioral zero-trust engine",
+      escalatedAt: new Date().toISOString()
     };
   }
 
-  async getStats() {
-    const totalIdentities = Object.keys(inMemoryProfiles).length;
-    const flaggedCount = Object.values(inMemoryProfiles).filter((p) => p.status === "flagged").length;
-    const quarantinedCount = Object.values(inMemoryProfiles).filter((p) => p.status === "quarantined").length;
-    const liveCount = Object.values(inMemoryProfiles).filter((p) => p.status === "live").length;
-    const anomaliesCount = inMemoryTrails.filter((t) => t.severity === "CRITICAL_ANOMALY").length;
-
+  async getStats(caseId?: string) {
     return {
-      totalIdentities: totalIdentities + 1840,
-      activeLiveIdentities: liveCount + 1835,
-      flaggedDoppelgangers: flaggedCount,
-      quarantinedAccounts: quarantinedCount,
-      totalTrailEventsCount: inMemoryTrails.length + 8420,
-      criticalAnomaliesCount: anomaliesCount + 12,
-      avgTrustScore: 94.2,
-      mfaAdoptionPercent: 99.4,
-      hardwareKeyAdoptionRate: "92.8%",
+      verifiedIdentities: 1842,
+      totalActiveAccounts: 1847,
+      doppelgangersFlagged: inMemoryWatchlist.filter((w) => w.status === "ACTIVE_ALERT").length || 5,
+      behaviorAnomalies: 14,
+      avgTrustScore: 91,
+      mfaEnrollment: "1,839 / 1,847",
+      hardwareKeyAdoptionRate: "78%",
+      quarantinedSessions: Object.values(inMemoryProfiles).filter((p) => p.status === "quarantined").length,
+      lastAuditSync: new Date().toISOString()
     };
   }
 }
 
 export const identityService = new IdentityService();
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Controller & Routes
+// ─────────────────────────────────────────────────────────────────────────────
+
 export class IdentityController {
-  async handleListProfiles(_req: Request, res: Response) {
+  async handleListProfiles(req: Request, res: Response) {
     try {
-      const data = await identityService.listProfiles();
+      const caseId = req.query.case_id ? String(req.query.case_id) : undefined;
+      const data = await identityService.listProfiles(caseId);
       res.json(formatResponse(true, data, "Identity profiles retrieved"));
     } catch (error: any) {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
@@ -545,30 +629,33 @@ export class IdentityController {
     }
   }
 
-  async handleGetTrailEvents(req: Request, res: Response) {
+  async handleGetTrail(req: Request, res: Response) {
     try {
-      const { profile_id, severity, event_type, case_id, limit } = req.query;
-      const data = await identityService.getTrailEvents({
-        profile_id: profile_id ? String(profile_id) : undefined,
-        severity: severity ? String(severity) : undefined,
-        event_type: event_type ? String(event_type) : undefined,
-        case_id: case_id ? String(case_id) : undefined,
-        limit: limit ? Number(limit) : undefined,
-      });
-      res.json(formatResponse(true, data, "Identity audit trail events retrieved"));
+      const caseId = req.query.case_id ? String(req.query.case_id) : undefined;
+      const category = req.query.category ? String(req.query.category) : undefined;
+      const search = req.query.search ? String(req.query.search) : undefined;
+      const data = await identityService.getIdentityTrail(caseId, category, search);
+      res.json(formatResponse(true, data, "Identity trail logs retrieved"));
     } catch (error: any) {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
     }
   }
 
-  async handleVerifyIdentity(req: Request, res: Response) {
+  async handleGetWatchlist(req: Request, res: Response) {
     try {
-      const { officerId } = req.body;
-      if (!officerId) {
-        return res.status(400).json(formatResponse(false, null, undefined, "officerId is required"));
-      }
-      const data = await identityService.verifyIdentity(String(officerId));
-      res.json(formatResponse(true, data, "Biometric identity verification completed"));
+      const caseId = req.query.case_id ? String(req.query.case_id) : undefined;
+      const data = await identityService.getWatchlist(caseId);
+      res.json(formatResponse(true, data, "Doppelganger watchlist retrieved"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async handleVerify(req: Request, res: Response) {
+    try {
+      const officerId = req.body.officerId || "acp_raj_verma";
+      const data = await identityService.verifyIdentity(officerId);
+      res.json(formatResponse(true, data, "Identity verification completed"));
     } catch (error: any) {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
     }
@@ -576,47 +663,29 @@ export class IdentityController {
 
   async handleQuarantine(req: Request, res: Response) {
     try {
-      const { profileId, reason, officer_name } = req.body;
-      if (!profileId) {
-        return res.status(400).json(formatResponse(false, null, undefined, "profileId is required"));
-      }
-      const data = await identityService.quarantineIdentity(String(profileId), reason, officer_name);
-      res.json(formatResponse(true, data, "Zero-Trust quarantine enforced"));
+      const { profileId, reason } = req.body;
+      const data = await identityService.quarantineSession(profileId || "insp_r_sharma", reason);
+      res.json(formatResponse(true, data, "Session quarantined successfully"));
     } catch (error: any) {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
     }
   }
 
-  async handleRevokeSession(req: Request, res: Response) {
+  async handleEscalate(req: Request, res: Response) {
     try {
-      const { profileId, sessionId } = req.body;
-      if (!profileId) {
-        return res.status(400).json(formatResponse(false, null, undefined, "profileId is required"));
-      }
-      const data = await identityService.revokeSession(String(profileId), sessionId);
-      res.json(formatResponse(true, data, "Session token revoked"));
+      const { profileId, notes } = req.body;
+      const data = await identityService.escalateToSoc(profileId || "insp_r_sharma", notes);
+      res.json(formatResponse(true, data, "Watchlist escalation sent to CSOC"));
     } catch (error: any) {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
     }
   }
 
-  async handleChallengeMfa(req: Request, res: Response) {
+  async handleGetStats(req: Request, res: Response) {
     try {
-      const { profileId } = req.body;
-      if (!profileId) {
-        return res.status(400).json(formatResponse(false, null, undefined, "profileId is required"));
-      }
-      const data = await identityService.challengeMfa(String(profileId));
-      res.json(formatResponse(true, data, "Step-up MFA challenge dispatched"));
-    } catch (error: any) {
-      res.status(500).json(formatResponse(false, null, undefined, error.message));
-    }
-  }
-
-  async handleGetStats(_req: Request, res: Response) {
-    try {
-      const data = await identityService.getStats();
-      res.json(formatResponse(true, data, "Identity security statistics retrieved"));
+      const caseId = req.query.case_id ? String(req.query.case_id) : undefined;
+      const data = await identityService.getStats(caseId);
+      res.json(formatResponse(true, data, "Identity security stats retrieved"));
     } catch (error: any) {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
     }
@@ -624,19 +693,16 @@ export class IdentityController {
 }
 
 export const identityController = new IdentityController();
-export function createIdentityRouter(): Router {
+
+export function identityRoutes(): Router {
   const router = Router();
   router.get("/profiles", (req, res) => identityController.handleListProfiles(req, res));
   router.get("/profiles/:id", (req, res) => identityController.handleGetProfile(req, res));
-  router.get("/trails", (req, res) => identityController.handleGetTrailEvents(req, res));
-  router.post("/verify", (req, res) => identityController.handleVerifyIdentity(req, res));
-  router.post("/quarantine", (req, res) => identityController.handleQuarantine(req, res));
-  router.post("/escalate", (req, res) => identityController.handleQuarantine(req, res));
-  router.post("/revoke-session", (req, res) => identityController.handleRevokeSession(req, res));
-  router.post("/challenge-mfa", (req, res) => identityController.handleChallengeMfa(req, res));
+  router.get("/trail", (req, res) => identityController.handleGetTrail(req, res));
+  router.get("/watchlist", (req, res) => identityController.handleGetWatchlist(req, res));
   router.get("/stats", (req, res) => identityController.handleGetStats(req, res));
+  router.post("/verify", (req, res) => identityController.handleVerify(req, res));
+  router.post("/quarantine", (req, res) => identityController.handleQuarantine(req, res));
+  router.post("/escalate", (req, res) => identityController.handleEscalate(req, res));
   return router;
 }
-
-export const identityRoutes = createIdentityRouter;
-export default createIdentityRouter;

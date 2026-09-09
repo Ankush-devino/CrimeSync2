@@ -453,52 +453,40 @@ export const api = {
     getStats: () => request<any>(`/deception/stats`),
   },
 
-  // 15. Identity Security & Identity Audit Trail
+  // 15. Identity Security, Biometrics & Identity Trail
   identity: {
-    getProfiles: () => request<any[]>(`/identity/profiles`),
+    getProfiles: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any[]>(`/identity/profiles${qs}`);
+    },
     getProfile: (id: string) => request<any>(`/identity/profiles/${id}`),
-    getTrailEvents: (params?: {
-      profile_id?: string;
-      severity?: string;
-      event_type?: string;
-      case_id?: string;
-      limit?: number;
-    }) => {
-      const q = new URLSearchParams();
-      if (params?.profile_id) q.append("profile_id", params.profile_id);
-      if (params?.severity) q.append("severity", params.severity);
-      if (params?.event_type) q.append("event_type", params.event_type);
-      if (params?.case_id) q.append("case_id", params.case_id);
-      if (params?.limit) q.append("limit", String(params.limit));
-      const qs = q.toString();
-      return request<any[]>(`/identity/trails${qs ? `?${qs}` : ""}`);
+    getIdentityTrail: (params?: { caseId?: string; category?: string; search?: string }) => {
+      const qs = params ? `?${new URLSearchParams(params as any).toString()}` : "";
+      return request<any[]>(`/identity/trail${qs}`);
+    },
+    getWatchlist: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any[]>(`/identity/watchlist${qs}`);
     },
     verify: (officerId: string) =>
       request<any>(`/identity/verify`, {
         method: "POST",
         body: JSON.stringify({ officerId }),
       }),
-    quarantine: (payload: { profileId: string; reason?: string; officer_name?: string }) =>
+    quarantine: (profileId: string, reason?: string) =>
       request<any>(`/identity/quarantine`, {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ profileId, reason }),
       }),
     escalate: (profileId: string, notes?: string) =>
       request<any>(`/identity/escalate`, {
         method: "POST",
         body: JSON.stringify({ profileId, notes }),
       }),
-    revokeSession: (payload: { profileId: string; sessionId?: string }) =>
-      request<any>(`/identity/revoke-session`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }),
-    challengeMfa: (payload: { profileId: string }) =>
-      request<any>(`/identity/challenge-mfa`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }),
-    getStats: () => request<any>(`/identity/stats`),
+    getStats: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any>(`/identity/stats${qs}`);
+    },
   },
 
   // 16. Attack Graph & Lateral Movement

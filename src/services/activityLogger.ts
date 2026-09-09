@@ -10,7 +10,7 @@ export interface OfficerActivity {
   caseId: string;
   status: 'Success' | 'Authorized' | 'Completed' | 'Active';
   details?: string;
-  category?: 'EVIDENCE' | 'COPILOT' | 'GRAPH' | 'CASES' | 'TIMELINE' | 'GEO' | 'AUTH' | 'REPORT';
+  category?: 'EVIDENCE' | 'COPILOT' | 'GRAPH' | 'CASES' | 'TIMELINE' | 'GEO' | 'AUTH' | 'REPORT' | 'SECURITY' | 'FINANCIAL';
 }
 
 const STORAGE_KEY = 'crimesync_acp_raj_verma_activities_v2';
@@ -159,7 +159,7 @@ export function logOfficerAction(payload: {
   caseId?: string;
   status?: 'Success' | 'Authorized' | 'Completed' | 'Active';
   details?: string;
-  category?: 'EVIDENCE' | 'COPILOT' | 'GRAPH' | 'CASES' | 'TIMELINE' | 'GEO' | 'AUTH' | 'REPORT';
+  category?: OfficerActivity['category'];
 }): OfficerActivity {
   const current = getOfficerActivities();
   const now = new Date();
