@@ -39,7 +39,12 @@ import {
   FileSpreadsheet,
   Ban,
   ShieldX,
-  Share2
+  Share2,
+  Skull,
+  Eye,
+  Siren,
+  Terminal,
+  Crosshair
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useCaseContext } from '../context/CaseContext';
@@ -49,6 +54,33 @@ import { logOfficerAction } from '../services/activityLogger';
 interface IdentitySecurityPageProps {
   onSelectAction?: (action: string) => void;
   onNavigateTab?: (tab: string) => void;
+}
+
+export interface OfficerBaselinePattern {
+  typicalWorkingHours: string;
+  typicalWorkDays: string;
+  authorizedSubnets: string[];
+  registeredDevices: string[];
+  primaryGeofence: string;
+  averageTypingWpm: number;
+  averageFlightTimeMs: number;
+  averageDwellTimeMs: number;
+  usualCaseCategories: string[];
+  dailyAvgQueryCount: number;
+  baselineTrustRating: number;
+}
+
+export interface PatternDissimilarityAnalysis {
+  isCompromised: boolean;
+  threatVerdict: 'NORMAL' | 'SUSPICIOUS_DRIFT' | 'HACK_DETECTED_UNAUTHORIZED_ACTOR';
+  overallDissimilarityScore: number;
+  timeAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  deviceAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  geoAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  cadenceAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  actionAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  intruderIndicators: string[];
+  recommendedAction: string;
 }
 
 export interface OfficerBiometricProfile {
@@ -71,6 +103,8 @@ export interface OfficerBiometricProfile {
   lastActive: string;
   ipAddress: string;
   assignedCaseId?: string;
+  baselinePattern?: OfficerBaselinePattern;
+  currentDissimilarity?: PatternDissimilarityAnalysis;
 }
 
 export interface IdentityTrailEvent {
@@ -80,16 +114,25 @@ export interface IdentityTrailEvent {
   officerName: string;
   badgeNumber: string;
   action: string;
-  category: 'BIOMETRIC_PASS' | 'IMPOSSIBLE_TRAVEL' | 'FAILED_CHALLENGE' | 'SESSION_HIJACK' | 'QUARANTINE_ENFORCED' | 'CREDENTIAL_REFRESH';
+  category: 'BIOMETRIC_PASS' | 'IMPOSSIBLE_TRAVEL' | 'FAILED_CHALLENGE' | 'SESSION_HIJACK' | 'QUARANTINE_ENFORCED' | 'CREDENTIAL_REFRESH' | 'HACK_PATTERN_ALERT';
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
-  status: 'VERIFIED' | 'FLAGGED' | 'BLOCKED' | 'QUARANTINED';
+  status: 'VERIFIED' | 'FLAGGED' | 'BLOCKED' | 'QUARANTINED' | 'HACKED_ALERT';
   caseId: string;
   deviceInfo: string;
   ipAddress: string;
   location: string;
   confidenceScore: number;
+  patternDissimilarityScore: number;
+  isHackedAnomaly: boolean;
   hashSha256: string;
   details: string;
+  dissimilarityBreakdown?: {
+    timeShift: string;
+    deviceDiscrepancy: string;
+    geoDrift: string;
+    keystrokeDeviation: string;
+    unauthorizedActions: string;
+  };
   rawTelemetry?: {
     faceScore?: number;
     voiceDriftPercent?: number;
@@ -108,11 +151,13 @@ export interface DoppelgangerWatchlistItem {
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM';
   flaggedAt: string;
   timeAgo: string;
-  anomalyType: 'VOICE_DRIFT' | 'IMPOSSIBLE_TRAVEL' | 'KEYBOARD_CADENCE' | 'UNAUTHORIZED_DEVICE' | 'CLONED_SESSION';
+  anomalyType: 'VOICE_DRIFT' | 'IMPOSSIBLE_TRAVEL' | 'KEYBOARD_CADENCE' | 'UNAUTHORIZED_DEVICE' | 'CLONED_SESSION' | 'PATTERN_DISSIMILARITY_HACK';
   deviceInfo: string;
   location: string;
   status: 'ACTIVE_ALERT' | 'QUARANTINED' | 'INVESTIGATING';
   confidenceMatch: number;
+  dissimilarityScore: number;
+  isAccountHijacked: boolean;
 }
 
 export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
@@ -127,13 +172,15 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
 
   // Backend Data State
   const [profiles, setProfiles] = useState<OfficerBiometricProfile[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('acp_raj_verma');
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('insp_r_sharma');
   const [trailEvents, setTrailEvents] = useState<IdentityTrailEvent[]>([]);
   const [watchlist, setWatchlist] = useState<DoppelgangerWatchlistItem[]>([]);
+  const [hackedAlerts, setHackedAlerts] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({
     verifiedIdentities: 1842,
     totalActiveAccounts: 1847,
     doppelgangersFlagged: 5,
+    hackedAccountsDetected: 2,
     behaviorAnomalies: 14,
     avgTrustScore: 91,
     mfaEnrollment: '1,839 / 1,847',
@@ -150,29 +197,32 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
   // Verification Scanner Modal State
   const [isVerifyingModalOpen, setIsVerifyingModalOpen] = useState<boolean>(false);
   const [scanStep, setScanStep] = useState<number>(0);
-  const [verifyingOfficerId, setVerifyingOfficerId] = useState<string>('acp_raj_verma');
+  const [verifyingOfficerId, setVerifyingOfficerId] = useState<string>('insp_r_sharma');
 
   // Quarantine Modal State
   const [isQuarantineModalOpen, setIsQuarantineModalOpen] = useState<boolean>(false);
   const [targetQuarantineProfile, setTargetQuarantineProfile] = useState<OfficerBiometricProfile | null>(null);
-  const [quarantineReason, setQuarantineReason] = useState<string>('Doppelganger behavioral biometric mismatch detected during active session');
+  const [quarantineReason, setQuarantineReason] = useState<string>('Account hack pattern dissimilarity detected: unauthorized actor dumping database');
   const [isQuarantining, setIsQuarantining] = useState<boolean>(false);
 
-  // Simulation Modal State
+  // Anomaly Simulator State
   const [isSimulateModalOpen, setIsSimulateModalOpen] = useState<boolean>(false);
   const [activeDetailModal, setActiveDetailModal] = useState<string | null>(null);
+  const [selectedHackedAlertModal, setSelectedHackedAlertModal] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [dismissBanner, setDismissBanner] = useState<boolean>(false);
 
   // Fetch all identity data
   const loadIdentityData = useCallback(async () => {
     setLoading(true);
     try {
       const caseFilter = selectedCaseId !== 'ALL' ? selectedCaseId : undefined;
-      const [profRes, trailRes, watchRes, statRes] = await Promise.all([
+      const [profRes, trailRes, watchRes, statRes, hackRes] = await Promise.all([
         api.identity.getProfiles(caseFilter),
         api.identity.getIdentityTrail({ caseId: caseFilter }),
         api.identity.getWatchlist(caseFilter),
-        api.identity.getStats(caseFilter)
+        api.identity.getStats(caseFilter),
+        api.identity.getHackedAlerts()
       ]);
 
       if (profRes && Array.isArray(profRes)) {
@@ -190,6 +240,9 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
       if (statRes) {
         setStats(statRes);
       }
+      if (hackRes && hackRes.alerts) {
+        setHackedAlerts(hackRes.alerts);
+      }
     } catch (err) {
       console.error('Failed to load identity intelligence:', err);
     } finally {
@@ -204,27 +257,32 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
   // Selected Profile
   const currentProfile = useMemo(() => {
     return profiles.find((p) => p.id === selectedProfileId) || profiles[0] || {
-      id: 'acp_raj_verma',
-      name: 'ACP Raj Verma',
-      rank: 'Assistant Commissioner of Police',
-      department: 'Special Cyber Crime Cell',
-      badgeNumber: 'DL-POL-8842',
-      enrolledDate: '14 Mar 2024',
-      status: 'live',
-      matchConfidence: 98.6,
-      faceGeometryMatch: true,
-      voiceprintMatch: true,
+      id: 'insp_r_sharma',
+      name: 'Insp. R. Sharma',
+      rank: 'Inspector',
+      department: 'Anti-Hawala Unit',
+      badgeNumber: 'DL-POL-4192',
+      enrolledDate: '22 Nov 2023',
+      status: 'flagged',
+      matchConfidence: 61.4,
+      faceGeometryMatch: false,
+      voiceprintMatch: false,
       typingCadenceMatch: true,
-      deviceFingerprintMatch: true,
+      deviceFingerprintMatch: false,
       badgeCertMatch: true,
-      faceConfidence: 99.2,
-      deviceInfo: 'Dell Latitude 7440 (Encrypted TPM 2.0)',
-      locationInfo: 'Delhi HQ - Command Room B',
-      lastActive: 'Just now',
-      ipAddress: '10.14.22.84',
-      assignedCaseId: 'CASE-2026-001'
+      faceConfidence: 61.0,
+      deviceInfo: 'Unrecognized iPhone 14 Pro (Pune IP)',
+      locationInfo: 'Pune - Unknown Cell Tower',
+      lastActive: '4m ago',
+      ipAddress: '152.57.19.202',
+      assignedCaseId: 'CASE-2026-004'
     };
   }, [profiles, selectedProfileId]);
+
+  // Active Compromise Detected Flag
+  const activeHackedAlert = useMemo(() => {
+    return hackedAlerts.find((h) => h.status === 'ACTIVE_ALERT') || null;
+  }, [hackedAlerts]);
 
   // Filtered trail events
   const filteredTrailEvents = useMemo(() => {
@@ -265,14 +323,13 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
     setTimeout(() => setScanStep(3), 1500);
     setTimeout(() => {
       setScanStep(4);
-      // Call backend API verify
       api.identity.verify(targetId).then((res) => {
         if (res) {
           logOfficerAction({
             action: 'Executed Zero-Knowledge Biometric Identity Challenge',
             module: 'Identity Security',
-            details: `Validated biometric telemetry for ${res.officerName} (${res.badgeNumber}). Confidence: ${res.confidence}%`,
-            category: 'SECURITY'
+            details: `Validated biometric telemetry for ${res.officerName} (${res.badgeNumber}). Confidence: ${res.confidence}% | Pattern Dissimilarity: ${res.patternDissimilarityScore}%`,
+            category: 'AUTH'
           });
           loadIdentityData();
         }
@@ -286,7 +343,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
     setIsQuarantineModalOpen(true);
   };
 
-  // Execute Quarantine
+  // Execute Quarantine Kill Switch
   const handleExecuteQuarantine = async () => {
     if (!targetQuarantineProfile) return;
     setIsQuarantining(true);
@@ -297,9 +354,9 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           action: 'Enforced Emergency Officer Session Quarantine & Invalidation',
           module: 'Identity Security',
           details: `Quarantined ${targetQuarantineProfile.name} (${targetQuarantineProfile.badgeNumber}). Reason: ${quarantineReason}. Ref: ${res.quarantineId}`,
-          category: 'SECURITY'
+          category: 'AUTH'
         });
-        triggerToast(`✓ Session Quarantined for ${targetQuarantineProfile.name}`);
+        triggerToast(`🛑 Session Terminated & Quarantined for ${targetQuarantineProfile.name}`);
         setIsQuarantineModalOpen(false);
         loadIdentityData();
       }
@@ -313,15 +370,15 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
   // Escalate Watchlist to CSOC
   const handleEscalateWatchlist = async (profileId: string) => {
     try {
-      const res = await api.identity.escalate(profileId, 'Doppelganger biometric mismatch flagged during live case investigation');
+      const res = await api.identity.escalate(profileId, 'Account hacked: Severe pattern dissimilarity & unauthorized database dump');
       if (res) {
         logOfficerAction({
           action: 'Escalated Doppelganger Anomaly to CSOC & CERT-In',
           module: 'Identity Security',
           details: `Dispatched incident ticket #${res.escalationTicket} for ${res.targetOfficer} to Cyber Security Operations Center.`,
-          category: 'SECURITY'
+          category: 'AUTH'
         });
-        triggerToast(`🚨 Escalated to CSOC: Ticket #${res.escalationTicket}`);
+        triggerToast(`🚨 Escalated to CSOC & CERT-In: Ticket #${res.escalationTicket}`);
         loadIdentityData();
       }
     } catch (err: any) {
@@ -329,31 +386,36 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
     }
   };
 
-  // Ingest Simulated Anomaly
-  const handleSimulateAnomaly = (type: 'IMPOSSIBLE_TRAVEL' | 'VOICE_DRIFT' | 'CLONED_KEY' | 'CADENCE_DRIFT') => {
+  // Ingest Simulated Anomaly (Hack / Dissimilarity)
+  const handleSimulateAnomaly = (type: 'HACK_ACCOUNT' | 'IMPOSSIBLE_TRAVEL' | 'VOICE_DRIFT' | 'CADENCE_DRIFT') => {
     let actionText = '';
-    let category: any = 'SESSION_HIJACK';
+    let category: any = 'HACK_PATTERN_ALERT';
     let severity: any = 'CRITICAL';
+    let dissimilarityScore = 88.6;
     let detailsText = '';
 
-    if (type === 'IMPOSSIBLE_TRAVEL') {
-      actionText = 'Impossible Travel Telemetry Detected: Delhi to Pune in 12 minutes';
+    if (type === 'HACK_ACCOUNT') {
+      actionText = '🚨 CRITICAL ACCOUNT COMPROMISE: Pattern Dissimilarity 88.6% — Unauthorized Actor Active!';
+      category = 'HACK_PATTERN_ALERT';
+      dissimilarityScore = 88.6;
+      detailsText = 'Severe baseline pattern breach: 03:14 AM off-hours login from Pune IP, 135 WPM automated burst cadence, and bulk encrypted database dump query. Suspect is actively operating the hacked account.';
+    } else if (type === 'IMPOSSIBLE_TRAVEL') {
+      actionText = '🚨 IMPOSSIBLE TRAVEL HACK: Pattern Dissimilarity 92.4% — Delhi to Pune in 12m (5,900 km/h)';
       category = 'IMPOSSIBLE_TRAVEL';
-      detailsText = 'Authentication attempt from Pune cell tower while primary terminal in Delhi HQ is actively authenticated.';
+      dissimilarityScore = 92.4;
+      detailsText = 'Simultaneous session active from Pune cell tower while primary terminal authenticated in Delhi HQ.';
     } else if (type === 'VOICE_DRIFT') {
-      actionText = 'Voiceprint Spectral Harmonics Drift: 24.8% AI Synthesis Anomaly';
+      actionText = 'Voiceprint Spectral Harmonics Drift: 24.8% Generative AI Voice Anomaly';
       category = 'FAILED_CHALLENGE';
       severity = 'HIGH';
-      detailsText = 'Audio waveform during tactical voice dispatch matched generative deepfake acoustics signature.';
-    } else if (type === 'CLONED_KEY') {
-      actionText = 'Hardware Smart-Card Token Clone Detected: Duplicate Nonce Counter';
-      category = 'SESSION_HIJACK';
-      detailsText = 'Simultaneous cryptographic handshake detected on two distinct physical network adapters.';
+      dissimilarityScore = 48.0;
+      detailsText = 'Tactical audio challenge revealed pitch quantization consistent with real-time neural voice conversion software.';
     } else {
-      actionText = 'Keyboard Flight-Time & Dwell-Time Cadence Drift: 32% Anomaly';
+      actionText = 'Keystroke Dwell-Time & Flight Dynamics Anomaly: 32% Pattern Shift';
       category = 'FAILED_CHALLENGE';
       severity = 'MEDIUM';
-      detailsText = 'Keystroke velocity profile significantly deviates from 90-day enrolled baseline envelope.';
+      dissimilarityScore = 32.0;
+      detailsText = 'Keystroke timing rhythm deviates substantially from 90-day officer behavioral baseline envelope.';
     }
 
     const newEvent: IdentityTrailEvent = {
@@ -365,27 +427,37 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
       action: actionText,
       category,
       severity,
-      status: 'FLAGGED',
+      status: dissimilarityScore > 70 ? 'HACKED_ALERT' : 'FLAGGED',
       caseId: selectedCaseId !== 'ALL' ? selectedCaseId : 'CASE-2026-004',
-      deviceInfo: 'Unregistered Terminal #9 (Simulated Anomaly)',
+      deviceInfo: 'Unregistered Terminal (Intruder IP: 152.57.19.202)',
       ipAddress: '152.57.19.202',
-      location: 'Pune Cyber Cell Sector 12',
-      confidenceScore: 54.2,
+      location: 'Pune Cell Tower Sector 12',
+      confidenceScore: Math.max(10, 100 - dissimilarityScore),
+      patternDissimilarityScore: dissimilarityScore,
+      isHackedAnomaly: dissimilarityScore > 70,
       hashSha256: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      details: detailsText
+      details: detailsText,
+      dissimilarityBreakdown: {
+        timeShift: '03:14 AM Off-Hours Anomaly (+85%)',
+        deviceDiscrepancy: 'Non-Gov iPhone 14 Pro (+95%)',
+        geoDrift: 'Pune Cell Tower (+99%)',
+        keystrokeDeviation: '135 WPM Automated Script (+90%)',
+        unauthorizedActions: 'Bulk Evidence & Credential Scraping (+96%)'
+      }
     };
 
     setTrailEvents((prev) => [newEvent, ...prev]);
+    setDismissBanner(false);
     logOfficerAction({
       action: `Identity Threat: ${actionText}`,
       module: 'Identity Security',
       details: detailsText,
       caseId: selectedCaseId,
-      category: 'SECURITY'
+      category: 'AUTH'
     });
 
     setIsSimulateModalOpen(false);
-    triggerToast(`⚠️ Injected Live Anomaly: ${actionText}`);
+    triggerToast(`🚨 Injected Threat: ${actionText}`);
   };
 
   // Copy Hash
@@ -397,7 +469,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
 
   // Export Trail to CSV
   const handleExportCSV = () => {
-    const headers = ['Event ID', 'Timestamp', 'Officer Name', 'Badge Number', 'Action', 'Category', 'Severity', 'Status', 'Case ID', 'Device', 'IP Address', 'Location', 'Trust Score', 'SHA-256 Hash', 'Details'];
+    const headers = ['Event ID', 'Timestamp', 'Officer Name', 'Badge Number', 'Action', 'Category', 'Severity', 'Status', 'Case ID', 'Device', 'IP Address', 'Location', 'Trust Score', 'Dissimilarity %', 'Is Hacked', 'SHA-256 Hash', 'Details'];
     const rows = filteredTrailEvents.map((e) => [
       e.id,
       e.timestamp,
@@ -412,6 +484,8 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
       e.ipAddress,
       `"${e.location}"`,
       e.confidenceScore,
+      e.patternDissimilarityScore || 0,
+      e.isHackedAnomaly ? 'YES' : 'NO',
       e.hashSha256,
       `"${e.details}"`
     ]);
@@ -437,6 +511,62 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
         </div>
       )}
 
+      {/* ─── 🚨 REAL-TIME COMPROMISE / HACK ALERT BANNER ─── */}
+      {activeHackedAlert && !dismissBanner && (
+        <div className="rounded-xl bg-gradient-to-r from-red-950/90 via-rose-950/80 to-[#180509] border-2 border-red-500 p-4 shadow-[0_0_30px_rgba(239,68,68,0.4)] flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start md:items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-red-900/90 border border-red-400 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(239,68,68,0.8)] animate-pulse">
+              <Siren className="w-6 h-6 animate-bounce" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-red-900 text-white font-black text-[10px] tracking-wider uppercase border border-red-400 animate-pulse">
+                  CRITICAL: ACCOUNT COMPROMISED
+                </span>
+                <span className="text-red-300 text-xs font-mono font-bold">
+                  Dissimilarity: {activeHackedAlert.dissimilarityScore}%
+                </span>
+              </div>
+              <h2 className="text-sm font-black text-white mt-1">
+                Unauthorized Actor Detected on {activeHackedAlert.officerName} ({activeHackedAlert.badgeNumber})!
+              </h2>
+              <p className="text-xs text-red-200/90 mt-0.5">
+                {activeHackedAlert.flagReason}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                const target = profiles.find((p) => p.id === activeHackedAlert.profileId) || currentProfile;
+                handleOpenQuarantine(target);
+              }}
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.7)] transition-all"
+            >
+              <Ban className="w-4 h-4" />
+              <span>EMERGENCY KILL SWITCH</span>
+            </button>
+
+            <button
+              onClick={() => handleEscalateWatchlist(activeHackedAlert.profileId)}
+              className="px-3.5 py-2 rounded-lg bg-red-950 hover:bg-red-900 border border-red-400 text-red-200 font-bold text-xs flex items-center gap-1.5"
+            >
+              <Flame className="w-4 h-4 text-amber-400" />
+              <span>CSOC S.O.S.</span>
+            </button>
+
+            <button
+              onClick={() => setDismissBanner(true)}
+              className="p-2 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-white"
+              title="Dismiss Alert Banner"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─── Top Header Section ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#081023] border border-[#142342] rounded-xl p-3.5 shadow-lg">
         <div className="flex items-center gap-3">
@@ -446,14 +576,14 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-extrabold tracking-wider text-white uppercase">
-                IDENTITY SECURITY &amp; DOPPELGANGER TRAIL
+                IDENTITY SECURITY &amp; PATTERN DISSIMILARITY TRACER
               </h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-cyan-950 text-cyan-300 border border-cyan-500/40">
-                ZERO-TRUST BIOMETRIC SYNCED
+                BEHAVIORAL ZERO-TRUST
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Behavioral biometrics, anti-spoofing face/voice harmonics &amp; continuous session authentication trail
+              Officer baseline pattern modeling, continuous dissimilarity scoring, and compromised session kill switch
             </p>
           </div>
         </div>
@@ -492,10 +622,10 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           <button
             onClick={() => setIsSimulateModalOpen(true)}
             className="px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-amber-300 hover:text-white hover:border-amber-500/60 flex items-center gap-1.5 transition-all shadow-sm"
-            title="Simulate Anomaly for Testing"
+            title="Simulate Account Hack / Pattern Mismatch"
           >
             <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>Simulate Anomaly</span>
+            <span>Simulate Hack</span>
           </button>
 
           {/* Export CSV */}
@@ -531,7 +661,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               {stats.verifiedIdentities?.toLocaleString('en-IN') || '1,842'}
             </div>
             <div className="text-[11px] font-medium text-slate-400 mt-1">
-              of {stats.totalActiveAccounts?.toLocaleString('en-IN') || '1,847'} active officer accounts
+              of {stats.totalActiveAccounts?.toLocaleString('en-IN') || '1,847'} active accounts
             </div>
           </div>
           <div className="w-10 h-10 rounded-lg bg-emerald-950/80 border border-emerald-500/60 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
@@ -539,21 +669,22 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           </div>
         </div>
 
-        {/* Card 2: DOPPELGANGERS FLAGGED */}
+        {/* Card 2: HACKED / COMPROMISED SESSIONS */}
         <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] flex items-center justify-between hover:border-red-500/40 transition-all shadow-sm">
           <div>
             <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-              DOPPELGANGERS FLAGGED
+              HACKED / HIJACKED ALERTS
             </div>
-            <div className="text-2xl font-extrabold text-red-500 mt-1">
-              {stats.doppelgangersFlagged || watchlist.length || 5}
+            <div className="text-2xl font-extrabold text-red-500 mt-1 flex items-baseline gap-2">
+              <span>{stats.hackedAccountsDetected || 2}</span>
+              <span className="text-xs font-bold text-red-400 font-mono animate-pulse">CRITICAL</span>
             </div>
             <div className="text-[11px] font-medium text-red-400 flex items-center gap-1 mt-1">
-              <span>↑</span> 2 compromised sessions isolated
+              <span>🚨</span> Pattern Dissimilarity &gt; 85%
             </div>
           </div>
           <div className="w-10 h-10 rounded-lg bg-red-950/80 border border-red-500/60 flex items-center justify-center text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
-            <Users className="w-5 h-5" />
+            <Skull className="w-5 h-5" />
           </div>
         </div>
 
@@ -567,7 +698,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               {stats.behaviorAnomalies || 14}
             </div>
             <div className="text-[11px] font-medium text-slate-400 mt-1">
-              keystroke dynamics &amp; voiceprint variations
+              keystroke, voiceprint &amp; geofence variations
             </div>
           </div>
           <div className="w-10 h-10 rounded-lg bg-amber-950/80 border border-amber-500/60 flex items-center justify-center text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
@@ -579,13 +710,13 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
         <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] flex items-center justify-between hover:border-cyan-500/40 transition-all shadow-sm">
           <div>
             <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-              AVG ZERO-TRUST SCORE
+              AVG ZERO-TRUST RATING
             </div>
             <div className="text-2xl font-extrabold text-white mt-1">
               {stats.avgTrustScore || 91}<span className="text-sm font-normal text-slate-400">/100</span>
             </div>
             <div className="text-[11px] font-medium text-emerald-400 flex items-center gap-1 mt-1">
-              <span>↑</span> Hardware FIDO2 adoption: {stats.hardwareKeyAdoptionRate || '78%'}
+              <span>↑</span> FIDO2 Hardware Adoption: {stats.hardwareKeyAdoptionRate || '78%'}
             </div>
           </div>
           <div className="w-10 h-10 rounded-lg bg-cyan-950/80 border border-cyan-500/60 flex items-center justify-center text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
@@ -605,7 +736,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           }`}
         >
           <UserCheck className="w-4 h-4" />
-          <span>Biometric Match &amp; Profiles</span>
+          <span>Biometric Match &amp; Pattern Profiles</span>
         </button>
 
         <button
@@ -617,7 +748,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           }`}
         >
           <Activity className="w-4 h-4" />
-          <span>Identity Audit Trail</span>
+          <span>Identity Audit Trail &amp; Hack Alerts</span>
           <span className="px-1.5 py-0.2 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono">
             {filteredTrailEvents.length}
           </span>
@@ -632,7 +763,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           }`}
         >
           <AlertOctagon className="w-4 h-4 text-red-400" />
-          <span>Doppelganger Watchlist</span>
+          <span>Compromised &amp; Doppelganger Watchlist</span>
           <span className="px-1.5 py-0.2 rounded-full bg-red-950 text-red-300 border border-red-500/40 text-[10px] font-mono">
             {watchlist.filter((w) => w.status === 'ACTIVE_ALERT').length}
           </span>
@@ -647,321 +778,442 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           }`}
         >
           <Laptop className="w-4 h-4" />
-          <span>Behavioral Dynamics &amp; Geo-Consistency</span>
+          <span>Baseline vs Live Dynamics</span>
         </button>
       </div>
 
-      {/* ─── TAB 1: BIOMETRIC MATCH & PROFILES ─── */}
+      {/* ─── TAB 1: BIOMETRIC MATCH & PATTERN PROFILES ─── */}
       {activeTab === 'match' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-          {/* Left: Officer Profile Selection List (Spans 4 cols on lg) */}
-          <div className="lg:col-span-4 rounded-xl bg-[#070e1f] border border-[#132342] p-3.5 flex flex-col justify-between shadow-md">
-            <div>
-              <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
-                <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-cyan-400" />
-                  Active Officer Sessions ({profiles.length})
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">Continuous ZK Sync</span>
-              </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+            {/* Left: Officer Profile Selection List (Spans 4 cols on lg) */}
+            <div className="lg:col-span-4 rounded-xl bg-[#070e1f] border border-[#132342] p-3.5 flex flex-col justify-between shadow-md">
+              <div>
+                <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
+                  <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-cyan-400" />
+                    Monitored Officer Sessions ({profiles.length})
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Pattern AI Sync</span>
+                </div>
 
-              <div className="space-y-2 pt-3 text-xs overflow-y-auto max-h-[480px] pr-1">
-                {profiles.map((prof) => {
-                  const isSelected = prof.id === currentProfile.id;
-                  return (
-                    <div
-                      key={prof.id}
-                      onClick={() => setSelectedProfileId(prof.id)}
-                      className={`p-3 rounded-lg cursor-pointer transition-all border ${
-                        isSelected
-                          ? 'bg-cyan-950/40 border-cyan-500/70 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
-                          : 'bg-[#050b18] border-[#101c34] hover:bg-slate-800/40 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
-                            <OfficerAvatarIcon className="w-6 h-6 text-slate-200" />
-                          </div>
-                          <div>
-                            <div className="font-bold text-slate-100 text-xs flex items-center gap-1.5">
-                              <span>{prof.name}</span>
-                              {prof.status === 'live' && (
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                              )}
+                <div className="space-y-2 pt-3 text-xs overflow-y-auto max-h-[460px] pr-1">
+                  {profiles.map((prof) => {
+                    const isSelected = prof.id === currentProfile.id;
+                    const isCompromised = prof.currentDissimilarity?.isCompromised;
+                    return (
+                      <div
+                        key={prof.id}
+                        onClick={() => setSelectedProfileId(prof.id)}
+                        className={`p-3 rounded-lg cursor-pointer transition-all border ${
+                          isSelected
+                            ? isCompromised
+                              ? 'bg-rose-950/50 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                              : 'bg-cyan-950/40 border-cyan-500/70 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+                            : 'bg-[#050b18] border-[#101c34] hover:bg-slate-800/40 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-8 h-8 rounded-full border flex items-center justify-center overflow-hidden shrink-0 ${isCompromised ? 'bg-red-950 border-red-500 text-red-300' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
+                              <OfficerAvatarIcon className="w-6 h-6" />
                             </div>
-                            <div className="text-[10.5px] text-slate-400">
-                              {prof.badgeNumber} · {prof.rank}
+                            <div>
+                              <div className="font-bold text-slate-100 text-xs flex items-center gap-1.5">
+                                <span>{prof.name}</span>
+                                {isCompromised ? (
+                                  <span className="px-1 py-0.2 rounded bg-red-900 text-red-200 text-[8px] font-black animate-pulse">HACKED</span>
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                )}
+                              </div>
+                              <div className="text-[10.5px] text-slate-400">
+                                {prof.badgeNumber} · {prof.rank}
+                              </div>
                             </div>
                           </div>
+
+                          <span
+                            className={`px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider uppercase shrink-0 ${
+                              isCompromised
+                                ? 'bg-rose-950 border border-rose-500 text-rose-300'
+                                : prof.status === 'live'
+                                ? 'bg-emerald-950 border border-emerald-500 text-emerald-300'
+                                : 'bg-amber-950 border border-amber-500 text-amber-300'
+                            }`}
+                          >
+                            {isCompromised ? 'INTRUSION' : prof.status}
+                          </span>
                         </div>
 
-                        <span
-                          className={`px-2 py-0.5 rounded text-[9px] font-extrabold tracking-wider uppercase shrink-0 ${
-                            prof.status === 'live'
-                              ? 'bg-emerald-950 border border-emerald-500 text-emerald-300'
-                              : prof.status === 'quarantined'
-                              ? 'bg-rose-950 border border-rose-500 text-rose-300'
-                              : 'bg-amber-950 border border-amber-500 text-amber-300'
-                          }`}
-                        >
-                          {prof.status}
-                        </span>
+                        <div className="mt-2.5 pt-2 border-t border-[#0f1b33] flex items-center justify-between text-[10px] text-slate-400">
+                          <span className="truncate max-w-[150px]">📍 {prof.locationInfo}</span>
+                          <span className={`font-mono font-bold ${isCompromised ? 'text-red-400' : 'text-emerald-400'}`}>
+                            Dissimilarity: {prof.currentDissimilarity?.overallDissimilarityScore || 0}%
+                          </span>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-                      <div className="mt-2.5 pt-2 border-t border-[#0f1b33] flex items-center justify-between text-[10px] text-slate-400">
-                        <span className="truncate max-w-[160px]">📍 {prof.locationInfo}</span>
-                        <span className={`font-mono font-bold ${prof.matchConfidence > 75 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {prof.matchConfidence}% confidence
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Quick Challenge Trigger */}
+              <div className="pt-3 border-t border-[#12203c] mt-3">
+                <button
+                  onClick={() => handleStartVerificationScan(currentProfile.id)}
+                  className="w-full py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Re-Challenge {currentProfile.name.split(' ')[0]}</span>
+                </button>
               </div>
             </div>
 
-            {/* Quick Challenge Trigger */}
-            <div className="pt-3 border-t border-[#12203c] mt-3">
-              <button
-                onClick={() => handleStartVerificationScan(currentProfile.id)}
-                className="w-full py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Re-Challenge {currentProfile.name.split(' ')[0]}</span>
-              </button>
-            </div>
-          </div>
+            {/* Right: Detailed Biometric Telemetry & Radar (Spans 8 cols on lg) */}
+            <div className="lg:col-span-8 rounded-xl bg-[#070e1f] border border-[#132342] p-4 flex flex-col justify-between shadow-md">
+              <div>
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#12203c]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
+                      <UserCheck className="w-4 h-4 text-emerald-400" />
+                      Biometric &amp; Pattern Profile — {currentProfile.name}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-semibold flex items-center gap-1 border ${
+                      currentProfile.currentDissimilarity?.isCompromised
+                        ? 'bg-rose-950/90 border-rose-500 text-rose-300 animate-pulse'
+                        : currentProfile.status === 'live'
+                        ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-400'
+                        : 'bg-amber-950/80 border-amber-500/60 text-amber-400'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${currentProfile.currentDissimilarity?.isCompromised ? 'bg-red-400' : 'bg-emerald-400 animate-pulse'}`}></span>
+                      {currentProfile.currentDissimilarity?.isCompromised ? 'HACK DETECTED' : 'LIVE SESSION'}
+                    </span>
+                  </div>
 
-          {/* Right: Detailed Biometric Telemetry & Radar (Spans 8 cols on lg) */}
-          <div className="lg:col-span-8 rounded-xl bg-[#070e1f] border border-[#132342] p-4 flex flex-col justify-between shadow-md">
-            <div>
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#12203c]">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-emerald-400" />
-                    Biometric Identity Profile — {currentProfile.name}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-semibold flex items-center gap-1 border ${
-                    currentProfile.status === 'live'
-                      ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-400'
-                      : currentProfile.status === 'quarantined'
-                      ? 'bg-rose-950/80 border-rose-500/60 text-rose-400'
-                      : 'bg-amber-950/80 border-amber-500/60 text-amber-400'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${currentProfile.status === 'live' ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
-                    {currentProfile.status} session
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setActiveDetailModal('biometric_log')}
-                    className="text-[11px] font-medium text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1"
-                  >
-                    <span>Full Biometric Log</span>
-                    <span className="text-xs">→</span>
-                  </button>
-
-                  {currentProfile.status !== 'quarantined' && (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleOpenQuarantine(currentProfile)}
-                      className="px-2.5 py-1 rounded bg-red-950/80 hover:bg-red-900/80 border border-red-500/60 text-red-300 text-[10.5px] font-bold flex items-center gap-1 transition-all"
-                      title="Quarantine this officer session immediately"
+                      onClick={() => setActiveDetailModal('biometric_log')}
+                      className="text-[11px] font-medium text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1"
                     >
-                      <Ban className="w-3 h-3 text-red-400" />
-                      <span>Quarantine</span>
+                      <span>Full Biometric Log</span>
+                      <span className="text-xs">→</span>
                     </button>
-                  )}
+
+                    {currentProfile.status !== 'quarantined' && (
+                      <button
+                        onClick={() => handleOpenQuarantine(currentProfile)}
+                        className="px-2.5 py-1 rounded bg-red-950/80 hover:bg-red-900/80 border border-red-500/60 text-red-300 text-[10.5px] font-bold flex items-center gap-1 transition-all"
+                        title="Quarantine this officer session immediately"
+                      >
+                        <Ban className="w-3 h-3 text-red-400" />
+                        <span>Kill Switch</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Biometric Analysis Visual Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center py-4">
-                {/* Biometric Scanner Radar Circle (5 cols on md) */}
-                <div className="md:col-span-5 flex flex-col items-center justify-center relative">
-                  <div className="relative w-48 h-48 flex items-center justify-center">
-                    {/* Outer Glow Ring */}
-                    <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 animate-pulse"></div>
+                {/* Biometric Analysis Visual Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center py-4">
+                  {/* Radar Circle (5 cols on md) */}
+                  <div className="md:col-span-5 flex flex-col items-center justify-center relative">
+                    <div className="relative w-48 h-48 flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 animate-pulse"></div>
+                      <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                        <circle cx="96" cy="96" r="84" fill="none" stroke="#0a1d33" strokeWidth="4" />
+                        <circle
+                          cx="96"
+                          cy="96"
+                          r="84"
+                          fill="none"
+                          stroke={currentProfile.currentDissimilarity?.isCompromised ? '#ef4444' : currentProfile.matchConfidence > 75 ? '#10b981' : '#f59e0b'}
+                          strokeWidth="4.5"
+                          strokeDasharray="528"
+                          strokeDashoffset={528 - (528 * currentProfile.matchConfidence) / 100}
+                          strokeLinecap="round"
+                          className="transition-all duration-1000 ease-out"
+                        />
+                      </svg>
 
-                    {/* Inner Radar Rings */}
-                    <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-                      <circle
-                        cx="96"
-                        cy="96"
-                        r="84"
-                        fill="none"
-                        stroke="#0a1d33"
-                        strokeWidth="4"
-                      />
-                      <circle
-                        cx="96"
-                        cy="96"
-                        r="84"
-                        fill="none"
-                        stroke={currentProfile.matchConfidence > 75 ? '#10b981' : '#ef4444'}
-                        strokeWidth="4.5"
-                        strokeDasharray="528"
-                        strokeDashoffset={528 - (528 * currentProfile.matchConfidence) / 100}
-                        strokeLinecap="round"
-                        className="transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                      />
-                    </svg>
+                      <div className="absolute -top-1 px-2.5 py-0.5 rounded-full bg-[#070e1f] border border-cyan-400/80 text-cyan-300 text-[8.5px] font-bold tracking-wider uppercase flex items-center gap-1 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                        <span>{currentProfile.currentDissimilarity?.isCompromised ? 'INTRUSION DETECTED' : 'REGISTERED PROFILE'}</span>
+                      </div>
 
-                    {/* Registered Profile Tag */}
-                    <div className="absolute -top-1 px-2.5 py-0.5 rounded-full bg-[#070e1f] border border-cyan-400/80 text-cyan-300 text-[8.5px] font-bold tracking-wider uppercase flex items-center gap-1 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
-                      <span>REGISTERED PROFILE</span>
-                      <div className="w-3 h-3 rounded-full bg-cyan-500 flex items-center justify-center text-slate-950 font-bold">
-                        <CheckCircle2 className="w-2.5 h-2.5 stroke-[3]" />
+                      <div className="w-24 h-24 rounded-full bg-[#050b18] border-2 border-cyan-400 flex items-center justify-center overflow-hidden relative">
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-blue-900/60 to-slate-900">
+                          <OfficerAvatarIcon className="w-16 h-16 text-slate-100" />
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/20 to-transparent h-4 w-full animate-bounce"></div>
                       </div>
                     </div>
 
-                    {/* Center Officer Avatar Portrait */}
-                    <div className="w-24 h-24 rounded-full bg-[#050b18] border-2 border-cyan-400 flex items-center justify-center overflow-hidden shadow-[0_0_20px_rgba(6,182,212,0.4)] relative">
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-blue-900/60 to-slate-900">
-                        <OfficerAvatarIcon className="w-16 h-16 text-slate-100" />
+                    <span className="text-[10px] text-slate-400 font-mono mt-2">
+                      Enrolled {currentProfile.enrolledDate} · Badge {currentProfile.badgeNumber}
+                    </span>
+                  </div>
+
+                  {/* Right Confidence & Factor Checklist (7 cols on md) */}
+                  <div className="md:col-span-7 space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                          MATCH CONFIDENCE
+                        </div>
+                        <div className="text-[10px] font-bold font-mono text-red-400">
+                          Dissimilarity: {currentProfile.currentDissimilarity?.overallDissimilarityScore || 0}%
+                        </div>
                       </div>
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/20 to-transparent h-4 w-full animate-bounce"></div>
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] text-slate-400 font-mono mt-2">
-                    Enrolled {currentProfile.enrolledDate} · Badge {currentProfile.badgeNumber}
-                  </span>
-                </div>
-
-                {/* Right Confidence & Factor Checklist (7 cols on md) */}
-                <div className="md:col-span-7 space-y-3">
-                  <div>
-                    <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                      MATCH CONFIDENCE SCORE
-                    </div>
-                    <div className="text-3xl font-extrabold text-cyan-400 mt-0.5 flex items-baseline gap-2">
-                      <span>{currentProfile.matchConfidence}%</span>
-                      <span className="text-xs font-normal text-slate-400 font-sans">
-                        {currentProfile.matchConfidence > 75 ? 'Optimal zero-trust baseline' : 'Anomalous deviation detected'}
-                      </span>
-                    </div>
-                    {/* Progress Bar */}
-                    <div className="h-2 w-full bg-[#0c1830] rounded-full overflow-hidden mt-1.5">
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ${
-                          currentProfile.matchConfidence > 75
-                            ? 'bg-emerald-400 shadow-[0_0_10px_#10b981]'
-                            : 'bg-rose-500 shadow-[0_0_10px_#f43f5e]'
-                        }`}
-                        style={{ width: `${currentProfile.matchConfidence}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  {/* 5 Biometric Factor Rows */}
-                  <div className="space-y-2 text-xs pt-1">
-                    {/* Factor 1: Face Geometry */}
-                    <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
-                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Face Geometry &amp; 3D Depth Map</span>
-                      </span>
-                      <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.faceGeometryMatch ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {currentProfile.faceGeometryMatch ? '✓ Valid (99.2%)' : '✗ Mismatch (61.0%)'}
-                      </span>
+                      <div className="text-3xl font-extrabold text-cyan-400 mt-0.5 flex items-baseline gap-2">
+                        <span className={currentProfile.currentDissimilarity?.isCompromised ? 'text-red-400' : 'text-cyan-400'}>
+                          {currentProfile.matchConfidence}%
+                        </span>
+                        <span className="text-xs font-normal text-slate-400 font-sans">
+                          {currentProfile.currentDissimilarity?.isCompromised
+                            ? '🚨 Severe behavioral pattern dissimilarity'
+                            : 'Within nominal zero-trust envelope'}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-[#0c1830] rounded-full overflow-hidden mt-1.5">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            currentProfile.currentDissimilarity?.isCompromised
+                              ? 'bg-rose-500 shadow-[0_0_10px_#f43f5e]'
+                              : 'bg-emerald-400 shadow-[0_0_10px_#10b981]'
+                          }`}
+                          style={{ width: `${currentProfile.matchConfidence}%` }}
+                        ></div>
+                      </div>
                     </div>
 
-                    {/* Factor 2: Voiceprint */}
-                    <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
-                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
-                        <Radio className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Voiceprint Acoustic Resonance (24-Band FFT)</span>
-                      </span>
-                      <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.voiceprintMatch ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {currentProfile.voiceprintMatch ? '✓ Valid' : '⚠ Acoustic Drift (22%)'}
-                      </span>
-                    </div>
+                    {/* 5 Biometric Factor Rows */}
+                    <div className="space-y-2 text-xs pt-1">
+                      <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
+                        <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                          <Camera className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Face Geometry &amp; 3D Topology</span>
+                        </span>
+                        <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.faceGeometryMatch ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {currentProfile.faceGeometryMatch ? '✓ Valid' : '✗ Mismatch (61.0%)'}
+                        </span>
+                      </div>
 
-                    {/* Factor 3: Typing Cadence */}
-                    <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
-                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
-                        <Laptop className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Keystroke Flight &amp; Dwell Dynamics</span>
-                      </span>
-                      <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.typingCadenceMatch ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {currentProfile.typingCadenceMatch ? '✓ Nominal' : '⚠ Cadence Variance'}
-                      </span>
-                    </div>
+                      <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
+                        <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                          <Radio className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Voiceprint Acoustic Resonance</span>
+                        </span>
+                        <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.voiceprintMatch ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {currentProfile.voiceprintMatch ? '✓ Valid' : '⚠ Acoustic Drift (22%)'}
+                        </span>
+                      </div>
 
-                    {/* Factor 4: Device + Location */}
-                    <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
-                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Device TPM 2.0 &amp; BSSID Geolocation</span>
-                      </span>
-                      <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.deviceFingerprintMatch ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {currentProfile.deviceFingerprintMatch ? '✓ Verified Hardware' : '✗ Unenrolled Device'}
-                      </span>
-                    </div>
+                      <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
+                        <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                          <Laptop className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Keystroke Cadence Dynamics</span>
+                        </span>
+                        <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.typingCadenceMatch ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {currentProfile.typingCadenceMatch ? '✓ Nominal' : '⚠ Cadence Variance'}
+                        </span>
+                      </div>
 
-                    {/* Factor 5: Badge Cert */}
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-slate-300 font-medium flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Smart-Card X.509 Cryptographic Cert</span>
-                      </span>
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1 text-[11px]">
-                        ✓ Police Root CA Valid
-                      </span>
+                      <div className="flex items-center justify-between py-1 border-b border-[#101b33]">
+                        <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Device TPM 2.0 &amp; Geolocation</span>
+                        </span>
+                        <span className={`font-semibold flex items-center gap-1 text-[11px] ${currentProfile.deviceFingerprintMatch ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {currentProfile.deviceFingerprintMatch ? '✓ Verified' : '✗ Unenrolled Device'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                          <Key className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Smart-Card X.509 Cryptographic Cert</span>
+                        </span>
+                        <span className="text-emerald-400 font-semibold flex items-center gap-1 text-[11px]">
+                          ✓ Police Root CA Valid
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Officer Metadata Footer */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-3 border-t border-[#12203c] text-[11px] bg-[#050b18]/60 p-2.5 rounded-lg">
-              <div>
-                <span className="text-slate-400 block text-[10px]">REGISTERED HARDWARE</span>
-                <span className="text-slate-200 font-semibold font-mono">{currentProfile.deviceInfo}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px]">CURRENT GEO LOCATION</span>
-                <span className="text-slate-200 font-semibold">{currentProfile.locationInfo}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px]">SESSION IP ADDRESS</span>
-                <span className="text-cyan-300 font-mono font-semibold">{currentProfile.ipAddress}</span>
+              {/* Officer Metadata Footer */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-3 border-t border-[#12203c] text-[11px] bg-[#050b18]/60 p-2.5 rounded-lg">
+                <div>
+                  <span className="text-slate-400 block text-[10px]">CURRENT HARDWARE</span>
+                  <span className="text-slate-200 font-semibold font-mono">{currentProfile.deviceInfo}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">GEO TELEMETRY</span>
+                  <span className="text-slate-200 font-semibold">{currentProfile.locationInfo}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">SESSION IP</span>
+                  <span className="text-cyan-300 font-mono font-semibold">{currentProfile.ipAddress}</span>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* ─── OFFICER BASELINE PATTERN vs OBSERVED TELEMETRY COMPARISON MATRIX ─── */}
+          {currentProfile.baselinePattern && (
+            <div className="rounded-xl bg-[#081023] border border-[#142342] p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-[#142342]">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-cyan-400" />
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Officer Baseline Operational Pattern vs Live Telemetry ({currentProfile.name})
+                  </h3>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded text-[10.5px] font-mono font-bold border ${
+                  currentProfile.currentDissimilarity?.isCompromised
+                    ? 'bg-rose-950 text-rose-300 border-rose-500'
+                    : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                }`}>
+                  Verdict: {currentProfile.currentDissimilarity?.threatVerdict?.replace(/_/g, ' ')}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+                {/* 1. Working Hours */}
+                <div className="p-3 bg-[#050b18] rounded-lg border border-[#101c34] space-y-1.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-cyan-400" />
+                    <span>Working Hours</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 font-mono">
+                    <span className="text-slate-500 block text-[9.5px]">BASELINE</span>
+                    {currentProfile.baselinePattern.typicalWorkingHours}
+                  </div>
+                  <div className="text-[11px] font-mono">
+                    <span className="text-slate-500 block text-[9.5px]">OBSERVED</span>
+                    <span className={currentProfile.currentDissimilarity?.timeAnomaly.isAbnormal ? 'text-red-400 font-bold' : 'text-emerald-400'}>
+                      {currentProfile.currentDissimilarity?.timeAnomaly.observed}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Registered Devices */}
+                <div className="p-3 bg-[#050b18] rounded-lg border border-[#101c34] space-y-1.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Laptop className="w-3 h-3 text-blue-400" />
+                    <span>Device Posture</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 font-mono truncate">
+                    <span className="text-slate-500 block text-[9.5px]">BASELINE</span>
+                    {currentProfile.baselinePattern.registeredDevices[0] || 'Gov Terminal'}
+                  </div>
+                  <div className="text-[11px] font-mono truncate">
+                    <span className="text-slate-500 block text-[9.5px]">OBSERVED</span>
+                    <span className={currentProfile.currentDissimilarity?.deviceAnomaly.isAbnormal ? 'text-red-400 font-bold' : 'text-emerald-400'}>
+                      {currentProfile.currentDissimilarity?.deviceAnomaly.observed}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. Primary Geofence */}
+                <div className="p-3 bg-[#050b18] rounded-lg border border-[#101c34] space-y-1.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-amber-400" />
+                    <span>Geofence Zone</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 font-mono truncate">
+                    <span className="text-slate-500 block text-[9.5px]">BASELINE</span>
+                    {currentProfile.baselinePattern.primaryGeofence}
+                  </div>
+                  <div className="text-[11px] font-mono truncate">
+                    <span className="text-slate-500 block text-[9.5px]">OBSERVED</span>
+                    <span className={currentProfile.currentDissimilarity?.geoAnomaly.isAbnormal ? 'text-red-400 font-bold' : 'text-emerald-400'}>
+                      {currentProfile.currentDissimilarity?.geoAnomaly.observed}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4. Typing Cadence */}
+                <div className="p-3 bg-[#050b18] rounded-lg border border-[#101c34] space-y-1.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Fingerprint className="w-3 h-3 text-purple-400" />
+                    <span>Keystroke Speed</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 font-mono">
+                    <span className="text-slate-500 block text-[9.5px]">BASELINE</span>
+                    {currentProfile.baselinePattern.averageTypingWpm} WPM ({currentProfile.baselinePattern.averageFlightTimeMs}ms)
+                  </div>
+                  <div className="text-[11px] font-mono">
+                    <span className="text-slate-500 block text-[9.5px]">OBSERVED</span>
+                    <span className={currentProfile.currentDissimilarity?.cadenceAnomaly.isAbnormal ? 'text-red-400 font-bold' : 'text-emerald-400'}>
+                      {currentProfile.currentDissimilarity?.cadenceAnomaly.observed}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 5. Action Velocity */}
+                <div className="p-3 bg-[#050b18] rounded-lg border border-[#101c34] space-y-1.5">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    <Terminal className="w-3 h-3 text-emerald-400" />
+                    <span>Operations Velocity</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 font-mono truncate">
+                    <span className="text-slate-500 block text-[9.5px]">BASELINE</span>
+                    {currentProfile.baselinePattern.dailyAvgQueryCount} queries/day
+                  </div>
+                  <div className="text-[11px] font-mono truncate">
+                    <span className="text-slate-500 block text-[9.5px]">OBSERVED</span>
+                    <span className={currentProfile.currentDissimilarity?.actionAnomaly.isAbnormal ? 'text-red-400 font-bold' : 'text-emerald-400'}>
+                      {currentProfile.currentDissimilarity?.actionAnomaly.observed}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Intruder Indicators Box */}
+              {currentProfile.currentDissimilarity?.intruderIndicators && currentProfile.currentDissimilarity.intruderIndicators.length > 0 && (
+                <div className="p-3 bg-red-950/40 border border-red-500/50 rounded-lg space-y-1">
+                  <div className="text-xs font-bold text-red-300 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                    <span>Intruder Anomaly Indicators Flagged:</span>
+                  </div>
+                  <ul className="list-disc list-inside text-xs text-red-200/90 space-y-0.5 pl-1">
+                    {currentProfile.currentDissimilarity.intruderIndicators.map((ind, idx) => (
+                      <li key={idx}>{ind}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ─── TAB 2: IDENTITY AUDIT TRAIL ─── */}
+      {/* ─── TAB 2: IDENTITY AUDIT TRAIL & HACK ALERTS ─── */}
       {activeTab === 'trail' && (
         <div className="space-y-4">
           {/* Search & Category Filter Pills */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#081023] border border-[#142342] rounded-xl p-3">
-            {/* Search Input */}
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="Search identity trail by officer, badge, IP, device, action or case..."
+                placeholder="Search trail by officer, badge, IP, device, action, hack alert or case..."
                 className="w-full pl-9 pr-4 py-1.5 bg-[#050b18] border border-[#162747] rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
               />
             </div>
 
-            {/* Category Chips */}
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { id: 'ALL', label: 'All Events' },
+                { id: 'HACK_PATTERN_ALERT', label: '🚨 Hack Alerts' },
                 { id: 'BIOMETRIC_PASS', label: 'Biometric Pass' },
                 { id: 'IMPOSSIBLE_TRAVEL', label: 'Impossible Travel' },
                 { id: 'SESSION_HIJACK', label: 'Session Hijack' },
-                { id: 'FAILED_CHALLENGE', label: 'Failed Challenge' },
-                { id: 'QUARANTINE_ENFORCED', label: 'Quarantines' }
+                { id: 'QUARANTINE_ENFORCED', label: 'Kill Switches' }
               ].map((cat) => (
                 <button
                   key={cat.id}
@@ -987,11 +1239,14 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
             ) : (
               filteredTrailEvents.map((evt) => {
                 const isExpanded = expandedEventId === evt.id;
+                const isCompromised = evt.isHackedAnomaly || evt.status === 'HACKED_ALERT';
                 return (
                   <div
                     key={evt.id}
                     className={`rounded-xl border transition-all ${
-                      evt.severity === 'CRITICAL'
+                      isCompromised
+                        ? 'bg-[#180509] border-red-500/80 hover:border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                        : evt.severity === 'CRITICAL'
                         ? 'bg-[#12060c] border-rose-900/60 hover:border-rose-500/80'
                         : evt.severity === 'HIGH'
                         ? 'bg-[#140b05] border-amber-900/60 hover:border-amber-500/80'
@@ -1006,14 +1261,18 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
                       <div className="flex items-start sm:items-center gap-3">
                         <div
                           className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
-                            evt.severity === 'CRITICAL'
+                            isCompromised
+                              ? 'bg-red-900 border-red-400 text-white animate-pulse'
+                              : evt.severity === 'CRITICAL'
                               ? 'bg-rose-950 border-rose-500/60 text-rose-400'
                               : evt.severity === 'HIGH'
                               ? 'bg-amber-950 border-amber-500/60 text-amber-400'
                               : 'bg-cyan-950 border-cyan-500/60 text-cyan-400'
                           }`}
                         >
-                          {evt.severity === 'CRITICAL' ? (
+                          {isCompromised ? (
+                            <Skull className="w-4 h-4" />
+                          ) : evt.severity === 'CRITICAL' ? (
                             <AlertOctagon className="w-4 h-4" />
                           ) : evt.severity === 'HIGH' ? (
                             <AlertTriangle className="w-4 h-4" />
@@ -1024,10 +1283,14 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
 
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-bold text-xs text-white">{evt.action}</span>
+                            <span className={`font-bold text-xs ${isCompromised ? 'text-red-300' : 'text-white'}`}>
+                              {evt.action}
+                            </span>
                             <span
                               className={`px-2 py-0.2 rounded text-[9px] font-extrabold uppercase border ${
-                                evt.status === 'VERIFIED'
+                                isCompromised
+                                  ? 'bg-red-950 border-red-500 text-red-200 animate-pulse'
+                                  : evt.status === 'VERIFIED'
                                   ? 'bg-emerald-950 border-emerald-500/60 text-emerald-300'
                                   : evt.status === 'QUARANTINED'
                                   ? 'bg-rose-950 border-rose-500/60 text-rose-300'
@@ -1036,6 +1299,11 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
                             >
                               {evt.status}
                             </span>
+                            {evt.patternDissimilarityScore > 50 && (
+                              <span className="px-1.5 py-0.2 rounded bg-red-950/80 border border-red-500 text-red-300 text-[9px] font-mono font-bold">
+                                Dissimilarity: {evt.patternDissimilarityScore}%
+                              </span>
+                            )}
                           </div>
                           <div className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-2">
                             <span className="text-slate-200 font-semibold">{evt.officerName}</span>
@@ -1063,23 +1331,42 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
 
                     {/* Expandable Technical Details Tray */}
                     {isExpanded && (
-                      <div className="px-4 pb-4 pt-1 border-t border-[#12203c] space-y-3 text-xs bg-[#050b18]/70 rounded-b-xl">
+                      <div className="px-4 pb-4 pt-1 border-t border-[#12203c] space-y-3 text-xs bg-[#050b18]/80 rounded-b-xl">
                         <p className="text-slate-300 leading-relaxed">{evt.details}</p>
+
+                        {/* Dissimilarity Breakdown */}
+                        {evt.dissimilarityBreakdown && (
+                          <div className="p-3 bg-[#030712] rounded-lg border border-red-900/40 space-y-1.5 font-mono text-[11px]">
+                            <div className="text-[10px] font-bold text-red-300 uppercase tracking-wider flex items-center gap-1.5">
+                              <Crosshair className="w-3.5 h-3.5 text-red-400" />
+                              <span>Pattern Dissimilarity Vector Breakdown:</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
+                              <div>• Time Shift: <span className="text-red-300">{evt.dissimilarityBreakdown.timeShift}</span></div>
+                              <div>• Device Discrepancy: <span className="text-red-300">{evt.dissimilarityBreakdown.deviceDiscrepancy}</span></div>
+                              <div>• Geofence Drift: <span className="text-red-300">{evt.dissimilarityBreakdown.geoDrift}</span></div>
+                              <div>• Keystroke Velocity: <span className="text-red-300">{evt.dissimilarityBreakdown.keystrokeDeviation}</span></div>
+                            </div>
+                            <div className="text-red-200 font-semibold pt-1 border-t border-red-950">
+                              • Unauthorized Operations: {evt.dissimilarityBreakdown.unauthorizedActions}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Technical Metadata Pills */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-[#030712] p-3 rounded-lg border border-[#101c34] font-mono text-[11px]">
                           <div>
-                            <span className="text-slate-500 text-[9.5px] block">HARDWARE &amp; OS DEVICE</span>
+                            <span className="text-slate-500 text-[9.5px] block">HARDWARE POSTURE</span>
                             <span className="text-slate-200">{evt.deviceInfo}</span>
                           </div>
                           <div>
-                            <span className="text-slate-500 text-[9.5px] block">IP &amp; BSSID TELEMETRY</span>
+                            <span className="text-slate-500 text-[9.5px] block">IP &amp; CELL TELEMETRY</span>
                             <span className="text-cyan-300">{evt.ipAddress}</span>
                           </div>
                           <div>
-                            <span className="text-slate-500 text-[9.5px] block">BIOMETRIC CONFIDENCE</span>
-                            <span className={`font-bold ${evt.confidenceScore > 75 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {evt.confidenceScore}% match
+                            <span className="text-slate-500 text-[9.5px] block">PATTERN DISSIMILARITY</span>
+                            <span className={`font-bold ${evt.patternDissimilarityScore > 70 ? 'text-red-400' : 'text-emerald-400'}`}>
+                              {evt.patternDissimilarityScore}% deviation
                             </span>
                           </div>
                         </div>
@@ -1123,17 +1410,17 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
         </div>
       )}
 
-      {/* ─── TAB 3: DOPPELGANGER WATCHLIST & QUARANTINES ─── */}
+      {/* ─── TAB 3: COMPROMISED & DOPPELGANGER WATCHLIST ─── */}
       {activeTab === 'watchlist' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-[#142342]">
             <div>
               <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <AlertOctagon className="w-4 h-4 text-red-400" />
-                Active Doppelganger &amp; Impersonation Alerts ({watchlist.length})
+                Compromised Accounts &amp; Doppelganger Watchlist ({watchlist.length})
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Flagged sessions exhibiting biometric drift, impossible travel, or credential cloning
+                Sessions flagged for severe pattern dissimilarity, impossible travel, or credential cloning
               </p>
             </div>
 
@@ -1150,13 +1437,17 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
             {watchlist.map((item) => (
               <div
                 key={item.id}
-                className="p-4 rounded-xl bg-[#090e1f] border border-[#1a2c4e] hover:border-red-500/60 transition-all shadow-md flex flex-col justify-between space-y-3"
+                className={`p-4 rounded-xl border transition-all shadow-md flex flex-col justify-between space-y-3 ${
+                  item.isAccountHijacked
+                    ? 'bg-[#160508] border-red-500/80 hover:border-red-400'
+                    : 'bg-[#090e1f] border-[#1a2c4e] hover:border-red-500/60'
+                }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-full bg-red-950/80 border border-red-500/60 flex items-center justify-center text-red-400 font-bold shrink-0">
-                        <Users className="w-4.5 h-4.5" />
+                        {item.isAccountHijacked ? <Skull className="w-4.5 h-4.5 animate-pulse" /> : <Users className="w-4.5 h-4.5" />}
                       </div>
                       <div>
                         <div className="font-bold text-sm text-white flex items-center gap-2">
@@ -1164,20 +1455,27 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
                           <span className="text-xs font-mono text-slate-400">({item.badgeNumber})</span>
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
-                          Flagged {item.timeAgo} · {item.anomalyType.replace('_', ' ')}
+                          Flagged {item.timeAgo} · {item.anomalyType.replace(/_/g, ' ')}
                         </div>
                       </div>
                     </div>
 
-                    <span
-                      className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase border ${
-                        item.severity === 'CRITICAL'
-                          ? 'bg-rose-950 border-rose-500 text-rose-300'
-                          : 'bg-amber-950 border-amber-500 text-amber-300'
-                      }`}
-                    >
-                      {item.severity}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase border ${
+                          item.severity === 'CRITICAL'
+                            ? 'bg-rose-950 border-rose-500 text-rose-300'
+                            : 'bg-amber-950 border-amber-500 text-amber-300'
+                        }`}
+                      >
+                        {item.severity}
+                      </span>
+                      {item.isAccountHijacked && (
+                        <span className="px-1.5 py-0.2 rounded bg-red-900 text-white text-[8.5px] font-black uppercase tracking-wider animate-pulse">
+                          HACK DETECTED
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <p className="text-xs text-slate-300 mt-3 leading-relaxed bg-[#050b18] p-2.5 rounded-lg border border-[#101c34]">
@@ -1186,11 +1484,11 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
 
                   <div className="grid grid-cols-2 gap-2 mt-2.5 text-[11px] text-slate-400 font-mono">
                     <div>
-                      <span className="text-[9.5px] text-slate-500 block">DEVICE</span>
+                      <span className="text-[9.5px] text-slate-500 block">DEVICE INTRUDER</span>
                       <span className="text-slate-200">{item.deviceInfo}</span>
                     </div>
                     <div>
-                      <span className="text-[9.5px] text-slate-500 block">LOCATION</span>
+                      <span className="text-[9.5px] text-slate-500 block">LOCATION TELEMETRY</span>
                       <span className="text-slate-200">{item.location}</span>
                     </div>
                   </div>
@@ -1198,8 +1496,8 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
 
                 {/* Action Buttons */}
                 <div className="pt-3 border-t border-[#142444] flex items-center justify-between gap-2">
-                  <span className={`text-[11px] font-mono font-bold ${item.confidenceMatch > 70 ? 'text-amber-400' : 'text-red-400'}`}>
-                    Biometric: {item.confidenceMatch}%
+                  <span className="text-[11px] font-mono font-bold text-red-400">
+                    Dissimilarity: {item.dissimilarityScore || 88.6}%
                   </span>
 
                   <div className="flex items-center gap-2">
@@ -1216,7 +1514,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
                       }}
                       className="px-3 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow"
                     >
-                      Quarantine Session
+                      Kill Switch
                     </button>
                   </div>
                 </div>
@@ -1229,7 +1527,6 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
       {/* ─── TAB 4: BEHAVIORAL DYNAMICS & GEO-CONSISTENCY ─── */}
       {activeTab === 'behavior' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-          {/* Keystroke & Mouse Dynamics Waveform (Spans 6 cols on lg) */}
           <div className="lg:col-span-6 rounded-xl bg-[#070e1f] border border-[#132342] p-4 flex flex-col justify-between shadow-md">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
@@ -1238,11 +1535,10 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
                   Live Keystroke &amp; Mouse Dynamics
                 </span>
                 <span className="px-2 py-0.5 rounded bg-cyan-950 text-[10px] text-cyan-300 border border-cyan-500/40 font-mono">
-                  Active Baseline: Nominal (98.6%)
+                  Enrolled Baseline Envelope
                 </span>
               </div>
 
-              {/* Dynamic Waveform SVG */}
               <div className="py-6 flex flex-col items-center justify-center">
                 <div className="w-full h-24 flex items-center bg-[#040813] rounded-lg p-2 border border-[#101c34]">
                   <svg className="w-full h-full stroke-cyan-400 fill-none" viewBox="0 0 400 60">
@@ -1278,9 +1574,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
             </div>
           </div>
 
-          {/* Login Geo-Consistency & Credential Health (Spans 6 cols on lg) */}
           <div className="lg:col-span-6 space-y-3.5">
-            {/* Geo Consistency Card */}
             <div className="rounded-xl bg-[#070e1f] border border-[#132342] p-4 shadow-md">
               <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
                 <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
@@ -1304,12 +1598,11 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <span className="text-slate-300">Unrecognized Cell Tower (Pune Sector 12)</span>
-                  <span className="text-red-400 font-bold font-mono">12% [QUARANTINE ENFORCED]</span>
+                  <span className="text-red-400 font-bold font-mono">12% [KILL SWITCH ENFORCED]</span>
                 </div>
               </div>
             </div>
 
-            {/* Credential Health Card */}
             <div className="rounded-xl bg-[#070e1f] border border-[#132342] p-4 shadow-md">
               <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
                 <span className="text-xs font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
@@ -1376,7 +1669,6 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
                 </p>
               </div>
 
-              {/* Progress Bar */}
               <div className="w-full bg-[#0c1830] h-2 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-500 shadow-[0_0_10px_#06b6d4]"
@@ -1397,14 +1689,14 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
         </div>
       )}
 
-      {/* ─── MODAL 2: QUARANTINE SESSION CONFIRMATION ─── */}
+      {/* ─── MODAL 2: QUARANTINE / KILL SWITCH CONFIRMATION ─── */}
       {isQuarantineModalOpen && targetQuarantineProfile && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-[#081023] border border-rose-500/60 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-[#162747] pb-3">
               <h3 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
                 <Ban className="w-4 h-4 text-rose-400" />
-                Enforce Emergency Session Quarantine
+                Emergency Session Kill Switch &amp; Quarantine
               </h3>
               <button onClick={() => setIsQuarantineModalOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-4 h-4" />
@@ -1413,12 +1705,12 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
 
             <div className="space-y-3 text-xs">
               <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-lg text-rose-200">
-                ⚠️ You are about to forcibly terminate and revoke the session token for <strong>{targetQuarantineProfile.name}</strong> ({targetQuarantineProfile.badgeNumber}). This will invalidate all active cryptographic keypairs and disconnect the hardware terminal.
+                ⚠️ You are about to forcibly terminate and revoke the session token for <strong>{targetQuarantineProfile.name}</strong> ({targetQuarantineProfile.badgeNumber}). This will invalidate all active cryptographic keypairs, revoke OAuth2 tokens, and disconnect the intruder.
               </div>
 
               <div>
                 <label className="text-slate-300 font-semibold block mb-1">
-                  Reason for Emergency Quarantine (Statutory Audit Trail)
+                  Statutory Reason for Kill Switch (Logged to Blockchain Custody Trail)
                 </label>
                 <textarea
                   value={quarantineReason}
@@ -1442,21 +1734,21 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
                 className="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow"
               >
                 <Ban className="w-3.5 h-3.5" />
-                <span>{isQuarantining ? 'Quarantining...' : 'Confirm Session Quarantine'}</span>
+                <span>{isQuarantining ? 'Enforcing Kill Switch...' : 'Execute Emergency Kill Switch'}</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ─── MODAL 3: SIMULATE ANOMALY ─── */}
+      {/* ─── MODAL 3: SIMULATE ACCOUNT HACK / DISSIMILARITY ─── */}
       {isSimulateModalOpen && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-[#081023] border border-amber-500/60 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-[#162747] pb-3">
               <h3 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
                 <Zap className="w-4 h-4 text-amber-400" />
-                Simulate Identity Anomaly Event
+                Simulate Account Hack &amp; Pattern Dissimilarity
               </h3>
               <button onClick={() => setIsSimulateModalOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-4 h-4" />
@@ -1467,6 +1759,17 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               <p className="text-slate-300 mb-3">
                 Select an anomaly to inject into the live identity security telemetry stream:
               </p>
+
+              <button
+                onClick={() => handleSimulateAnomaly('HACK_ACCOUNT')}
+                className="w-full p-3 rounded-lg bg-[#180509] hover:bg-red-950/60 border border-red-500/60 text-left transition-all"
+              >
+                <div className="font-bold text-red-300 text-xs flex items-center gap-1.5">
+                  <Skull className="w-3.5 h-3.5 text-red-400" />
+                  <span>🚨 Account Hack: Severe Dissimilarity (88.6%)</span>
+                </div>
+                <div className="text-[11px] text-red-200/80 mt-0.5">Off-hours 03:14 AM login, 135 WPM automated cadence burst, bulk DB dump.</div>
+              </button>
 
               <button
                 onClick={() => handleSimulateAnomaly('IMPOSSIBLE_TRAVEL')}
@@ -1482,14 +1785,6 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
               >
                 <div className="font-bold text-amber-300 text-xs">🎙️ AI Synthetic Voiceprint Drift (24.8%)</div>
                 <div className="text-[11px] text-slate-400 mt-0.5">Detects deepfake pitch quantization during dispatch.</div>
-              </button>
-
-              <button
-                onClick={() => handleSimulateAnomaly('CLONED_KEY')}
-                className="w-full p-3 rounded-lg bg-[#050b18] hover:bg-amber-950/40 border border-[#142444] hover:border-amber-500/60 text-left transition-all"
-              >
-                <div className="font-bold text-amber-300 text-xs">🔑 Cloned Smart-Card Nonce Replay</div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Concurrent cryptographic handshakes on 2 devices.</div>
               </button>
 
               <button

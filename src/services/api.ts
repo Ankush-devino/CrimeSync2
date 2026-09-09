@@ -468,6 +468,7 @@ export const api = {
       const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
       return request<any[]>(`/identity/watchlist${qs}`);
     },
+    getHackedAlerts: () => request<{ compromisedCount: number; alerts: any[] }>(`/identity/hacked-alerts`),
     verify: (officerId: string) =>
       request<any>(`/identity/verify`, {
         method: "POST",

@@ -2,6 +2,33 @@
 import { Router, Request, Response } from "express";
 import { formatResponse } from "../../utils/api-response";
 
+export interface OfficerBaselinePattern {
+  typicalWorkingHours: string;
+  typicalWorkDays: string;
+  authorizedSubnets: string[];
+  registeredDevices: string[];
+  primaryGeofence: string;
+  averageTypingWpm: number;
+  averageFlightTimeMs: number;
+  averageDwellTimeMs: number;
+  usualCaseCategories: string[];
+  dailyAvgQueryCount: number;
+  baselineTrustRating: number;
+}
+
+export interface PatternDissimilarityAnalysis {
+  isCompromised: boolean;
+  threatVerdict: "NORMAL" | "SUSPICIOUS_DRIFT" | "HACK_DETECTED_UNAUTHORIZED_ACTOR";
+  overallDissimilarityScore: number; // 0 - 100%
+  timeAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  deviceAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  geoAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  cadenceAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  actionAnomaly: { baseline: string; observed: string; isAbnormal: boolean; score: number };
+  intruderIndicators: string[];
+  recommendedAction: string;
+}
+
 export interface OfficerBiometricProfileDTO {
   id: string;
   name: string;
@@ -22,6 +49,8 @@ export interface OfficerBiometricProfileDTO {
   lastActive: string;
   ipAddress: string;
   assignedCaseId?: string;
+  baselinePattern: OfficerBaselinePattern;
+  currentDissimilarity: PatternDissimilarityAnalysis;
 }
 
 export interface IdentityTrailEventDTO {
@@ -31,16 +60,25 @@ export interface IdentityTrailEventDTO {
   officerName: string;
   badgeNumber: string;
   action: string;
-  category: "BIOMETRIC_PASS" | "IMPOSSIBLE_TRAVEL" | "FAILED_CHALLENGE" | "SESSION_HIJACK" | "QUARANTINE_ENFORCED" | "CREDENTIAL_REFRESH";
+  category: "BIOMETRIC_PASS" | "IMPOSSIBLE_TRAVEL" | "FAILED_CHALLENGE" | "SESSION_HIJACK" | "QUARANTINE_ENFORCED" | "CREDENTIAL_REFRESH" | "HACK_PATTERN_ALERT";
   severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
-  status: "VERIFIED" | "FLAGGED" | "BLOCKED" | "QUARANTINED";
+  status: "VERIFIED" | "FLAGGED" | "BLOCKED" | "QUARANTINED" | "HACKED_ALERT";
   caseId: string;
   deviceInfo: string;
   ipAddress: string;
   location: string;
   confidenceScore: number;
+  patternDissimilarityScore: number;
+  isHackedAnomaly: boolean;
   hashSha256: string;
   details: string;
+  dissimilarityBreakdown?: {
+    timeShift: string;
+    deviceDiscrepancy: string;
+    geoDrift: string;
+    keystrokeDeviation: string;
+    unauthorizedActions: string;
+  };
   rawTelemetry?: {
     faceScore?: number;
     voiceDriftPercent?: number;
@@ -59,15 +97,17 @@ export interface DoppelgangerWatchlistItemDTO {
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
   flaggedAt: string;
   timeAgo: string;
-  anomalyType: "VOICE_DRIFT" | "IMPOSSIBLE_TRAVEL" | "KEYBOARD_CADENCE" | "UNAUTHORIZED_DEVICE" | "CLONED_SESSION";
+  anomalyType: "VOICE_DRIFT" | "IMPOSSIBLE_TRAVEL" | "KEYBOARD_CADENCE" | "UNAUTHORIZED_DEVICE" | "CLONED_SESSION" | "PATTERN_DISSIMILARITY_HACK";
   deviceInfo: string;
   location: string;
   status: "ACTIVE_ALERT" | "QUARANTINED" | "INVESTIGATING";
   confidenceMatch: number;
+  dissimilarityScore: number;
+  isAccountHijacked: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// In-Memory Realistic Datasets for Identity Security
+// Default Realistic Baselines and Profiles
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DEFAULT_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
@@ -90,7 +130,32 @@ const DEFAULT_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     locationInfo: "Delhi HQ - Command Room B",
     lastActive: "Just now",
     ipAddress: "10.14.22.84",
-    assignedCaseId: "CASE-2026-001"
+    assignedCaseId: "CASE-2026-001",
+    baselinePattern: {
+      typicalWorkingHours: "08:30 - 20:00 IST",
+      typicalWorkDays: "Monday - Saturday",
+      authorizedSubnets: ["10.14.22.0/24", "10.14.23.0/24"],
+      registeredDevices: ["Dell Latitude 7440 (TPM #DL-POL-8842-TPM)"],
+      primaryGeofence: "Delhi NCR Command Center (Radius 30km)",
+      averageTypingWpm: 68,
+      averageFlightTimeMs: 112,
+      averageDwellTimeMs: 84,
+      usualCaseCategories: ["PHISHING", "HAWALA", "RANSOMWARE"],
+      dailyAvgQueryCount: 46,
+      baselineTrustRating: 98
+    },
+    currentDissimilarity: {
+      isCompromised: false,
+      threatVerdict: "NORMAL",
+      overallDissimilarityScore: 2.4,
+      timeAnomaly: { baseline: "08:30 - 20:00", observed: "11:45 AM (Within Hours)", isAbnormal: false, score: 0 },
+      deviceAnomaly: { baseline: "Dell Latitude 7440", observed: "Dell Latitude 7440 (TPM Valid)", isAbnormal: false, score: 0 },
+      geoAnomaly: { baseline: "Delhi HQ", observed: "Delhi HQ Command Room B", isAbnormal: false, score: 0 },
+      cadenceAnomaly: { baseline: "68 WPM / 112ms flight", observed: "69 WPM / 110ms flight", isAbnormal: false, score: 3 },
+      actionAnomaly: { baseline: "Standard investigation triage", observed: "Case review & evidence verification", isAbnormal: false, score: 2 },
+      intruderIndicators: [],
+      recommendedAction: "Session authenticated with continuous Zero-Trust biometric compliance."
+    }
   },
   insp_r_sharma: {
     id: "insp_r_sharma",
@@ -111,7 +176,37 @@ const DEFAULT_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     locationInfo: "Pune - Unknown Cell Tower",
     lastActive: "4m ago",
     ipAddress: "152.57.19.202",
-    assignedCaseId: "CASE-2026-004"
+    assignedCaseId: "CASE-2026-004",
+    baselinePattern: {
+      typicalWorkingHours: "09:00 - 18:30 IST",
+      typicalWorkDays: "Monday - Friday",
+      authorizedSubnets: ["10.14.22.0/24"],
+      registeredDevices: ["Lenovo ThinkPad P14s (Gov PKI)"],
+      primaryGeofence: "Delhi Police HQ / North Block",
+      averageTypingWpm: 55,
+      averageFlightTimeMs: 130,
+      averageDwellTimeMs: 95,
+      usualCaseCategories: ["HAWALA", "MONEY_LAUNDERING"],
+      dailyAvgQueryCount: 28,
+      baselineTrustRating: 92
+    },
+    currentDissimilarity: {
+      isCompromised: true,
+      threatVerdict: "HACK_DETECTED_UNAUTHORIZED_ACTOR",
+      overallDissimilarityScore: 88.6,
+      timeAnomaly: { baseline: "09:00 - 18:30 IST", observed: "03:14 AM (Off-hours burst)", isAbnormal: true, score: 85 },
+      deviceAnomaly: { baseline: "Lenovo ThinkPad P14s", observed: "Unregistered iPhone 14 Pro (Non-Gov UDID)", isAbnormal: true, score: 95 },
+      geoAnomaly: { baseline: "Delhi HQ", observed: "Pune Cell Tower Sector 12 (1,180km drift)", isAbnormal: true, score: 99 },
+      cadenceAnomaly: { baseline: "55 WPM / 130ms flight", observed: "135 WPM (Automated script/burst)", isAbnormal: true, score: 90 },
+      actionAnomaly: { baseline: "Hawala ledger reads", observed: "Bulk encrypted DB dump & credential export", isAbnormal: true, score: 96 },
+      intruderIndicators: [
+        "Concurrent login session while primary terminal active in Delhi",
+        "Off-hours database dump query initiated at 03:14 AM",
+        "Facial geometry match dropped to 61.0% (Synthetic deepfake mask artifact)",
+        "Voice harmonics failed FFT acoustic resonance anti-spoofing check"
+      ],
+      recommendedAction: "🚨 IMMEDIATE SESSION KILL SWITCH & ACCOUNT LOCKDOWN. Dispatch CSOC alert."
+    }
   },
   si_verma: {
     id: "si_verma",
@@ -132,7 +227,36 @@ const DEFAULT_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     locationInfo: "Impossible Travel: Delhi to Pune in 12m",
     lastActive: "12m ago",
     ipAddress: "49.204.112.5",
-    assignedCaseId: "CASE-2026-008"
+    assignedCaseId: "CASE-2026-008",
+    baselinePattern: {
+      typicalWorkingHours: "08:00 - 21:00 IST",
+      typicalWorkDays: "Monday - Sunday",
+      authorizedSubnets: ["10.14.22.0/24", "100.64.0.0/16"],
+      registeredDevices: ["Samsung Galaxy Tab Active4 Pro"],
+      primaryGeofence: "Delhi NCR Field Zone",
+      averageTypingWpm: 48,
+      averageFlightTimeMs: 145,
+      averageDwellTimeMs: 102,
+      usualCaseCategories: ["FIELD_INTEL", "SIM_CLONING"],
+      dailyAvgQueryCount: 35,
+      baselineTrustRating: 90
+    },
+    currentDissimilarity: {
+      isCompromised: true,
+      threatVerdict: "HACK_DETECTED_UNAUTHORIZED_ACTOR",
+      overallDissimilarityScore: 92.4,
+      timeAnomaly: { baseline: "08:00 - 21:00 IST", observed: "11:32 AM", isAbnormal: false, score: 10 },
+      deviceAnomaly: { baseline: "Galaxy Tab Active4 Pro", observed: "Consumer Tab SM-X200 (Spoofed IMEI)", isAbnormal: true, score: 90 },
+      geoAnomaly: { baseline: "Delhi NCR", observed: "Pune Cyber Cell Base (1,180 km in 12m - 5,900 km/h)", isAbnormal: true, score: 100 },
+      cadenceAnomaly: { baseline: "48 WPM", observed: "22 WPM (Clumsy imposter cadence)", isAbnormal: true, score: 82 },
+      actionAnomaly: { baseline: "Field CDR lookup", observed: "Mass FIR query enumeration", isAbnormal: true, score: 88 },
+      intruderIndicators: [
+        "Impossible physical flight travel velocity (5,900 km/h)",
+        "Spoofed IMEI header detected on non-tactical Android build",
+        "Voiceprint acoustic resonance drift 44.8%"
+      ],
+      recommendedAction: "Enforce emergency token quarantine and trigger physical biometric re-enrollment."
+    }
   },
   sp_ananya_sengupta: {
     id: "sp_ananya_sengupta",
@@ -153,7 +277,32 @@ const DEFAULT_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     locationInfo: "Lalbazar Cyber HQ, Kolkata",
     lastActive: "1m ago",
     ipAddress: "10.22.4.15",
-    assignedCaseId: "CASE-2026-004"
+    assignedCaseId: "CASE-2026-004",
+    baselinePattern: {
+      typicalWorkingHours: "08:00 - 22:00 IST",
+      typicalWorkDays: "Monday - Saturday",
+      authorizedSubnets: ["10.22.4.0/24"],
+      registeredDevices: ["HP Elite Dragonfly G4 (HSM #WB-1002-PKI)"],
+      primaryGeofence: "Lalbazar Police HQ, Kolkata (Radius 20km)",
+      averageTypingWpm: 74,
+      averageFlightTimeMs: 104,
+      averageDwellTimeMs: 78,
+      usualCaseCategories: ["FINANCIAL_FRAUD", "CRYPTO_OTC", "TECH_SUPPORT"],
+      dailyAvgQueryCount: 65,
+      baselineTrustRating: 99
+    },
+    currentDissimilarity: {
+      isCompromised: false,
+      threatVerdict: "NORMAL",
+      overallDissimilarityScore: 1.1,
+      timeAnomaly: { baseline: "08:00 - 22:00", observed: "10:15 AM", isAbnormal: false, score: 0 },
+      deviceAnomaly: { baseline: "HP Elite Dragonfly", observed: "HP Elite Dragonfly (HSM Valid)", isAbnormal: false, score: 0 },
+      geoAnomaly: { baseline: "Kolkata Lalbazar HQ", observed: "Lalbazar Cyber HQ, Kolkata", isAbnormal: false, score: 0 },
+      cadenceAnomaly: { baseline: "74 WPM", observed: "75 WPM", isAbnormal: false, score: 1 },
+      actionAnomaly: { baseline: "Case approvals & bank freeze", observed: "Section 106 BNSS Freeze Order Requisition", isAbnormal: false, score: 1 },
+      intruderIndicators: [],
+      recommendedAction: "Session fully authorized with highest zero-trust confidence."
+    }
   },
   ct_meena: {
     id: "ct_meena",
@@ -174,7 +323,35 @@ const DEFAULT_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     locationInfo: "Delhi HQ - Cyber Cell",
     lastActive: "18m ago",
     ipAddress: "10.14.22.99",
-    assignedCaseId: "CASE-2026-005"
+    assignedCaseId: "CASE-2026-005",
+    baselinePattern: {
+      typicalWorkingHours: "07:00 - 15:00 / 15:00 - 23:00 (Rotational)",
+      typicalWorkDays: "Rotational Shifts",
+      authorizedSubnets: ["10.14.22.0/24"],
+      registeredDevices: ["Surveillance Console #4"],
+      primaryGeofence: "Delhi Police HQ",
+      averageTypingWpm: 52,
+      averageFlightTimeMs: 138,
+      averageDwellTimeMs: 98,
+      usualCaseCategories: ["AUDIO_SURVEILLANCE", "DIGITAL_ARREST"],
+      dailyAvgQueryCount: 22,
+      baselineTrustRating: 88
+    },
+    currentDissimilarity: {
+      isCompromised: false,
+      threatVerdict: "SUSPICIOUS_DRIFT",
+      overallDissimilarityScore: 42.5,
+      timeAnomaly: { baseline: "Rotational shift", observed: "09:15 PM (Shift B)", isAbnormal: false, score: 5 },
+      deviceAnomaly: { baseline: "Console #4", observed: "Console #4 (Microphone filter driver update)", isAbnormal: false, score: 10 },
+      geoAnomaly: { baseline: "Delhi HQ", observed: "Delhi HQ - Cyber Cell", isAbnormal: false, score: 0 },
+      cadenceAnomaly: { baseline: "52 WPM", observed: "50 WPM", isAbnormal: false, score: 4 },
+      actionAnomaly: { baseline: "Audio stream monitoring", observed: "Voice dispatch validation", isAbnormal: true, score: 45 },
+      intruderIndicators: [
+        "Voiceprint acoustic resonance drift of 22.4% detected by DSP harmonics analyzer",
+        "Possible microphone hardware filter anomaly or synthetic pitch transformation"
+      ],
+      recommendedAction: "Force secondary physical biometric challenge; keep session monitored."
+    }
   },
   hc_yadav: {
     id: "hc_yadav",
@@ -195,18 +372,109 @@ const DEFAULT_PROFILES: Record<string, OfficerBiometricProfileDTO> = {
     locationInfo: "Delhi HQ - Evidence Vault",
     lastActive: "25m ago",
     ipAddress: "10.14.22.104",
-    assignedCaseId: "CASE-2026-006"
+    assignedCaseId: "CASE-2026-006",
+    baselinePattern: {
+      typicalWorkingHours: "09:30 - 18:00 IST",
+      typicalWorkDays: "Monday - Friday",
+      authorizedSubnets: ["10.14.22.0/24"],
+      registeredDevices: ["Evidence Terminal T-09"],
+      primaryGeofence: "Delhi HQ Evidence Vault",
+      averageTypingWpm: 42,
+      averageFlightTimeMs: 160,
+      averageDwellTimeMs: 110,
+      usualCaseCategories: ["AEPS_EVIDENCE", "BIOMETRIC_VAULT"],
+      dailyAvgQueryCount: 18,
+      baselineTrustRating: 91
+    },
+    currentDissimilarity: {
+      isCompromised: false,
+      threatVerdict: "NORMAL",
+      overallDissimilarityScore: 18.0,
+      timeAnomaly: { baseline: "09:30 - 18:00", observed: "11:10 AM", isAbnormal: false, score: 0 },
+      deviceAnomaly: { baseline: "Terminal T-09", observed: "Terminal T-09", isAbnormal: false, score: 0 },
+      geoAnomaly: { baseline: "Evidence Vault", observed: "Evidence Vault", isAbnormal: false, score: 0 },
+      cadenceAnomaly: { baseline: "42 WPM / 160ms", observed: "32 WPM / 210ms (Bandaged finger / mechanical keyboard)", isAbnormal: true, score: 28 },
+      actionAnomaly: { baseline: "Evidence logging", observed: "Evidence seal hash verification", isAbnormal: false, score: 5 },
+      intruderIndicators: [
+        "Typing cadence variance of 28% outside nominal baseline (finger injury declared)"
+      ],
+      recommendedAction: "Fingerprint re-verification passed successfully; trust score maintained."
+    }
   }
 };
 
 const DEFAULT_TRAIL: IdentityTrailEventDTO[] = [
+  {
+    id: "ID-EVT-HACK-01",
+    timestamp: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+    timeAgo: "4m ago",
+    officerName: "Insp. R. Sharma",
+    badgeNumber: "DL-POL-4192",
+    action: "🚨 ACCOUNT HACKED / HIJACKED: Pattern Dissimilarity 88.6% — Unauthorized Actor Detected!",
+    category: "HACK_PATTERN_ALERT",
+    severity: "CRITICAL",
+    status: "HACKED_ALERT",
+    caseId: "CASE-2026-004",
+    deviceInfo: "Apple iPhone 14 Pro (Unenrolled Non-Gov UDID)",
+    ipAddress: "152.57.19.202",
+    location: "Pune Cell Tower Sector 12 (1,180 km from Base)",
+    confidenceScore: 61.4,
+    patternDissimilarityScore: 88.6,
+    isHackedAnomaly: true,
+    hashSha256: "11a098bc44910293847102938471029384710293847102938471029384710293",
+    details: "High-confidence unauthorized intrusion detected! Officer baseline pattern severely breached: Off-hours access at 03:14 AM from Pune, 135 WPM automated cadence burst, and bulk encrypted database dump query. Account is suspected compromised and operated by an imposter.",
+    dissimilarityBreakdown: {
+      timeShift: "Observed 03:14 AM vs Baseline 09:00 - 18:30 IST (+85% Off-Hours Anomaly)",
+      deviceDiscrepancy: "Unenrolled iPhone 14 Pro vs Baseline Lenovo ThinkPad Gov PKI (+95% Anomaly)",
+      geoDrift: "Pune Cell Tower Sector 12 vs Baseline Delhi Police HQ (+99% Anomaly)",
+      keystrokeDeviation: "135 WPM Automated Script vs Baseline 55 WPM (+90% Anomaly)",
+      unauthorizedActions: "Bulk Encrypted DB Dump & Credential Scraping (+96% Anomaly)"
+    },
+    rawTelemetry: {
+      faceScore: 61.0,
+      voiceDriftPercent: 44.5,
+      geoDriftKm: 1180.0
+    }
+  },
+  {
+    id: "ID-EVT-HACK-02",
+    timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+    timeAgo: "12m ago",
+    officerName: "SI Verma",
+    badgeNumber: "DL-POL-7719",
+    action: "🚨 IMPOSSIBLE TRAVEL HACK ALERT: Pattern Dissimilarity 92.4% — Delhi to Pune in 12m",
+    category: "IMPOSSIBLE_TRAVEL",
+    severity: "CRITICAL",
+    status: "HACKED_ALERT",
+    caseId: "CASE-2026-008",
+    deviceInfo: "Samsung Galaxy Tab SM-X200 (Spoofed IMEI)",
+    ipAddress: "49.204.112.5",
+    location: "Pune Cyber Cell Base vs Delhi HQ",
+    confidenceScore: 44.8,
+    patternDissimilarityScore: 92.4,
+    isHackedAnomaly: true,
+    hashSha256: "33fe441029384710293847102938471029384710293847102938471029384710",
+    details: "Physical impossibility alert: Account logged in at Delhi HQ (11:20 AM) and authenticated 12 minutes later from Pune (11:32 AM), requiring 5,900 km/h flight velocity. Cloned credential used by remote unauthorized operative.",
+    dissimilarityBreakdown: {
+      timeShift: "Authentication during normal hours but concurrent with active Delhi session",
+      deviceDiscrepancy: "Consumer Tab SM-X200 with spoofed IMEI header vs Tactical Active4 Pro",
+      geoDrift: "1,180 km physical separation in 12 minutes",
+      keystrokeDeviation: "Clumsy imposter cadence: 22 WPM vs Baseline 48 WPM",
+      unauthorizedActions: "Mass FIR database enumeration & suspect phone number harvest"
+    },
+    rawTelemetry: {
+      geoDriftKm: 1180.0,
+      speedKmph: 5900.0,
+      faceScore: 88.4
+    }
+  },
   {
     id: "ID-EVT-901",
     timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
     timeAgo: "2m ago",
     officerName: "ACP Raj Verma",
     badgeNumber: "DL-POL-8842",
-    action: "Continuous Zero-Trust Biometric Challenge Passed",
+    action: "Continuous Zero-Trust Biometric Challenge Passed — Pattern Matched (98.6%)",
     category: "BIOMETRIC_PASS",
     severity: "INFO",
     status: "VERIFIED",
@@ -215,8 +483,17 @@ const DEFAULT_TRAIL: IdentityTrailEventDTO[] = [
     ipAddress: "10.14.22.84",
     location: "Delhi HQ - Command Room B",
     confidenceScore: 98.6,
+    patternDissimilarityScore: 2.4,
+    isHackedAnomaly: false,
     hashSha256: "8e9f214c7719a8bc441029384710293847102938471029384710293847102938",
-    details: "All 5 zero-knowledge biometrics (Face 3D topology, voice harmonics, typing cadence, device cert, geo-BSSID) validated seamlessly.",
+    details: "All 5 zero-knowledge biometrics (Face 3D topology, voice harmonics, typing cadence, device cert, geo-BSSID) validated seamlessly against enrolled baseline pattern.",
+    dissimilarityBreakdown: {
+      timeShift: "11:45 AM (Nominal working window)",
+      deviceDiscrepancy: "0% (Dell Latitude TPM 2.0 Verified)",
+      geoDrift: "0.05 km (Inside Command Room B)",
+      keystrokeDeviation: "69 WPM vs 68 WPM Baseline (1.2% Drift)",
+      unauthorizedActions: "Standard Case Investigation Workflow"
+    },
     rawTelemetry: {
       faceScore: 99.2,
       typingCadenceDeviation: 1.2,
@@ -224,49 +501,34 @@ const DEFAULT_TRAIL: IdentityTrailEventDTO[] = [
     }
   },
   {
-    id: "ID-EVT-902",
-    timestamp: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
-    timeAgo: "6m ago",
-    officerName: "Insp. R. Sharma",
-    badgeNumber: "DL-POL-4192",
-    action: "Doppelganger Alert: Face Geometry & Voiceprint Mismatch on Unrecognized Device",
-    category: "SESSION_HIJACK",
-    severity: "CRITICAL",
-    status: "FLAGGED",
+    id: "ID-EVT-905",
+    timestamp: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+    timeAgo: "35m ago",
+    officerName: "Superintendent Ananya Sengupta",
+    badgeNumber: "WB-POL-1002",
+    action: "Hardware FIDO2 X.509 Cryptographic Certificate Re-validation — Pattern Nominal",
+    category: "CREDENTIAL_REFRESH",
+    severity: "LOW",
+    status: "VERIFIED",
     caseId: "CASE-2026-004",
-    deviceInfo: "Apple iPhone 14 Pro (Unenrolled UDID)",
-    ipAddress: "152.57.19.202",
-    location: "Pune - Cell Tower Sector 12",
-    confidenceScore: 61.4,
-    hashSha256: "11a098bc44910293847102938471029384710293847102938471029384710293",
-    details: "Session opened with legitimate smart-card token but facial recognition scored only 61.0%. Voice harmonics failed anti-spoofing synthesis check.",
+    deviceInfo: "HP Elite Dragonfly G4 (Gov PKI HSM)",
+    ipAddress: "10.22.4.15",
+    location: "Lalbazar Cyber HQ, Kolkata",
+    confidenceScore: 99.4,
+    patternDissimilarityScore: 1.1,
+    isHackedAnomaly: false,
+    hashSha256: "99bb881029384710293847102938471029384710293847102938471029384710",
+    details: "Government Hardware Security Module (HSM) key pair validated with National Police PKI Root CA. Zero pattern anomalies detected.",
+    dissimilarityBreakdown: {
+      timeShift: "10:15 AM (Nominal)",
+      deviceDiscrepancy: "0% (HP Elite Dragonfly HSM Valid)",
+      geoDrift: "0 km (Lalbazar HQ Kolkata)",
+      keystrokeDeviation: "75 WPM vs 74 WPM Baseline",
+      unauthorizedActions: "Section 106 BNSS Bank Freeze Execution"
+    },
     rawTelemetry: {
-      faceScore: 61.0,
-      voiceDriftPercent: 44.5,
-      geoDriftKm: 1180.0
-    }
-  },
-  {
-    id: "ID-EVT-903",
-    timestamp: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
-    timeAgo: "14m ago",
-    officerName: "SI Verma",
-    badgeNumber: "DL-POL-7719",
-    action: "Impossible Travel Telemetry Detected: 1,180 km in 12 minutes",
-    category: "IMPOSSIBLE_TRAVEL",
-    severity: "CRITICAL",
-    status: "FLAGGED",
-    caseId: "CASE-2026-008",
-    deviceInfo: "Samsung Galaxy Tab SM-X200",
-    ipAddress: "49.204.112.5",
-    location: "Pune Cyber Cell Base vs Delhi HQ",
-    confidenceScore: 44.8,
-    hashSha256: "33fe441029384710293847102938471029384710293847102938471029384710",
-    details: "Previous authentication at 11:20 AM from Delhi HQ (IP: 10.14.22.10). Next session attempt at 11:32 AM from Pune IP requiring 5,900 km/h flight velocity.",
-    rawTelemetry: {
-      geoDriftKm: 1180.0,
-      speedKmph: 5900.0,
-      faceScore: 88.4
+      faceScore: 99.6,
+      typingCadenceDeviation: 0.8
     }
   },
   {
@@ -284,55 +546,20 @@ const DEFAULT_TRAIL: IdentityTrailEventDTO[] = [
     ipAddress: "10.14.22.99",
     location: "Delhi HQ - Cyber Cell",
     confidenceScore: 68.2,
+    patternDissimilarityScore: 42.5,
+    isHackedAnomaly: false,
     hashSha256: "77aa119283746192837461928374619283746192837461928374619283746192",
     details: "Audio challenge response displayed unnatural pitch quantization consistent with AI voice cloning software. Forced fallback to hardware token.",
+    dissimilarityBreakdown: {
+      timeShift: "09:15 PM (Shift B Nominal)",
+      deviceDiscrepancy: "Console #4",
+      geoDrift: "0 km (Cyber Cell)",
+      keystrokeDeviation: "50 WPM vs 52 WPM",
+      unauthorizedActions: "Voice Dispatch Check"
+    },
     rawTelemetry: {
       voiceDriftPercent: 22.4,
       faceScore: 94.0
-    }
-  },
-  {
-    id: "ID-EVT-905",
-    timestamp: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-    timeAgo: "35m ago",
-    officerName: "Superintendent Ananya Sengupta",
-    badgeNumber: "WB-POL-1002",
-    action: "Hardware FIDO2 X.509 Cryptographic Certificate Re-validation",
-    category: "CREDENTIAL_REFRESH",
-    severity: "LOW",
-    status: "VERIFIED",
-    caseId: "CASE-2026-004",
-    deviceInfo: "HP Elite Dragonfly G4 (Gov PKI HSM)",
-    ipAddress: "10.22.4.15",
-    location: "Lalbazar Cyber HQ, Kolkata",
-    confidenceScore: 99.4,
-    hashSha256: "99bb881029384710293847102938471029384710293847102938471029384710",
-    details: "Government Hardware Security Module (HSM) key pair validated with National Police PKI Root CA. Zero anomalies detected.",
-    rawTelemetry: {
-      faceScore: 99.6,
-      typingCadenceDeviation: 0.8
-    }
-  },
-  {
-    id: "ID-EVT-906",
-    timestamp: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
-    timeAgo: "50m ago",
-    officerName: "HC Yadav",
-    badgeNumber: "DL-POL-3312",
-    action: "Typing Cadence Deviation: Flight Time & Dwell Time Anomaly",
-    category: "FAILED_CHALLENGE",
-    severity: "MEDIUM",
-    status: "VERIFIED",
-    caseId: "CASE-2026-006",
-    deviceInfo: "Evidence Terminal T-09",
-    ipAddress: "10.14.22.104",
-    location: "Delhi HQ - Evidence Vault",
-    confidenceScore: 89.0,
-    hashSha256: "44cc551029384710293847102938471029384710293847102938471029384710",
-    details: "Typing rhythm variance of 28% from enrolled baseline. Re-authenticated with biometric fingerprint scanner.",
-    rawTelemetry: {
-      typingCadenceDeviation: 28.0,
-      faceScore: 92.5
     }
   }
 ];
@@ -343,30 +570,34 @@ const DEFAULT_WATCHLIST: DoppelgangerWatchlistItemDTO[] = [
     profileId: "insp_r_sharma",
     officerName: "Insp. R. Sharma",
     badgeNumber: "DL-POL-4192",
-    flagReason: "Unenrolled iPhone 14 Pro logged in from Pune while primary terminal active in Delhi HQ.",
+    flagReason: "Account Hacked Alert: Pattern Dissimilarity 88.6%. Unenrolled iPhone 14 Pro active from Pune during off-hours dumping database.",
     severity: "CRITICAL",
-    flaggedAt: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
-    timeAgo: "6m ago",
-    anomalyType: "CLONED_SESSION",
+    flaggedAt: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+    timeAgo: "4m ago",
+    anomalyType: "PATTERN_DISSIMILARITY_HACK",
     deviceInfo: "iPhone 14 Pro (Pune IP)",
     location: "Pune - Cell Tower Sector 12",
     status: "ACTIVE_ALERT",
-    confidenceMatch: 61.4
+    confidenceMatch: 61.4,
+    dissimilarityScore: 88.6,
+    isAccountHijacked: true
   },
   {
     id: "WL-002",
     profileId: "si_verma",
     officerName: "SI Verma",
     badgeNumber: "DL-POL-7719",
-    flagReason: "Impossible travel alert: Delhi HQ to Pune (1,180 km) in 12 minutes.",
+    flagReason: "Impossible travel hack alert: Pattern Dissimilarity 92.4%. Delhi to Pune in 12m harvesting FIR logs.",
     severity: "CRITICAL",
-    flaggedAt: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
-    timeAgo: "14m ago",
+    flaggedAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+    timeAgo: "12m ago",
     anomalyType: "IMPOSSIBLE_TRAVEL",
     deviceInfo: "Samsung Tab SM-X200",
     location: "Pune vs Delhi",
     status: "ACTIVE_ALERT",
-    confidenceMatch: 44.8
+    confidenceMatch: 44.8,
+    dissimilarityScore: 92.4,
+    isAccountHijacked: true
   },
   {
     id: "WL-003",
@@ -381,22 +612,9 @@ const DEFAULT_WATCHLIST: DoppelgangerWatchlistItemDTO[] = [
     deviceInfo: "Surveillance Desk Console #4",
     location: "Delhi HQ - Cyber Cell",
     status: "INVESTIGATING",
-    confidenceMatch: 68.2
-  },
-  {
-    id: "WL-004",
-    profileId: "hc_yadav",
-    officerName: "HC Yadav",
-    badgeNumber: "DL-POL-3312",
-    flagReason: "Keyboard cadence variance of 28% outside nominal typing envelope.",
-    severity: "MEDIUM",
-    flaggedAt: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
-    timeAgo: "50m ago",
-    anomalyType: "KEYBOARD_CADENCE",
-    deviceInfo: "Evidence Terminal T-09",
-    location: "Delhi HQ - Evidence Vault",
-    status: "INVESTIGATING",
-    confidenceMatch: 89.0
+    confidenceMatch: 68.2,
+    dissimilarityScore: 42.5,
+    isAccountHijacked: false
   }
 ];
 
@@ -405,7 +623,7 @@ let inMemoryTrail = [...DEFAULT_TRAIL];
 let inMemoryWatchlist = [...DEFAULT_WATCHLIST];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Service Class
+// Service Implementation
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class IdentityService {
@@ -450,11 +668,18 @@ export class IdentityService {
     return inMemoryWatchlist;
   }
 
+  async getHackedAlerts(): Promise<{ compromisedCount: number; alerts: DoppelgangerWatchlistItemDTO[] }> {
+    const hacked = inMemoryWatchlist.filter((w) => w.isAccountHijacked && w.status === "ACTIVE_ALERT");
+    return {
+      compromisedCount: hacked.length,
+      alerts: hacked
+    };
+  }
+
   async verifyIdentity(officerId: string) {
     const profile = inMemoryProfiles[officerId] || inMemoryProfiles.acp_raj_verma;
     const isVerified = profile.matchConfidence > 75;
 
-    // Log this verification into the identity trail
     const newEvent: IdentityTrailEventDTO = {
       id: `ID-EVT-${Date.now().toString().slice(-4)}`,
       timestamp: new Date().toISOString(),
@@ -462,8 +687,8 @@ export class IdentityService {
       officerName: profile.name,
       badgeNumber: profile.badgeNumber,
       action: isVerified
-        ? "Live Zero-Knowledge Biometric Session Challenge Succeeded"
-        : "Live Biometric Challenge Failed: Biometric Drift Detected",
+        ? "Live Zero-Knowledge Biometric Session Challenge Succeeded — Pattern Verified"
+        : "Live Biometric Challenge Failed — Pattern Anomaly Detected",
       category: isVerified ? "BIOMETRIC_PASS" : "FAILED_CHALLENGE",
       severity: isVerified ? "INFO" : "HIGH",
       status: isVerified ? "VERIFIED" : "FLAGGED",
@@ -472,10 +697,19 @@ export class IdentityService {
       ipAddress: profile.ipAddress,
       location: profile.locationInfo,
       confidenceScore: profile.matchConfidence,
+      patternDissimilarityScore: profile.currentDissimilarity.overallDissimilarityScore,
+      isHackedAnomaly: profile.currentDissimilarity.isCompromised,
       hashSha256: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(""),
       details: isVerified
-        ? `Continuous verification validated face (${profile.faceConfidence}%), voiceprint, typing cadence, and hardware TPM certificates.`
-        : `Biometric matching confidence dropped to ${profile.matchConfidence}%. Session placed under heightened scrutiny.`,
+        ? `Continuous verification validated face (${profile.faceConfidence}%), voiceprint, typing cadence, and hardware TPM certificates against baseline pattern.`
+        : `Biometric matching confidence dropped to ${profile.matchConfidence}%. Pattern dissimilarity score: ${profile.currentDissimilarity.overallDissimilarityScore}%.`,
+      dissimilarityBreakdown: {
+        timeShift: profile.currentDissimilarity.timeAnomaly.observed,
+        deviceDiscrepancy: profile.currentDissimilarity.deviceAnomaly.observed,
+        geoDrift: profile.currentDissimilarity.geoAnomaly.observed,
+        keystrokeDeviation: profile.currentDissimilarity.cadenceAnomaly.observed,
+        unauthorizedActions: profile.currentDissimilarity.actionAnomaly.observed
+      },
       rawTelemetry: {
         faceScore: profile.faceConfidence,
         typingCadenceDeviation: 1.4,
@@ -491,6 +725,9 @@ export class IdentityService {
       officerName: profile.name,
       badgeNumber: profile.badgeNumber,
       confidence: profile.matchConfidence,
+      patternDissimilarityScore: profile.currentDissimilarity.overallDissimilarityScore,
+      isCompromised: profile.currentDissimilarity.isCompromised,
+      threatVerdict: profile.currentDissimilarity.threatVerdict,
       factors: {
         faceGeometry: profile.faceGeometryMatch,
         voiceprint: profile.voiceprintMatch,
@@ -507,20 +744,18 @@ export class IdentityService {
     const profile = inMemoryProfiles[profileId] || inMemoryProfiles.insp_r_sharma;
     profile.status = "quarantined";
 
-    // Update watchlist item if exists
     const watchItem = inMemoryWatchlist.find((w) => w.profileId === profileId);
     if (watchItem) {
       watchItem.status = "QUARANTINED";
     }
 
-    // Log quarantine event
     const newEvent: IdentityTrailEventDTO = {
       id: `ID-EVT-Q-${Date.now().toString().slice(-4)}`,
       timestamp: new Date().toISOString(),
       timeAgo: "Just now",
       officerName: profile.name,
       badgeNumber: profile.badgeNumber,
-      action: "Emergency Officer Session Quarantine & Token Invalidation Enforced",
+      action: "🚨 EMERGENCY KILL-SWITCH: Account Quarantined & Access Tokens Revoked",
       category: "QUARANTINE_ENFORCED",
       severity: "CRITICAL",
       status: "QUARANTINED",
@@ -529,8 +764,17 @@ export class IdentityService {
       ipAddress: profile.ipAddress,
       location: profile.locationInfo,
       confidenceScore: 0.0,
+      patternDissimilarityScore: 100.0,
+      isHackedAnomaly: true,
       hashSha256: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(""),
-      details: reason || `Officer session ${profile.badgeNumber} forcibly terminated and revoked by Security Operations Desk.`
+      details: reason || `Unauthorized actor detected. Officer session ${profile.badgeNumber} forcibly terminated, tokens blacklisted, and suspect IP blocked.`,
+      dissimilarityBreakdown: {
+        timeShift: "Session Terminated",
+        deviceDiscrepancy: "Hardware Token Revoked",
+        geoDrift: "IP Blacklisted",
+        keystrokeDeviation: "N/A",
+        unauthorizedActions: "Emergency Kill Switch Activated"
+      }
     };
 
     inMemoryTrail.unshift(newEvent);
@@ -542,7 +786,7 @@ export class IdentityService {
       badgeNumber: profile.badgeNumber,
       status: "QUARANTINED",
       revocationTime: new Date().toISOString(),
-      reason: reason || "Doppelganger biometric mismatch"
+      reason: reason || "Pattern dissimilarity hack detected"
     };
   }
 
@@ -552,14 +796,13 @@ export class IdentityService {
 
     const ticketId = `CSOC-INC-${Date.now().toString().slice(-6)}`;
 
-    // Add high severity trail event
     inMemoryTrail.unshift({
       id: `ID-EVT-ESC-${Date.now().toString().slice(-4)}`,
       timestamp: new Date().toISOString(),
       timeAgo: "Just now",
       officerName: profile.name,
       badgeNumber: profile.badgeNumber,
-      action: `Escalated to CSOC & CERT-In: Incident Ticket #${ticketId}`,
+      action: `🚨 CSOC & CERT-In P1 S.O.S. Dispatched: Incident Ticket #${ticketId}`,
       category: "SESSION_HIJACK",
       severity: "CRITICAL",
       status: "FLAGGED",
@@ -568,8 +811,10 @@ export class IdentityService {
       ipAddress: profile.ipAddress,
       location: profile.locationInfo,
       confidenceScore: profile.matchConfidence,
+      patternDissimilarityScore: profile.currentDissimilarity.overallDissimilarityScore,
+      isHackedAnomaly: true,
       hashSha256: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(""),
-      details: notes || `Doppelganger alert escalated to Cyber Security Operations Center for emergency hardware revocation and forensic imaging.`
+      details: notes || `Account hack pattern dissimilarity alert escalated to Cyber Security Operations Center for emergency forensic imaging and credential rotation.`
     });
 
     return {
@@ -579,16 +824,18 @@ export class IdentityService {
       badgeNumber: profile.badgeNumber,
       status: "QUARANTINED_PENDING_FORENSIC_REVIEW",
       alertDispatchedTo: "Cyber Security Operations Center (CSOC) New Delhi & CERT-In",
-      notes: notes || "Doppelganger biometric mismatch flagged by behavioral zero-trust engine",
+      notes: notes || "Account compromised by unauthorized actor; severe pattern dissimilarity",
       escalatedAt: new Date().toISOString()
     };
   }
 
   async getStats(caseId?: string) {
+    const hackedCount = inMemoryWatchlist.filter((w) => w.isAccountHijacked && w.status === "ACTIVE_ALERT").length;
     return {
       verifiedIdentities: 1842,
       totalActiveAccounts: 1847,
       doppelgangersFlagged: inMemoryWatchlist.filter((w) => w.status === "ACTIVE_ALERT").length || 5,
+      hackedAccountsDetected: hackedCount,
       behaviorAnomalies: 14,
       avgTrustScore: 91,
       mfaEnrollment: "1,839 / 1,847",
@@ -651,6 +898,15 @@ export class IdentityController {
     }
   }
 
+  async handleGetHackedAlerts(_req: Request, res: Response) {
+    try {
+      const data = await identityService.getHackedAlerts();
+      res.json(formatResponse(true, data, "Hacked accounts alert telemetry"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
   async handleVerify(req: Request, res: Response) {
     try {
       const officerId = req.body.officerId || "acp_raj_verma";
@@ -700,6 +956,7 @@ export function identityRoutes(): Router {
   router.get("/profiles/:id", (req, res) => identityController.handleGetProfile(req, res));
   router.get("/trail", (req, res) => identityController.handleGetTrail(req, res));
   router.get("/watchlist", (req, res) => identityController.handleGetWatchlist(req, res));
+  router.get("/hacked-alerts", (req, res) => identityController.handleGetHackedAlerts(req, res));
   router.get("/stats", (req, res) => identityController.handleGetStats(req, res));
   router.post("/verify", (req, res) => identityController.handleVerify(req, res));
   router.post("/quarantine", (req, res) => identityController.handleQuarantine(req, res));
