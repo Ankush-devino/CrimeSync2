@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Calendar,
   Filter,
   Info,
   Maximize2,
@@ -23,165 +22,261 @@ import {
   Building2,
   Phone,
   CheckCircle2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Lock,
+  Unlock,
+  Coins,
+  DollarSign,
+  Download,
+  Search,
+  RefreshCw,
+  Copy,
+  Check,
+  ShieldCheck,
+  FileText,
+  CreditCard,
+  Send,
+  Radio,
+  Share2
 } from 'lucide-react';
+import { api } from '../services/api';
+import { useCaseContext } from '../context/CaseContext';
+import { logOfficerAction } from '../services/activityLogger';
 
 interface FinancialIntelligencePageProps {
   onSelectAction?: (action: string) => void;
 }
 
-interface AccountInfo {
-  id: string;
-  accountNumber: string;
-  holderName: string;
-  accountType: string;
-  bankName: string;
-  ifscCode: string;
-  openingDate: string;
-  currentBalance: string;
-  totalReceived: string;
-  totalSent: string;
-  riskScore: number;
-  riskLevel: 'High' | 'Medium' | 'Low';
-  status: 'Active' | 'Frozen' | 'Flagged';
-  avatar?: string;
-}
-
 export const FinancialIntelligencePage: React.FC<FinancialIntelligencePageProps> = ({
   onSelectAction,
 }) => {
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [selectedEntityId, setSelectedEntityId] = useState<string>('AC987654');
-  const [activeDateRange, setActiveDateRange] = useState<string>('14 Aug 2026 - 27 Aug 2026');
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
-  const [activeViewModal, setActiveViewModal] = useState<string | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const { selectedCaseId, selectedCase, cases, setSelectedCaseId } = useCaseContext();
 
-  // Accounts database
-  const accountsData: Record<string, AccountInfo> = {
-    'AC987654': {
-      id: 'AC987654',
-      accountNumber: 'AC987654',
-      holderName: 'Aman Khan',
-      accountType: 'Savings Account',
-      bankName: 'State Bank of India',
-      ifscCode: 'SBIN0001234',
-      openingDate: '12 Mar 2024',
-      currentBalance: '₹ 4,20,000',
-      totalReceived: '₹ 12,45,000',
-      totalSent: '₹ 8,25,000',
-      riskScore: 92,
-      riskLevel: 'High',
-      status: 'Active',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    },
-    'AC455566': {
-      id: 'AC455566',
-      accountNumber: 'AC455566',
-      holderName: 'Vikram J.',
-      accountType: 'Current Account',
-      bankName: 'HDFC Bank',
-      ifscCode: 'HDFC0004555',
-      openingDate: '08 Jan 2023',
-      currentBalance: '₹ 1,15,000',
-      totalReceived: '₹ 8,90,000',
-      totalSent: '₹ 7,75,000',
-      riskScore: 74,
-      riskLevel: 'High',
-      status: 'Active',
-    },
-    'AC112233': {
-      id: 'AC112233',
-      accountNumber: 'AC112233',
-      holderName: 'Unknown Entity',
-      accountType: 'Corporate Escrow',
-      bankName: 'ICICI Bank',
-      ifscCode: 'ICIC0001122',
-      openingDate: '19 Nov 2024',
-      currentBalance: '₹ 2,80,000',
-      totalReceived: '₹ 18,20,000',
-      totalSent: '₹ 15,40,000',
-      riskScore: 68,
-      riskLevel: 'Medium',
-      status: 'Active',
-    },
-    'AC665577': {
-      id: 'AC665577',
-      accountNumber: 'AC665577',
-      holderName: 'Shakti Transport Pvt. Ltd.',
-      accountType: 'Commercial Account',
-      bankName: 'Axis Bank',
-      ifscCode: 'UTIB0006655',
-      openingDate: '15 Sep 2021',
-      currentBalance: '₹ 70,000',
-      totalReceived: '₹ 34,50,000',
-      totalSent: '₹ 33,80,000',
-      riskScore: 61,
-      riskLevel: 'Medium',
-      status: 'Active',
-    },
-    'AC998877': {
-      id: 'AC998877',
-      accountNumber: 'AC998877',
-      holderName: 'Riya Singh',
-      accountType: 'Salary Account',
-      bankName: 'Punjab National Bank',
-      ifscCode: 'PUNB0009988',
-      openingDate: '04 Jun 2022',
-      currentBalance: '₹ 2,50,000',
-      totalReceived: '₹ 6,10,000',
-      totalSent: '₹ 3,60,000',
-      riskScore: 58,
-      riskLevel: 'Medium',
-      status: 'Active',
-    },
+  // State for data
+  const [summary, setSummary] = useState<any>(null);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [flowNetwork, setFlowNetwork] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
+  const [cryptoTrails, setCryptoTrails] = useState<any[]>([]);
+  const [hawalaLedger, setHawalaLedger] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // View & UI State
+  const [activeTab, setActiveTab] = useState<'graph' | 'accounts' | 'crypto' | 'hawala' | 'transactions'>('graph');
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [activeDateRange, setActiveDateRange] = useState<string>('Last 30 Days');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+
+  // Modal State
+  const [isFreezeModalOpen, setIsFreezeModalOpen] = useState<boolean>(false);
+  const [accountToFreeze, setAccountToFreeze] = useState<any | null>(null);
+  const [freezeReason, setFreezeReason] = useState<string>('Section 106 BNSS 2023 - Immediate Debit Freeze for Proceeds of Crime');
+  const [isFreezing, setIsFreezing] = useState<boolean>(false);
+  const [freezeSuccessData, setFreezeSuccessData] = useState<any | null>(null);
+
+  // Load Financial Intelligence Data
+  const loadFinancialData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const caseFilter = selectedCaseId !== 'ALL' ? selectedCaseId : undefined;
+      const [sumRes, accRes, txnRes, flowRes, cryRes, hawRes] = await Promise.all([
+        api.financial.getSummary(caseFilter),
+        api.financial.getAccounts(caseFilter),
+        api.financial.getTransactions(caseFilter),
+        api.financial.getFlowNetwork(caseFilter),
+        api.financial.getCryptoTrails(caseFilter),
+        api.financial.getHawalaLedger(caseFilter),
+      ]);
+
+      if (sumRes) setSummary(sumRes);
+      if (accRes) {
+        setAccounts(accRes);
+        setSelectedEntityId(accRes.length > 0 ? accRes[0].id : null);
+      }
+      if (txnRes) setTransactions(txnRes);
+      if (flowRes) setFlowNetwork(flowRes);
+      if (cryRes) setCryptoTrails(cryRes);
+      if (hawRes) setHawalaLedger(hawRes);
+    } catch (err) {
+      console.error('Failed to load financial intelligence:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCaseId]);
+
+  useEffect(() => {
+    loadFinancialData();
+  }, [loadFinancialData]);
+
+  // Selected Account Object
+  const selectedAccount = useMemo(() => {
+    if (!selectedEntityId) return accounts[0] || null;
+    return (
+      accounts.find((a) => a.id === selectedEntityId || a.account_number === selectedEntityId) ||
+      accounts[0] ||
+      null
+    );
+  }, [accounts, selectedEntityId]);
+
+  // Copy helper
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedText(text);
+    setTimeout(() => setCopiedText(null), 2000);
   };
 
-  const selectedAccount = accountsData[selectedEntityId] || accountsData['AC987654'];
-
+  // Zoom controls
   const handleZoom = (direction: 'in' | 'out' | 'reset') => {
     if (direction === 'in') setZoomLevel((prev) => Math.min(prev + 0.15, 1.8));
     else if (direction === 'out') setZoomLevel((prev) => Math.max(prev - 0.15, 0.7));
     else setZoomLevel(1);
   };
 
+  // Execute Freeze Account Action
+  const handleExecuteFreeze = async () => {
+    if (!accountToFreeze) return;
+    setIsFreezing(true);
+    try {
+      const res = await api.financial.freezeAccount({
+        account_id: accountToFreeze.id,
+        reason: freezeReason,
+        officer_name: selectedCase?.lead_investigator_name || 'Superintendent Ananya Sengupta',
+      });
+
+      if (res) {
+        setFreezeSuccessData(res);
+        // Update account locally
+        setAccounts((prev) =>
+          prev.map((a) =>
+            a.id === accountToFreeze.id ? { ...a, status: 'FROZEN', freeze_order_ref: res.freeze_order_ref } : a
+          )
+        );
+        // Refresh summary
+        loadFinancialData();
+
+        logOfficerAction({
+          action: 'Executed Bank Account Debit Freeze Order (Sec 106 BNSS)',
+          module: 'Financial Intelligence',
+          details: `Frozen account ${accountToFreeze.account_number} (${accountToFreeze.bank_name}) amounting to ₹${accountToFreeze.current_balance_inr.toLocaleString('en-IN')}. Ref: ${res.freeze_order_ref}`,
+        });
+      }
+    } catch (err: any) {
+      alert(`Freeze Requisition Error: ${err.message}`);
+    } finally {
+      setIsFreezing(false);
+    }
+  };
+
+  // Filtered transactions
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery.trim()) return transactions;
+    const q = searchQuery.toLowerCase();
+    return transactions.filter(
+      (t) =>
+        t.transaction_ref.toLowerCase().includes(q) ||
+        t.source_holder.toLowerCase().includes(q) ||
+        t.target_holder.toLowerCase().includes(q) ||
+        t.channel.toLowerCase().includes(q) ||
+        t.flag_reason.toLowerCase().includes(q)
+    );
+  }, [transactions, searchQuery]);
+
+  // Export CSV
+  const handleExportCSV = () => {
+    const headers = ['Transaction Ref', 'Source Holder', 'Source Account', 'Target Holder', 'Target Account', 'Amount (INR)', 'Channel', 'Timestamp', 'Suspicious Score', 'Flag Reason'];
+    const rows = filteredTransactions.map((t) => [
+      t.transaction_ref,
+      `"${t.source_holder}"`,
+      t.source_account,
+      `"${t.target_holder}"`,
+      t.target_account,
+      t.amount_inr,
+      t.channel,
+      t.timestamp,
+      t.suspicious_score,
+      `"${t.flag_reason}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `CRIMESYNC_FINANCIAL_LEDGER_${selectedCaseId}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#050811] text-slate-100 p-4 space-y-4 overflow-y-auto">
       {/* ─── Top Header Section ─── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-wider text-white flex items-center gap-2">
-            FINANCIAL INTELLIGENCE
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Track, analyze and visualize financial transactions and money flow
-          </p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#081023] border border-[#142342] rounded-xl p-3.5 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+            <Landmark className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-extrabold tracking-wider text-white uppercase">
+                FINANCIAL INTELLIGENCE & HAWALA TRACER
+              </h1>
+              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                PMLA / FIU SYNCED
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Multi-hop money laundering tracking, mule bank account freeze, crypto OTC off-ramp & Angadia Hawala reconciliation
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 relative">
-          {/* Date Range Selector */}
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Interactive Case Selector */}
+          <div className="relative flex items-center">
+            <div className="absolute left-2.5 pointer-events-none text-amber-400">
+              <ShieldAlert className="w-3.5 h-3.5" />
+            </div>
+            <select
+              value={selectedCaseId}
+              onChange={(e) => setSelectedCaseId(e.target.value)}
+              className="pl-8 pr-8 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] hover:border-amber-500/60 focus:border-amber-500 text-xs font-semibold text-amber-300 font-mono focus:outline-none transition-all cursor-pointer appearance-none shadow-sm"
+              title="Select Active Investigation Case"
+            >
+              {cases && cases.length > 0 ? (
+                cases.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-[#091122] text-slate-200 font-sans">
+                    {c.id} — {c.title || c.name || 'Investigation'}
+                  </option>
+                ))
+              ) : (
+                <option value={selectedCaseId} className="bg-[#091122] text-slate-200">
+                  {selectedCaseId}
+                </option>
+              )}
+            </select>
+            <div className="absolute right-2.5 pointer-events-none text-slate-400">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          {/* Time Range Selector */}
           <div className="relative">
             <button
               onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-              className="px-3 py-1.5 rounded-md bg-[#091124] border border-[#1b2b4e] text-xs font-medium text-slate-300 hover:text-white hover:border-blue-500/50 flex items-center gap-2 transition-all shadow-sm"
+              className="px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-slate-200 hover:text-white hover:border-blue-500/60 flex items-center gap-2 transition-all shadow-sm"
             >
+              <Clock className="w-3.5 h-3.5 text-blue-400" />
               <span>{activeDateRange}</span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
             {isDatePickerOpen && (
-              <div className="absolute right-0 mt-1.5 w-60 bg-[#070e1e] border border-[#1c3057] rounded-lg shadow-2xl p-2 z-50 text-xs">
-                <div className="text-[10px] font-bold text-slate-400 uppercase px-2 py-1">
-                  Preset Time Ranges
-                </div>
-                {[
-                  '14 Aug 2026 - 27 Aug 2026',
-                  'Last 24 Hours',
-                  'Last 7 Days',
-                  'Last 30 Days',
-                  'Current Financial Quarter',
-                ].map((range) => (
+              <div className="absolute right-0 mt-1.5 w-52 bg-[#091122] border border-[#1e3866] rounded-lg shadow-2xl p-1.5 z-50 text-xs">
+                {['Last 24 Hours', 'Last 7 Days', 'Last 30 Days', 'Current Financial Year', 'Entire Investigation'].map((range) => (
                   <button
                     key={range}
                     onClick={() => {
@@ -189,7 +284,7 @@ export const FinancialIntelligencePage: React.FC<FinancialIntelligencePageProps>
                       setIsDatePickerOpen(false);
                     }}
                     className={`w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-600/20 hover:text-blue-300 transition-colors ${
-                      activeDateRange === range ? 'bg-blue-600/30 text-blue-400 font-semibold' : 'text-slate-300'
+                      activeDateRange === range ? 'bg-blue-600/30 text-blue-300 font-semibold' : 'text-slate-300'
                     }`}
                   >
                     {range}
@@ -199,1283 +294,956 @@ export const FinancialIntelligencePage: React.FC<FinancialIntelligencePageProps>
             )}
           </div>
 
-          {/* Filters Button */}
+          {/* Export CSV */}
           <button
-            onClick={() => setIsFilterModalOpen(true)}
-            className="px-3 py-1.5 rounded-md bg-[#091124] border border-[#1b2b4e] text-xs font-medium text-slate-300 hover:text-white hover:border-blue-500/50 flex items-center gap-1.5 transition-all shadow-sm"
+            onClick={handleExportCSV}
+            className="px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-slate-200 hover:text-white hover:border-emerald-500/60 flex items-center gap-1.5 transition-all shadow-sm"
+            title="Export Ledger CSV"
           >
-            <Filter className="w-3.5 h-3.5 text-blue-400" />
-            <span>Filters</span>
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Export Ledger</span>
+          </button>
+
+          {/* Refresh */}
+          <button
+            onClick={loadFinancialData}
+            className="p-2 rounded-lg bg-[#0c162b] border border-[#1e335a] text-slate-300 hover:text-white hover:border-blue-500/60 transition-all shadow-sm"
+            title="Refresh Financial Feed"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* ─── Top 5 Metric Cards ─── */}
+      {/* ─── Top 5 KPI Metric Cards ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {/* Card 1: TOTAL TRANSACTIONS */}
-        <div className="p-3.5 rounded-lg bg-[#081023] border border-[#132240] hover:border-blue-500/40 transition-all shadow-sm">
-          <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-            TOTAL TRANSACTIONS
+        {/* Metric 1: Tracked Volume */}
+        <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] hover:border-emerald-500/50 transition-all shadow-sm">
+          <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+            <span>TRACKED SYNDICATE VOLUME</span>
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <div className="text-2xl font-extrabold text-white mt-1">2,348</div>
-          <div className="text-[11px] font-medium text-indigo-400 flex items-center gap-1 mt-1">
-            <span>↑</span> 156 this week
+          <div className="text-xl font-extrabold text-white mt-1">
+            ₹{summary ? (summary.total_volume_inr / 100000).toFixed(2) : '41.30'} Lakhs
           </div>
-        </div>
-
-        {/* Card 2: TOTAL AMOUNT */}
-        <div className="p-3.5 rounded-lg bg-[#081023] border border-[#132240] hover:border-emerald-500/40 transition-all shadow-sm">
-          <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-            TOTAL AMOUNT
-          </div>
-          <div className="text-2xl font-extrabold text-emerald-400 mt-1">₹ 8,42,35,000</div>
-          <div className="text-[11px] font-medium text-emerald-400 flex items-center gap-1 mt-1">
-            <span>↑</span> 24% this week
+          <div className="text-[11px] font-medium text-emerald-400 flex items-center gap-1 mt-0.5">
+            <span>●</span> {transactions.length} Verified Transfers
           </div>
         </div>
 
-        {/* Card 3: SUSPICIOUS TRANSACTIONS */}
-        <div className="p-3.5 rounded-lg bg-[#081023] border border-[#132240] hover:border-red-500/40 transition-all shadow-sm">
-          <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-            SUSPICIOUS TRANSACTIONS
+        {/* Metric 2: Frozen Funds */}
+        <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] hover:border-cyan-500/50 transition-all shadow-sm">
+          <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+            <span>ATTACHED / FROZEN FUNDS</span>
+            <Lock className="w-3.5 h-3.5 text-cyan-400" />
           </div>
-          <div className="text-2xl font-extrabold text-red-500 mt-1">28</div>
-          <div className="text-[11px] font-medium text-red-400 flex items-center gap-1 mt-1">
-            <span>↑</span> 6 this week
+          <div className="text-xl font-extrabold text-cyan-400 mt-1">
+            ₹{summary ? (summary.frozen_amount_inr / 100000).toFixed(2) : '0.00'} Lakhs
           </div>
-        </div>
-
-        {/* Card 4: HIGH RISK ACCOUNTS */}
-        <div className="p-3.5 rounded-lg bg-[#081023] border border-[#132240] hover:border-amber-500/40 transition-all shadow-sm">
-          <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-            HIGH RISK ACCOUNTS
-          </div>
-          <div className="text-2xl font-extrabold text-amber-500 mt-1">16</div>
-          <div className="text-[11px] font-medium text-amber-400 flex items-center gap-1 mt-1">
-            <span>↑</span> 3 this week
+          <div className="text-[11px] font-medium text-cyan-300 flex items-center gap-1 mt-0.5">
+            <span>🛡</span> Sec 106 BNSS Requisition Active
           </div>
         </div>
 
-        {/* Card 5: UNUSUAL PATTERNS */}
-        <div className="p-3.5 rounded-lg bg-[#081023] border border-[#132240] hover:border-cyan-500/40 transition-all shadow-sm">
-          <div className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-            UNUSUAL PATTERNS
+        {/* Metric 3: Recovery Rate */}
+        <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] hover:border-purple-500/50 transition-all shadow-sm">
+          <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+            <span>RECOVERY / ATTACHMENT RATE</span>
+            <Activity className="w-3.5 h-3.5 text-purple-400" />
           </div>
-          <div className="text-2xl font-extrabold text-cyan-400 mt-1">9</div>
-          <div className="text-[11px] font-medium text-cyan-400 flex items-center gap-1 mt-1">
-            <span>↑</span> 2 this week
+          <div className="text-xl font-extrabold text-purple-400 mt-1">
+            {summary ? summary.recovery_rate_percent : 0}%
           </div>
-        </div>
-      </div>
-
-      {/* ─── Middle Main Section: Network Graph + Transaction Timeline + (Suspicious Patterns & Account Details) ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
-        {/* Left/Middle Major Column: MONEY FLOW NETWORK (Spans 6 cols on lg) */}
-        <div className="lg:col-span-6 rounded-lg bg-[#070e1f] border border-[#132342] flex flex-col relative overflow-hidden min-h-[460px] shadow-md">
-          {/* Graph Header Bar */}
-          <div className="p-3 border-b border-[#12203c] flex items-center justify-between z-10 bg-[#070e1f]/90 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold tracking-wider text-white uppercase">
-                MONEY FLOW NETWORK
-              </span>
-              <button
-                onClick={() => onSelectAction?.('Money Flow Graph Help')}
-                className="text-slate-400 hover:text-slate-200"
-                title="Graph Information"
-              >
-                <Info className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Top Legend */}
-            <div className="flex items-center gap-3 text-[11px] text-slate-300">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_6px_#a855f7]"></span>
-                <span>Person</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"></span>
-                <span>Account</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]"></span>
-                <span>Transaction</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]"></span>
-                <span>High Risk</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Network Graph Canvas */}
-          <div className="flex-1 relative flex items-center justify-center p-4 cyber-grid-bg overflow-hidden select-none min-h-[380px]">
-            <div
-              className="w-full h-full relative transition-transform duration-300 ease-out"
-              style={{ transform: `scale(${zoomLevel})` }}
-            >
-              {/* SVG Edges Layer */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                <defs>
-                  {/* Arrow Markers */}
-                  <marker
-                    id="arrow-cyan"
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="6"
-                    refY="3"
-                    orient="auto"
-                    markerUnits="strokeWidth"
-                  >
-                    <path d="M0,0 L0,6 L7,3 z" fill="#06b6d4" />
-                  </marker>
-                  <marker
-                    id="arrow-green"
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="6"
-                    refY="3"
-                    orient="auto"
-                    markerUnits="strokeWidth"
-                  >
-                    <path d="M0,0 L0,6 L7,3 z" fill="#10b981" />
-                  </marker>
-                  <marker
-                    id="arrow-red"
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="6"
-                    refY="3"
-                    orient="auto"
-                    markerUnits="strokeWidth"
-                  >
-                    <path d="M0,0 L0,6 L7,3 z" fill="#ef4444" />
-                  </marker>
-                </defs>
-
-                {/* Edges from/to Aman Khan (Center: 50%, 46%) */}
-                {/* 1. Riya Singh (25%, 22%) -> Aman Khan (50%, 46%) */}
-                <line
-                  x1="25%"
-                  y1="22%"
-                  x2="47%"
-                  y2="43%"
-                  stroke="#06b6d4"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 4"
-                  markerEnd="url(#arrow-cyan)"
-                  className="opacity-70"
-                />
-
-                {/* 2. AC455566 (50%, 15%) -> Aman Khan (50%, 46%) & Vikram J (75%, 22%) */}
-                <line
-                  x1="50%"
-                  y1="19%"
-                  x2="50%"
-                  y2="40%"
-                  stroke="#06b6d4"
-                  strokeWidth="1.5"
-                  markerEnd="url(#arrow-cyan)"
-                  className="opacity-80"
-                />
-                <line
-                  x1="54%"
-                  y1="17%"
-                  x2="72%"
-                  y2="22%"
-                  stroke="#06b6d4"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 4"
-                  markerEnd="url(#arrow-cyan)"
-                  className="opacity-70"
-                />
-
-                {/* 3. Vikram J. (75%, 22%) -> Aman Khan (50%, 46%) */}
-                <line
-                  x1="73%"
-                  y1="25%"
-                  x2="54%"
-                  y2="43%"
-                  stroke="#06b6d4"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 4"
-                  markerEnd="url(#arrow-cyan)"
-                  className="opacity-70"
-                />
-
-                {/* 4. AC987654 (22%, 46%) <-> Aman Khan (50%, 46%) */}
-                <line
-                  x1="26%"
-                  y1="46%"
-                  x2="45%"
-                  y2="46%"
-                  stroke="#10b981"
-                  strokeWidth="2"
-                  markerEnd="url(#arrow-green)"
-                  className="opacity-85"
-                />
-
-                {/* 5. AC665577 (78%, 46%) <-> Aman Khan (50%, 46%) */}
-                <line
-                  x1="55%"
-                  y1="46%"
-                  x2="74%"
-                  y2="46%"
-                  stroke="#10b981"
-                  strokeWidth="2"
-                  markerEnd="url(#arrow-green)"
-                  className="opacity-85"
-                />
-
-                {/* 6. Rahul Sharma (30%, 68%) -> Aman Khan (50%, 46%) */}
-                <line
-                  x1="33%"
-                  y1="66%"
-                  x2="47%"
-                  y2="49%"
-                  stroke="#06b6d4"
-                  strokeWidth="1.5"
-                  className="opacity-70"
-                />
-
-                {/* 7. AC112233 (50%, 75%) -> Aman Khan (50%, 46%) */}
-                <line
-                  x1="50%"
-                  y1="70%"
-                  x2="50%"
-                  y2="52%"
-                  stroke="#10b981"
-                  strokeWidth="2.5"
-                  markerEnd="url(#arrow-green)"
-                  className="opacity-90"
-                />
-
-                {/* 8. Aman Khan (50%, 46%) -> Shakti Transport (75%, 68%) */}
-                <line
-                  x1="54%"
-                  y1="49%"
-                  x2="72%"
-                  y2="66%"
-                  stroke="#06b6d4"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 4"
-                  markerEnd="url(#arrow-cyan)"
-                  className="opacity-70"
-                />
-              </svg>
-
-              {/* Edge Amount Badges / Labels */}
-              {/* Riya Singh -> Aman */}
-              <div className="absolute top-[31%] left-[34%] transform -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-[#061226]/90 border border-cyan-500/30 text-[9.5px] font-mono text-cyan-300 shadow">
-                ₹2,50,000
-              </div>
-
-              {/* AC455566 -> Aman */}
-              <div className="absolute top-[28%] left-[53%] transform -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-[#061226]/90 border border-cyan-500/30 text-[9.5px] font-mono text-cyan-300 shadow">
-                ₹1,15,000
-              </div>
-
-              {/* Vikram -> Center */}
-              <div className="absolute top-[33%] left-[64%] transform -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-[#061226]/90 border border-cyan-500/30 text-[9.5px] font-mono text-cyan-300 shadow">
-                ₹1,15,000
-              </div>
-
-              {/* Left AC987654 Connection 1 */}
-              <div className="absolute top-[40%] left-[33%] transform -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-[#061226]/90 border border-emerald-500/30 text-[9.5px] font-mono text-emerald-300 shadow">
-                ₹1,50,000
-              </div>
-
-              {/* Left AC987654 Connection 2 */}
-              <div className="absolute top-[48%] left-[37%] transform -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-[#061226]/90 border border-emerald-500/30 text-[9.5px] font-mono text-emerald-300 shadow">
-                ₹4,20,000
-              </div>
-
-              {/* Right AC665577 Connection */}
-              <div className="absolute top-[42%] left-[64%] transform -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-[#061226]/90 border border-emerald-500/30 text-[9.5px] font-mono text-emerald-300 shadow">
-                ₹70,000
-              </div>
-
-              {/* Shakti Transport */}
-              <div className="absolute top-[58%] left-[63%] transform -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-[#061226]/90 border border-cyan-500/30 text-[9.5px] font-mono text-cyan-300 shadow">
-                ₹2,00,000
-              </div>
-
-              {/* Bottom AC112233 */}
-              <div className="absolute top-[62%] left-[53%] transform -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-[#061226]/90 border border-emerald-500/30 text-[9.5px] font-mono text-emerald-300 shadow">
-                ₹3,20,000
-              </div>
-
-              {/* ─── GRAPH NODES ─── */}
-
-              {/* 1. Top Left: Riya Singh (Person) */}
-              <div
-                onClick={() => setSelectedEntityId('AC998877')}
-                className="absolute top-[22%] left-[25%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10"
-              >
-                <div className="w-10 h-10 rounded-full bg-purple-900/60 border-2 border-purple-500/80 flex items-center justify-center text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.4)] group-hover:scale-110 transition-transform">
-                  <User className="w-5 h-5" />
-                </div>
-                <span className="text-[11px] font-semibold text-slate-200 mt-1">Riya Singh</span>
-              </div>
-
-              {/* 2. Top Center: AC455566 (Account) */}
-              <div
-                onClick={() => setSelectedEntityId('AC455566')}
-                className="absolute top-[15%] left-[50%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10"
-              >
-                <div className="w-9 h-9 rounded-lg bg-emerald-950/70 border border-emerald-500/80 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-110 transition-transform">
-                  <Landmark className="w-4.5 h-4.5" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-400 mt-1">AC455566</span>
-                <span className="text-[9px] text-slate-400 font-mono">₹ 1,15,000</span>
-              </div>
-
-              {/* 3. Top Right: Vikram J. (Person) */}
-              <div
-                onClick={() => setSelectedEntityId('AC455566')}
-                className="absolute top-[22%] left-[75%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10"
-              >
-                <div className="w-10 h-10 rounded-full bg-purple-900/60 border-2 border-purple-500/80 flex items-center justify-center text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.4)] group-hover:scale-110 transition-transform">
-                  <User className="w-5 h-5" />
-                </div>
-                <span className="text-[11px] font-semibold text-slate-200 mt-1">Vikram J.</span>
-              </div>
-
-              {/* 4. Center-Left: AC987654 (Account) */}
-              <div
-                onClick={() => setSelectedEntityId('AC987654')}
-                className="absolute top-[46%] left-[22%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10"
-              >
-                <div className="w-9 h-9 rounded-lg bg-emerald-950/70 border border-emerald-500/80 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-110 transition-transform">
-                  <Landmark className="w-4.5 h-4.5" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-400 mt-1">AC987654</span>
-                <span className="text-[9px] text-slate-400 font-mono">₹ 4,20,000</span>
-              </div>
-
-              {/* 5. CENTER NODE: Aman Khan (Suspect) */}
-              <div
-                onClick={() => setSelectedEntityId('AC987654')}
-                className="absolute top-[46%] left-[50%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-20"
-              >
-                <div className="relative">
-                  <div className="w-14 h-14 rounded-full p-0.5 bg-gradient-to-r from-red-600 to-amber-600 shadow-[0_0_20px_rgba(239,68,68,0.7)] group-hover:scale-105 transition-transform">
-                    <img
-                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-                      alt="Aman Khan"
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  </div>
-                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-red-600 border-2 border-[#070e1f] rounded-full animate-ping"></span>
-                </div>
-                <span className="text-xs font-bold text-white mt-1.5 tracking-wide">
-                  Aman Khan
-                </span>
-                <span className="text-[10px] text-slate-300 font-medium">
-                  Risk Score: <span className="text-red-400 font-bold">92</span>
-                </span>
-                <span className="px-2 py-0.5 rounded bg-red-950/80 border border-red-500/60 text-red-400 text-[9px] font-bold mt-0.5 shadow">
-                  High Risk
-                </span>
-              </div>
-
-              {/* 6. Center-Right: AC665577 (Account) */}
-              <div
-                onClick={() => setSelectedEntityId('AC665577')}
-                className="absolute top-[46%] left-[78%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10"
-              >
-                <div className="w-9 h-9 rounded-lg bg-emerald-950/70 border border-emerald-500/80 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)] group-hover:scale-110 transition-transform">
-                  <Landmark className="w-4.5 h-4.5" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-400 mt-1">AC665577</span>
-                <span className="text-[9px] text-slate-400 font-mono">₹ 70,000</span>
-              </div>
-
-              {/* 7. Bottom-Left: Rahul Sharma (Person) */}
-              <div
-                onClick={() => setSelectedEntityId('AC987654')}
-                className="absolute top-[68%] left-[30%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10"
-              >
-                <div className="w-10 h-10 rounded-full bg-purple-900/60 border-2 border-purple-500/80 flex items-center justify-center text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.4)] group-hover:scale-110 transition-transform">
-                  <User className="w-5 h-5" />
-                </div>
-                <span className="text-[11px] font-semibold text-slate-200 mt-1">Rahul Sharma</span>
-              </div>
-
-              {/* 8. Bottom-Center: AC112233 (Account) */}
-              <div
-                onClick={() => setSelectedEntityId('AC112233')}
-                className="absolute top-[75%] left-[50%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10"
-              >
-                <div className="w-10 h-10 rounded-lg bg-emerald-950/80 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 shadow-[0_0_16px_rgba(16,185,129,0.6)] group-hover:scale-110 transition-transform">
-                  <Landmark className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-400 mt-1">AC112233</span>
-                <span className="text-[9px] text-slate-400 font-mono">₹ 2,80,000</span>
-              </div>
-
-              {/* 9. Bottom-Right: Shakti Transport Pvt. Ltd. (Entity) */}
-              <div
-                onClick={() => setSelectedEntityId('AC665577')}
-                className="absolute top-[68%] left-[75%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group z-10"
-              >
-                <div className="w-10 h-10 rounded-full bg-purple-900/60 border-2 border-purple-500/80 flex items-center justify-center text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.4)] group-hover:scale-110 transition-transform">
-                  <Building2 className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-semibold text-slate-200 mt-1 text-center max-w-[100px] leading-tight">
-                  Shakti Transport Pvt. Ltd.
-                </span>
-              </div>
-            </div>
-
-            {/* Bottom-Left Graph Legend Overlay */}
-            <div className="absolute bottom-3 left-3 p-2.5 rounded-lg bg-[#060c1c]/90 border border-[#142340] backdrop-blur-md text-[10px] space-y-2 z-20 shadow-lg pointer-events-auto">
-              <div>
-                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Transaction Volume
-                </div>
-                <div className="flex items-center gap-3 text-slate-300">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 border-t border-dashed border-cyan-400"></span>
-                    <span>Low</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 border-t border-solid border-cyan-400"></span>
-                    <span>Medium</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 border-t-2 border-solid border-cyan-400"></span>
-                    <span>High</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-[#142340] pt-1.5">
-                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Amount Range
-                </div>
-                <div className="grid grid-cols-2 gap-x-2.5 gap-y-0.5 text-slate-300">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                    <span>&lt; ₹50K</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span>₹50K - ₹2L</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span>₹2L - ₹10L</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                    <span>&gt; ₹10L</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom-Right Graph Canvas Controls */}
-            <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 z-20">
-              <button
-                onClick={() => onSelectAction?.('Expand Money Flow Network')}
-                className="w-7 h-7 rounded bg-[#091124] border border-[#1b2b4e] text-slate-300 hover:text-white flex items-center justify-center hover:bg-slate-800 transition-colors shadow"
-                title="Expand View"
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => handleZoom('in')}
-                className="w-7 h-7 rounded bg-[#091124] border border-[#1b2b4e] text-slate-300 hover:text-white flex items-center justify-center hover:bg-slate-800 transition-colors shadow"
-                title="Zoom In"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => handleZoom('out')}
-                className="w-7 h-7 rounded bg-[#091124] border border-[#1b2b4e] text-slate-300 hover:text-white flex items-center justify-center hover:bg-slate-800 transition-colors shadow"
-                title="Zoom Out"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => handleZoom('reset')}
-                className="w-7 h-7 rounded bg-[#091124] border border-[#1b2b4e] text-slate-300 hover:text-white flex items-center justify-center hover:bg-slate-800 transition-colors shadow"
-                title="Recenter"
-              >
-                <Crosshair className="w-3.5 h-3.5" />
-              </button>
-            </div>
+          <div className="text-[11px] font-medium text-purple-300 flex items-center gap-1 mt-0.5">
+            <span>↑</span> Target: 65% Threshold
           </div>
         </div>
 
-        {/* Middle Column: TRANSACTION TIMELINE (Spans 3 cols on lg) */}
-        <div className="lg:col-span-3 rounded-lg bg-[#070e1f] border border-[#132342] flex flex-col min-h-[460px] shadow-md">
-          {/* Header */}
-          <div className="p-3 border-b border-[#12203c] flex items-center justify-between">
-            <span className="text-xs font-bold tracking-wider text-white uppercase">
-              TRANSACTION TIMELINE
-            </span>
-            <button
-              onClick={() => setActiveViewModal('timeline')}
-              className="text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:underline"
-            >
-              View All
-            </button>
+        {/* Metric 4: High Risk Mule Accounts */}
+        <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] hover:border-red-500/50 transition-all shadow-sm">
+          <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+            <span>HIGH RISK MULE ACCOUNTS</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
           </div>
-
-          {/* Timeline Feed */}
-          <div className="p-3.5 flex-1 flex flex-col justify-between space-y-3.5 relative overflow-y-auto">
-            {/* Vertical timeline connector */}
-            <div className="absolute left-[20px] top-6 bottom-10 w-0.5 bg-[#142646] z-0"></div>
-
-            {/* Timeline Item 1 */}
-            <div className="flex items-start gap-2.5 relative z-10">
-              <div className="w-6 h-6 rounded bg-emerald-950/90 border border-emerald-500/80 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
-                <Landmark className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-medium">Today 10:21 PM</span>
-                  <span className="text-xs font-bold text-white">₹1,50,000</span>
-                </div>
-                <div className="text-[11px] font-medium text-slate-300 truncate mt-0.5">
-                  AC112233 → AC987654
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">UPI Transfer</div>
-              </div>
-            </div>
-
-            {/* Timeline Item 2 */}
-            <div className="flex items-start gap-2.5 relative z-10">
-              <div className="w-6 h-6 rounded bg-purple-950/90 border border-purple-500/80 flex items-center justify-center text-purple-300 shrink-0 mt-0.5 shadow-[0_0_8px_rgba(168,85,247,0.3)]">
-                <User className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-medium">Today 08:47 PM</span>
-                  <span className="text-xs font-bold text-white">₹2,00,000</span>
-                </div>
-                <div className="text-[11px] font-medium text-slate-300 truncate mt-0.5">
-                  Riya Singh → Aman Khan
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">IMPS</div>
-              </div>
-            </div>
-
-            {/* Timeline Item 3 */}
-            <div className="flex items-start gap-2.5 relative z-10">
-              <div className="w-6 h-6 rounded bg-emerald-950/90 border border-emerald-500/80 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
-                <Landmark className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-medium">Today 07:32 PM</span>
-                  <span className="text-xs font-bold text-white">₹70,000</span>
-                </div>
-                <div className="text-[11px] font-medium text-slate-300 truncate mt-0.5">
-                  Aman Khan → AC455566
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">NEFT</div>
-              </div>
-            </div>
-
-            {/* Timeline Item 4 */}
-            <div className="flex items-start gap-2.5 relative z-10">
-              <div className="w-6 h-6 rounded bg-purple-950/90 border border-purple-500/80 flex items-center justify-center text-purple-300 shrink-0 mt-0.5 shadow-[0_0_8px_rgba(168,85,247,0.3)]">
-                <User className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-medium">Yesterday 10:15 PM</span>
-                  <span className="text-xs font-bold text-white">₹3,20,000</span>
-                </div>
-                <div className="text-[11px] font-medium text-slate-300 truncate mt-0.5">
-                  Rahul Sharma → Aman Khan
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">IMPS</div>
-              </div>
-            </div>
-
-            {/* Timeline Item 5 */}
-            <div className="flex items-start gap-2.5 relative z-10">
-              <div className="w-6 h-6 rounded bg-emerald-950/90 border border-emerald-500/80 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
-                <Landmark className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-medium">Yesterday 08:40 PM</span>
-                  <span className="text-xs font-bold text-white">₹1,10,000</span>
-                </div>
-                <div className="text-[11px] font-medium text-slate-300 truncate mt-0.5">
-                  AC455566 → Vikram J.
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">UPI</div>
-              </div>
-            </div>
-
-            {/* Timeline Item 6 */}
-            <div className="flex items-start gap-2.5 relative z-10">
-              <div className="w-6 h-6 rounded bg-amber-950/90 border border-amber-500/80 flex items-center justify-center text-amber-400 shrink-0 mt-0.5 shadow-[0_0_8px_rgba(245,158,11,0.3)]">
-                <User className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-medium">26 Aug 2026 09:11 PM</span>
-                  <span className="text-xs font-bold text-white">₹5,00,000</span>
-                </div>
-                <div className="text-[11px] font-medium text-slate-300 truncate mt-0.5">
-                  Unknown → Aman Khan
-                </div>
-                <div className="text-[10px] text-slate-400 mt-0.5">RTGS</div>
-              </div>
-            </div>
-
-            {/* View More Button */}
-            <button
-              onClick={() => setActiveViewModal('timeline')}
-              className="w-full text-center py-1.5 text-xs text-blue-400 hover:text-blue-300 hover:underline pt-2 border-t border-[#12203c]"
-            >
-              + 23 more transactions
-            </button>
+          <div className="text-xl font-extrabold text-red-400 mt-1">
+            {accounts.filter((a) => a.risk_level === 'CRITICAL' || a.risk_level === 'HIGH').length}
+          </div>
+          <div className="text-[11px] font-medium text-red-400 flex items-center gap-1 mt-0.5">
+            <span>⚠</span> {accounts.filter((a) => a.status === 'FROZEN').length} Frozen • {accounts.filter((a) => a.status === 'ACTIVE').length} Under Watch
           </div>
         </div>
 
-        {/* Right Column: SUSPICIOUS PATTERNS + ACCOUNT DETAILS (Spans 3 cols on lg) */}
-        <div className="lg:col-span-3 flex flex-col gap-3.5 min-h-[460px]">
-          {/* Top Half: SUSPICIOUS PATTERNS */}
-          <div className="rounded-lg bg-[#070e1f] border border-[#132342] p-3 flex flex-col flex-1 shadow-md">
-            <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
-              <span className="text-xs font-bold tracking-wider text-white uppercase">
-                SUSPICIOUS PATTERNS
-              </span>
-              <button
-                onClick={() => setActiveViewModal('patterns')}
-                className="text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:underline"
-              >
-                View All
-              </button>
-            </div>
-
-            <div className="flex-1 flex flex-col justify-between space-y-2 pt-2 text-xs">
-              {/* Pattern 1 */}
-              <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/40 transition-colors">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded bg-red-950/70 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
-                    <Layers className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="truncate">
-                    <div className="font-semibold text-slate-100 text-[11px]">Layering detected</div>
-                    <div className="text-[9.5px] text-slate-400">5 transactions in 3 accounts</div>
-                  </div>
-                </div>
-                <span className="text-[9.5px] font-bold text-red-500 shrink-0">High Risk</span>
-              </div>
-
-              {/* Pattern 2 */}
-              <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/40 transition-colors">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded bg-amber-950/70 border border-amber-500/60 flex items-center justify-center text-amber-400 shrink-0">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="truncate">
-                    <div className="font-semibold text-slate-100 text-[11px]">
-                      Round amount transfers
-                    </div>
-                    <div className="text-[9.5px] text-slate-400">₹2,80,000 in last 48 hours</div>
-                  </div>
-                </div>
-                <span className="text-[9.5px] font-bold text-amber-500 shrink-0">Medium Risk</span>
-              </div>
-
-              {/* Pattern 3 */}
-              <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/40 transition-colors">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded bg-red-950/70 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
-                    <Activity className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="truncate">
-                    <div className="font-semibold text-slate-100 text-[11px]">
-                      Rapid fund movement
-                    </div>
-                    <div className="text-[9.5px] text-slate-400">9 transactions within 2 hours</div>
-                  </div>
-                </div>
-                <span className="text-[9.5px] font-bold text-red-500 shrink-0">High Risk</span>
-              </div>
-
-              {/* Pattern 4 */}
-              <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/40 transition-colors">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded bg-amber-950/70 border border-amber-500/60 flex items-center justify-center text-amber-400 shrink-0">
-                    <GitFork className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="truncate">
-                    <div className="font-semibold text-slate-100 text-[11px]">
-                      Structuring detected
-                    </div>
-                    <div className="text-[9.5px] text-slate-400">Multiple small transactions</div>
-                  </div>
-                </div>
-                <span className="text-[9.5px] font-bold text-amber-500 shrink-0">Medium Risk</span>
-              </div>
-
-              {/* Pattern 5 */}
-              <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/40 transition-colors">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded bg-red-950/70 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0">
-                    <Clock className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="truncate">
-                    <div className="font-semibold text-slate-100 text-[11px]">
-                      Dormant account activity
-                    </div>
-                    <div className="text-[9.5px] text-slate-400">Account inactive for 180+ days</div>
-                  </div>
-                </div>
-                <span className="text-[9.5px] font-bold text-red-500 shrink-0">High Risk</span>
-              </div>
-            </div>
+        {/* Metric 5: Crypto & Hawala Volume */}
+        <div className="p-3.5 rounded-xl bg-[#081023] border border-[#132240] hover:border-amber-500/50 transition-all shadow-sm">
+          <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+            <span>CRYPTO OTC & HAWALA EXIT</span>
+            <Coins className="w-3.5 h-3.5 text-amber-400" />
           </div>
-
-          {/* Bottom Half: ACCOUNT DETAILS */}
-          <div className="rounded-lg bg-[#070e1f] border border-[#132342] p-3 flex flex-col flex-1 shadow-md">
-            <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
-              <span className="text-xs font-bold tracking-wider text-white uppercase">
-                ACCOUNT DETAILS
-              </span>
-              <button
-                onClick={() => onSelectAction?.(`Account Profile: ${selectedAccount.accountNumber}`)}
-                className="text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:underline"
-              >
-                View Full Profile
-              </button>
-            </div>
-
-            <div className="pt-2 flex-1 flex flex-col justify-between">
-              {/* Account Title + Status */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded bg-emerald-950/70 border border-emerald-500/70 flex items-center justify-center text-emerald-400">
-                    <Landmark className="w-4 h-4" />
-                  </div>
-                  <span className="text-sm font-bold text-white">{selectedAccount.accountNumber}</span>
-                </div>
-                <span className="text-[10px] font-medium text-emerald-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Active
-                </span>
-              </div>
-
-              {/* 2-Column Info Grid */}
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[10.5px] my-2 bg-[#050b18] p-2 rounded border border-[#0e1b33]">
-                <div>
-                  <div className="text-slate-500 text-[9px] font-medium">Account Holder</div>
-                  <div className="font-semibold text-slate-200 truncate">
-                    {selectedAccount.holderName}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-slate-500 text-[9px] font-medium">Account Type</div>
-                  <div className="font-semibold text-slate-200 truncate">
-                    {selectedAccount.accountType}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-slate-500 text-[9px] font-medium">Bank Name</div>
-                  <div className="font-semibold text-slate-200 truncate">{selectedAccount.bankName}</div>
-                </div>
-                <div>
-                  <div className="text-slate-500 text-[9px] font-medium">IFSC Code</div>
-                  <div className="font-mono font-semibold text-slate-200">
-                    {selectedAccount.ifscCode}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-slate-500 text-[9px] font-medium">Opening Date</div>
-                  <div className="font-semibold text-slate-200">{selectedAccount.openingDate}</div>
-                </div>
-                <div>
-                  <div className="text-slate-500 text-[9px] font-medium">Current Balance</div>
-                  <div className="font-mono font-bold text-emerald-400">
-                    {selectedAccount.currentBalance}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-slate-500 text-[9px] font-medium">Total Received</div>
-                  <div className="font-mono font-semibold text-slate-200">
-                    {selectedAccount.totalReceived}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-slate-500 text-[9px] font-medium">Total Sent</div>
-                  <div className="font-mono font-semibold text-slate-200">
-                    {selectedAccount.totalSent}
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Risk Score Meter */}
-              <div className="flex items-center justify-between pt-1 border-t border-[#12203c]">
-                <span className="text-[11px] font-medium text-slate-400">Risk Score</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full border-2 border-red-500 flex items-center justify-center text-red-500 font-bold text-xs shadow-[0_0_8px_rgba(239,68,68,0.4)]">
-                    {selectedAccount.riskScore}
-                  </div>
-                  <span className="text-[11px] text-slate-400 font-medium">/ 100</span>
-                  <span className="text-[10px] font-bold text-red-500">High Risk</span>
-                </div>
-              </div>
-            </div>
+          <div className="text-xl font-extrabold text-amber-400 mt-1">
+            ₹{summary ? (summary.crypto_volume_inr / 100000).toFixed(2) : '19.50'} Lakhs
+          </div>
+          <div className="text-[11px] font-medium text-amber-300 flex items-center gap-1 mt-0.5">
+            <span>●</span> TRC-20 USDT & Angadia Notes
           </div>
         </div>
       </div>
 
-      {/* ─── Bottom Section (3 Columns): HIGH RISK ACCOUNTS + TOP TRANSACTION TYPES + LARGE TRANSACTIONS ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-        {/* Bottom Left: HIGH RISK ACCOUNTS Table (Spans 4 cols on lg) */}
-        <div className="lg:col-span-4 rounded-lg bg-[#070e1f] border border-[#132342] p-3 flex flex-col shadow-md">
-          <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
-            <span className="text-xs font-bold tracking-wider text-white uppercase">
-              HIGH RISK ACCOUNTS
-            </span>
-            <button
-              onClick={() => setActiveViewModal('high_risk')}
-              className="text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:underline"
-            >
-              View All
-            </button>
-          </div>
+      {/* ─── Navigation Tabs ─── */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#142342] pb-2">
+        <button
+          onClick={() => setActiveTab('graph')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'graph'
+              ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
+              : 'bg-[#081023] border border-[#132342] text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <GitFork className="w-3.5 h-3.5" />
+          <span>Money Flow Network ({flowNetwork.nodes.length} Nodes)</span>
+        </button>
 
-          <div className="overflow-x-auto mt-2">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="text-[9.5px] font-bold text-slate-500 uppercase border-b border-[#12203c]/60">
-                  <th className="pb-1.5 font-semibold">ACCOUNT NUMBER</th>
-                  <th className="pb-1.5 font-semibold">ACCOUNT HOLDER</th>
-                  <th className="pb-1.5 font-semibold">TOTAL RECEIVED</th>
-                  <th className="pb-1.5 font-semibold text-right">RISK SCORE</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#101b33]">
-                {/* Row 1 */}
-                <tr
-                  onClick={() => setSelectedEntityId('AC987654')}
-                  className="hover:bg-blue-600/10 cursor-pointer transition-colors"
-                >
-                  <td className="py-2 text-cyan-400 font-mono font-medium">AC987654</td>
-                  <td className="py-2 text-slate-300 font-medium">Aman Khan</td>
-                  <td className="py-2 font-mono text-slate-200">₹ 4,20,000</td>
-                  <td className="py-2 text-right font-bold text-red-500">92 / 100</td>
-                </tr>
+        <button
+          onClick={() => setActiveTab('accounts')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'accounts'
+              ? 'bg-emerald-600 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+              : 'bg-[#081023] border border-[#132342] text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>Mule Bank Accounts ({accounts.length})</span>
+        </button>
 
-                {/* Row 2 */}
-                <tr
-                  onClick={() => setSelectedEntityId('AC455566')}
-                  className="hover:bg-blue-600/10 cursor-pointer transition-colors"
-                >
-                  <td className="py-2 text-cyan-400 font-mono font-medium">AC455566</td>
-                  <td className="py-2 text-slate-300 font-medium">Vikram J.</td>
-                  <td className="py-2 font-mono text-slate-200">₹ 1,15,000</td>
-                  <td className="py-2 text-right font-bold text-amber-500">74 / 100</td>
-                </tr>
+        <button
+          onClick={() => setActiveTab('crypto')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'crypto'
+              ? 'bg-amber-600 text-white shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+              : 'bg-[#081023] border border-[#132342] text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Coins className="w-3.5 h-3.5" />
+          <span>Crypto & Blockchain Trails ({cryptoTrails.length})</span>
+        </button>
 
-                {/* Row 3 */}
-                <tr
-                  onClick={() => setSelectedEntityId('AC112233')}
-                  className="hover:bg-blue-600/10 cursor-pointer transition-colors"
-                >
-                  <td className="py-2 text-cyan-400 font-mono font-medium">AC112233</td>
-                  <td className="py-2 text-slate-300 font-medium">Unknown Entity</td>
-                  <td className="py-2 font-mono text-slate-200">₹ 2,80,000</td>
-                  <td className="py-2 text-right font-bold text-amber-500">68 / 100</td>
-                </tr>
+        <button
+          onClick={() => setActiveTab('hawala')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'hawala'
+              ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+              : 'bg-[#081023] border border-[#132342] text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <DollarSign className="w-3.5 h-3.5" />
+          <span>Hawala & Angadia Ledger ({hawalaLedger.length})</span>
+        </button>
 
-                {/* Row 4 */}
-                <tr
-                  onClick={() => setSelectedEntityId('AC665577')}
-                  className="hover:bg-blue-600/10 cursor-pointer transition-colors"
-                >
-                  <td className="py-2 text-cyan-400 font-mono font-medium">AC665577</td>
-                  <td className="py-2 text-slate-300 font-medium truncate max-w-[110px]">
-                    Shakti Transport Pvt. Ltd.
-                  </td>
-                  <td className="py-2 font-mono text-slate-200">₹ 70,000</td>
-                  <td className="py-2 text-right font-bold text-amber-500">61 / 100</td>
-                </tr>
-
-                {/* Row 5 */}
-                <tr
-                  onClick={() => setSelectedEntityId('AC998877')}
-                  className="hover:bg-blue-600/10 cursor-pointer transition-colors"
-                >
-                  <td className="py-2 text-cyan-400 font-mono font-medium">AC998877</td>
-                  <td className="py-2 text-slate-300 font-medium">Riya Singh</td>
-                  <td className="py-2 font-mono text-slate-200">₹ 2,50,000</td>
-                  <td className="py-2 text-right font-bold text-amber-500">58 / 100</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Bottom Center: TOP TRANSACTION TYPES Donut Chart (Spans 3 cols on lg) */}
-        <div className="lg:col-span-3 rounded-lg bg-[#070e1f] border border-[#132342] p-3 flex flex-col shadow-md">
-          <div className="pb-2 border-b border-[#12203c]">
-            <span className="text-xs font-bold tracking-wider text-white uppercase">
-              TOP TRANSACTION TYPES
-            </span>
-          </div>
-
-          <div className="flex-1 flex items-center justify-between gap-2 pt-2">
-            {/* Donut Chart SVG */}
-            <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                {/* Background Ring */}
-                <path
-                  className="text-[#0e1a33]"
-                  strokeWidth="4"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                {/* 1. UPI Transfer (53%) - Indigo/Purple */}
-                <path
-                  className="text-indigo-500 drop-shadow-[0_0_4px_rgba(99,102,241,0.5)]"
-                  strokeDasharray="53, 100"
-                  strokeDashoffset="0"
-                  strokeWidth="4.2"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                {/* 2. IMPS (27%) - Cyan/Blue */}
-                <path
-                  className="text-cyan-400 drop-shadow-[0_0_4px_rgba(6,182,212,0.5)]"
-                  strokeDasharray="27, 100"
-                  strokeDashoffset="-53"
-                  strokeWidth="4.2"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                {/* 3. NEFT (13%) - Emerald */}
-                <path
-                  className="text-emerald-400 drop-shadow-[0_0_4px_rgba(16,185,129,0.5)]"
-                  strokeDasharray="13, 100"
-                  strokeDashoffset="-80"
-                  strokeWidth="4.2"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                {/* 4. Cash Deposit (6%) - Amber */}
-                <path
-                  className="text-amber-500 drop-shadow-[0_0_4px_rgba(245,158,11,0.5)]"
-                  strokeDasharray="6, 100"
-                  strokeDashoffset="-93"
-                  strokeWidth="4.2"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-
-              {/* Center Donut Label */}
-              <div className="absolute flex flex-col items-center justify-center text-center">
-                <span className="text-xs font-bold text-white leading-tight">2,348</span>
-                <span className="text-[8.5px] text-slate-400 font-medium">Total</span>
-              </div>
-            </div>
-
-            {/* Donut Legend */}
-            <div className="flex-1 space-y-1 text-[10.5px]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-sm bg-indigo-500"></span>
-                  <span className="text-slate-300">UPI Transfer</span>
-                </div>
-                <span className="text-slate-400 font-mono text-[10px]">1,256 (53%)</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-sm bg-cyan-400"></span>
-                  <span className="text-slate-300">IMPS</span>
-                </div>
-                <span className="text-slate-400 font-mono text-[10px]">642 (27%)</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-sm bg-emerald-400"></span>
-                  <span className="text-slate-300">NEFT</span>
-                </div>
-                <span className="text-slate-400 font-mono text-[10px]">312 (13%)</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-sm bg-amber-500"></span>
-                  <span className="text-slate-300">Cash Deposit</span>
-                </div>
-                <span className="text-slate-400 font-mono text-[10px]">138 (6%)</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-sm bg-blue-400"></span>
-                  <span className="text-slate-300">RTGS</span>
-                </div>
-                <span className="text-slate-400 font-mono text-[10px]">0 (0%)</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-sm bg-slate-500"></span>
-                  <span className="text-slate-300">Others</span>
-                </div>
-                <span className="text-slate-400 font-mono text-[10px]">0 (0%)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Right: LARGE TRANSACTIONS Table (Spans 5 cols on lg) */}
-        <div className="lg:col-span-5 rounded-lg bg-[#070e1f] border border-[#132342] p-3 flex flex-col shadow-md">
-          <div className="flex items-center justify-between pb-2 border-b border-[#12203c]">
-            <span className="text-xs font-bold tracking-wider text-white uppercase">
-              LARGE TRANSACTIONS
-            </span>
-            <button
-              onClick={() => setActiveViewModal('large_tx')}
-              className="text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:underline"
-            >
-              View All
-            </button>
-          </div>
-
-          <div className="overflow-x-auto mt-2">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="text-[9.5px] font-bold text-slate-500 uppercase border-b border-[#12203c]/60">
-                  <th className="pb-1.5 font-semibold">DATE & TIME</th>
-                  <th className="pb-1.5 font-semibold">FROM</th>
-                  <th className="pb-1.5 font-semibold">TO</th>
-                  <th className="pb-1.5 font-semibold">AMOUNT</th>
-                  <th className="pb-1.5 font-semibold">TYPE</th>
-                  <th className="pb-1.5 font-semibold text-right">RISK</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#101b33]">
-                {/* Row 1 */}
-                <tr className="hover:bg-blue-600/10 transition-colors">
-                  <td className="py-2 text-[10px] text-slate-400">27 Aug 2026, 10:21 PM</td>
-                  <td className="py-2 text-cyan-400 font-mono">AC112233</td>
-                  <td className="py-2 text-cyan-400 font-mono">AC987654</td>
-                  <td className="py-2 font-mono font-medium text-slate-200">₹ 1,50,000</td>
-                  <td className="py-2 text-[11px] text-slate-300">UPI</td>
-                  <td className="py-2 text-right">
-                    <span className="px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/60 text-red-400 text-[9.5px] font-bold">
-                      High
-                    </span>
-                  </td>
-                </tr>
-
-                {/* Row 2 */}
-                <tr className="hover:bg-blue-600/10 transition-colors">
-                  <td className="py-2 text-[10px] text-slate-400">27 Aug 2026, 08:47 PM</td>
-                  <td className="py-2 text-slate-300 font-medium">Riya Singh</td>
-                  <td className="py-2 text-slate-300 font-medium">Aman Khan</td>
-                  <td className="py-2 font-mono font-medium text-slate-200">₹ 2,00,000</td>
-                  <td className="py-2 text-[11px] text-slate-300">IMPS</td>
-                  <td className="py-2 text-right">
-                    <span className="px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/60 text-red-400 text-[9.5px] font-bold">
-                      High
-                    </span>
-                  </td>
-                </tr>
-
-                {/* Row 3 */}
-                <tr className="hover:bg-blue-600/10 transition-colors">
-                  <td className="py-2 text-[10px] text-slate-400">27 Aug 2026, 07:32 PM</td>
-                  <td className="py-2 text-slate-300 font-medium">Aman Khan</td>
-                  <td className="py-2 text-cyan-400 font-mono">AC455566</td>
-                  <td className="py-2 font-mono font-medium text-slate-200">₹ 70,000</td>
-                  <td className="py-2 text-[11px] text-slate-300">NEFT</td>
-                  <td className="py-2 text-right">
-                    <span className="px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/60 text-amber-400 text-[9.5px] font-bold">
-                      Medium
-                    </span>
-                  </td>
-                </tr>
-
-                {/* Row 4 */}
-                <tr className="hover:bg-blue-600/10 transition-colors">
-                  <td className="py-2 text-[10px] text-slate-400">26 Aug 2026, 09:11 PM</td>
-                  <td className="py-2 text-slate-300 font-medium">Unknown</td>
-                  <td className="py-2 text-slate-300 font-medium">Aman Khan</td>
-                  <td className="py-2 font-mono font-medium text-slate-200">₹ 5,00,000</td>
-                  <td className="py-2 text-[11px] text-slate-300">RTGS</td>
-                  <td className="py-2 text-right">
-                    <span className="px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/60 text-red-400 text-[9.5px] font-bold">
-                      High
-                    </span>
-                  </td>
-                </tr>
-
-                {/* Row 5 */}
-                <tr className="hover:bg-blue-600/10 transition-colors">
-                  <td className="py-2 text-[10px] text-slate-400">26 Aug 2026, 06:22 PM</td>
-                  <td className="py-2 text-slate-300 font-medium">Vikram J.</td>
-                  <td className="py-2 text-cyan-400 font-mono">AC112233</td>
-                  <td className="py-2 font-mono font-medium text-slate-200">₹ 1,10,000</td>
-                  <td className="py-2 text-[11px] text-slate-300">UPI</td>
-                  <td className="py-2 text-right">
-                    <span className="px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/60 text-amber-400 text-[9.5px] font-bold">
-                      Medium
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* View More Large Transactions Link */}
-          <button
-            onClick={() => setActiveViewModal('large_tx')}
-            className="w-full text-center py-1.5 text-xs text-blue-400 hover:text-blue-300 hover:underline pt-2 border-t border-[#12203c] mt-auto"
-          >
-            + 15 more large transactions
-          </button>
-        </div>
+        <button
+          onClick={() => setActiveTab('transactions')}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === 'transactions'
+              ? 'bg-cyan-600 text-white shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+              : 'bg-[#081023] border border-[#132342] text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" />
+          <span>Transaction Ledger ({transactions.length})</span>
+        </button>
       </div>
 
-      {/* ─── Detail Modals ─── */}
-
-      {/* Filter Modal */}
-      {isFilterModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#081023] border border-[#1b2f56] rounded-xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#162747] pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Filter className="w-4 h-4 text-blue-400" />
-                Filter Financial Intelligence
-              </h3>
-              <button
-                onClick={() => setIsFilterModalOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                  Minimum Amount Threshold
-                </label>
-                <input
-                  type="text"
-                  defaultValue="₹ 50,000"
-                  className="w-full px-3 py-1.5 bg-[#050b18] border border-[#172a4e] rounded text-slate-100 focus:outline-none focus:border-blue-500"
-                />
+      {/* ─── TAB 1: MONEY FLOW NETWORK GRAPH ─── */}
+      {activeTab === 'graph' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+          {/* Main Visual Flow Network Canvas (Spans 8 cols) */}
+          <div className="lg:col-span-8 rounded-xl bg-[#070e1f] border border-[#132342] flex flex-col relative overflow-hidden min-h-[560px] shadow-xl">
+            {/* Top Toolbar on Graph */}
+            <div className="p-3 border-b border-[#12203c] flex flex-wrap items-center justify-between gap-2 z-10 bg-[#070e1f]/95 backdrop-blur-md">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold tracking-wider text-white uppercase flex items-center gap-1.5">
+                  <GitFork className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>MULTI-HOP MONEY LAUNDERING TRAIL</span>
+                </span>
+                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
+                  {flowNetwork.links.length} Layering Hops
+                </span>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                  Risk Level
-                </label>
-                <div className="flex gap-2">
-                  <button className="flex-1 py-1.5 rounded bg-red-950/70 border border-red-500/60 text-red-300 font-medium">
-                    High Risk
-                  </button>
-                  <button className="flex-1 py-1.5 rounded bg-amber-950/70 border border-amber-500/60 text-amber-300 font-medium">
-                    Medium Risk
-                  </button>
-                  <button className="flex-1 py-1.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-medium">
-                    All
-                  </button>
+              {/* Node Type Legend */}
+              <div className="flex items-center gap-3 text-[11px] text-slate-300 font-medium">
+                <div className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                  <span>Victim</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                  <span>Tier 1 Mule</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                  <span>Aggregator</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                  <span>Crypto OTC</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                  <span>Hawala Drop</span>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                  Transaction Types
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['UPI', 'IMPS', 'NEFT', 'RTGS', 'Cash Deposit', 'Hawala'].map((type) => (
-                    <label
-                      key={type}
-                      className="flex items-center gap-1.5 text-slate-300 cursor-pointer"
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleZoom('in')}
+                  className="p-1.5 rounded-md bg-[#091124] border border-[#1b2b4e] text-slate-300 hover:text-white"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => handleZoom('out')}
+                  className="p-1.5 rounded-md bg-[#091124] border border-[#1b2b4e] text-slate-300 hover:text-white"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => handleZoom('reset')}
+                  className="p-1.5 rounded-md bg-[#091124] border border-[#1b2b4e] text-slate-300 hover:text-white"
+                  title="Reset Zoom"
+                >
+                  <Crosshair className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive Graph Canvas */}
+            <div className="flex-1 relative flex items-center justify-center p-6 cyber-grid-bg overflow-auto select-none min-h-[460px]">
+              <div
+                className="w-[960px] h-[480px] relative transition-transform duration-300 ease-out"
+                style={{ transform: `scale(${zoomLevel})` }}
+              >
+                {/* SVG Connecting Directed Edges */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                  <defs>
+                    <marker
+                      id="arrow-cyan"
+                      markerWidth="10"
+                      markerHeight="10"
+                      refX="8"
+                      refY="3.5"
+                      orient="auto"
                     >
-                      <input type="checkbox" defaultChecked className="rounded accent-blue-600" />
-                      <span>{type}</span>
-                    </label>
-                  ))}
-                </div>
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#06b6d4" />
+                    </marker>
+                    <marker
+                      id="arrow-amber"
+                      markerWidth="10"
+                      markerHeight="10"
+                      refX="8"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b" />
+                    </marker>
+                    <marker
+                      id="arrow-purple"
+                      markerWidth="10"
+                      markerHeight="10"
+                      refX="8"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#a855f7" />
+                    </marker>
+                  </defs>
+
+                  {flowNetwork.links.map((link) => {
+                    const sourceNode = flowNetwork.nodes.find((n) => n.id === link.source);
+                    const targetNode = flowNetwork.nodes.find((n) => n.id === link.target);
+                    if (!sourceNode || !targetNode) return null;
+
+                    const sx = sourceNode.x + 80;
+                    const sy = sourceNode.y + 35;
+                    const tx = targetNode.x;
+                    const ty = targetNode.y + 35;
+                    const midX = (sx + tx) / 2;
+                    const midY = (sy + ty) / 2;
+
+                    return (
+                      <g key={link.id}>
+                        {/* Glowing Curve Line */}
+                        <path
+                          d={`M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ty}, ${tx} ${ty}`}
+                          fill="none"
+                          stroke={link.channel.includes('USDT') ? '#a855f7' : '#06b6d4'}
+                          strokeWidth="2.5"
+                          strokeDasharray="6 4"
+                          markerEnd={link.channel.includes('USDT') ? 'url(#arrow-purple)' : 'url(#arrow-cyan)'}
+                          className="opacity-80"
+                        />
+                        {/* Edge Label Badge */}
+                        <foreignObject
+                          x={midX - 50}
+                          y={midY - 14}
+                          width="100"
+                          height="28"
+                          className="overflow-visible pointer-events-auto"
+                        >
+                          <div className="px-1.5 py-0.5 rounded bg-[#060e1d] border border-cyan-500/40 text-[9px] font-mono font-bold text-center text-cyan-300 shadow-md">
+                            ₹{(link.amount_inr / 100000).toFixed(1)}L • {link.channel}
+                          </div>
+                        </foreignObject>
+                      </g>
+                    );
+                  })}
+                </svg>
+
+                {/* Graph Nodes Layer */}
+                {flowNetwork.nodes.map((node) => {
+                  const isSelected = selectedEntityId === node.id;
+                  const isHovered = hoveredNode === node.id;
+                  const isFrozen = node.status === 'FROZEN';
+
+                  const nodeColor =
+                    node.type === 'VICTIM'
+                      ? 'border-blue-500 bg-blue-950/80 text-blue-300 shadow-[0_0_12px_rgba(59,130,246,0.3)]'
+                      : node.type === 'MULE_TIER_1'
+                      ? 'border-amber-500 bg-amber-950/80 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                      : node.type === 'AGGREGATOR'
+                      ? 'border-red-500 bg-red-950/80 text-red-300 shadow-[0_0_15px_rgba(239,68,68,0.4)]'
+                      : node.type === 'CRYPTO_GATEWAY'
+                      ? 'border-purple-500 bg-purple-950/80 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
+                      : 'border-emerald-500 bg-emerald-950/80 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]';
+
+                  return (
+                    <div
+                      key={node.id}
+                      onClick={() => setSelectedEntityId(node.id)}
+                      onMouseEnter={() => setHoveredNode(node.id)}
+                      onMouseLeave={() => setHoveredNode(null)}
+                      style={{ left: `${node.x}px`, top: `${node.y}px` }}
+                      className={`absolute w-[180px] p-2.5 rounded-xl border-2 cursor-pointer transition-all duration-200 z-10 ${nodeColor} ${
+                        isSelected
+                          ? 'ring-2 ring-white scale-105 shadow-2xl'
+                          : isHovered
+                          ? 'scale-105'
+                          : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[8.5px] font-extrabold uppercase tracking-wide font-mono px-1.5 py-0.5 rounded bg-black/40">
+                          {node.type.replace('_', ' ')}
+                        </span>
+                        {isFrozen ? (
+                          <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-cyan-900 text-cyan-200 font-mono">
+                            🔒 FROZEN
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-mono font-bold text-red-400">
+                            Risk {node.risk_score}%
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-xs font-extrabold text-white leading-tight truncate">
+                        {node.label}
+                      </div>
+                      <div className="text-[10px] text-slate-300 leading-tight truncate mt-0.5">
+                        {node.sublabel}
+                      </div>
+
+                      {node.balance > 0 && (
+                        <div className="mt-1.5 pt-1 border-t border-white/10 flex items-center justify-between text-[10px] font-mono">
+                          <span className="text-slate-400">Balance:</span>
+                          <span className="font-bold text-emerald-300">
+                            ₹{(node.balance / 100000).toFixed(2)} Lakhs
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#162747]">
-              <button
-                onClick={() => setIsFilterModalOpen(false)}
-                className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs"
-              >
-                Reset
-              </button>
-              <button
-                onClick={() => setIsFilterModalOpen(false)}
-                className="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-[0_0_10px_rgba(37,99,235,0.4)]"
-              >
-                Apply Filters
-              </button>
+            {/* Bottom Status bar on Graph */}
+            <div className="p-2.5 border-t border-[#12203c] bg-[#070e1f]/95 text-xs flex items-center justify-between text-slate-400 font-mono">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Interactive money graph synced with Central FIU & Bank Core Banking Gateways</span>
+              </div>
+              <div>Click any node to view KYC dossier & execute freeze orders</div>
             </div>
+          </div>
+
+          {/* Right Sidebar: Selected Account Dossier & Quick Actions (Spans 4 cols) */}
+          <div className="lg:col-span-4 flex flex-col space-y-3.5">
+            {selectedAccount ? (
+              <div className="rounded-xl bg-[#081023] border border-[#132342] p-4 flex flex-col space-y-3.5 shadow-xl">
+                {/* Account Header */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#12203c]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-lg bg-red-950 border border-red-500/50 flex items-center justify-center text-red-400">
+                      <Landmark className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-extrabold text-white block leading-tight">
+                        {selectedAccount.holder_name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {selectedAccount.bank_name} • {selectedAccount.account_type}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono uppercase ${
+                      selectedAccount.status === 'FROZEN'
+                        ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+                        : selectedAccount.risk_level === 'CRITICAL'
+                        ? 'bg-red-950 text-red-300 border border-red-500/40'
+                        : 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                    }`}
+                  >
+                    {selectedAccount.status === 'FROZEN' ? '🔒 DEBIT FROZEN' : `${selectedAccount.risk_level} RISK`}
+                  </span>
+                </div>
+
+                {/* Account Balance Card */}
+                <div className="p-3 rounded-lg bg-gradient-to-r from-[#0d1c3a] to-[#071126] border border-emerald-500/40 space-y-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">Available Live Balance</div>
+                  <div className="text-2xl font-extrabold text-emerald-400 font-mono">
+                    ₹{selectedAccount.current_balance_inr.toLocaleString('en-IN')}
+                  </div>
+                  <div className="flex items-center justify-between text-[10.5px] font-mono text-slate-400 pt-1 border-t border-slate-700/60">
+                    <span>Total Inflow: ₹{(selectedAccount.total_received_inr / 100000).toFixed(1)}L</span>
+                    <span>Total Outflow: ₹{(selectedAccount.total_sent_inr / 100000).toFixed(1)}L</span>
+                  </div>
+                </div>
+
+                {/* Account Metadata Grid */}
+                <div className="grid grid-cols-2 gap-2 text-[10.5px] font-mono bg-[#050b16] p-2.5 rounded-lg border border-slate-800">
+                  <div>
+                    <span className="text-slate-500 block text-[9px]">Account Number</span>
+                    <span className="font-bold text-slate-200">{selectedAccount.account_number}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[9px]">IFSC Code</span>
+                    <span className="font-bold text-cyan-300">{selectedAccount.ifsc_code}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[9px]">Branch</span>
+                    <span className="text-slate-300 truncate block">{selectedAccount.branch}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[9px]">Role / Tier</span>
+                    <span className="text-amber-400 font-bold">{selectedAccount.tier.replace(/_/g, ' ')}</span>
+                  </div>
+                  {selectedAccount.pan_card && (
+                    <div>
+                      <span className="text-slate-500 block text-[9px]">PAN Card</span>
+                      <span className="text-slate-300">{selectedAccount.pan_card}</span>
+                    </div>
+                  )}
+                  {selectedAccount.phone && (
+                    <div>
+                      <span className="text-slate-500 block text-[9px]">Registered Mobile</span>
+                      <span className="text-slate-300">{selectedAccount.phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Freeze Status Alert / Order Information */}
+                {selectedAccount.status === 'FROZEN' ? (
+                  <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-500/50 space-y-1 text-xs">
+                    <div className="text-cyan-300 font-bold flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>STATUTORY FREEZE REQUISITION EXECUTED</span>
+                    </div>
+                    <div className="text-[10px] text-slate-300 font-mono">
+                      Ref: <b>{selectedAccount.freeze_order_ref || 'BNSS-106-FREEZE-991204'}</b>
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      Bank nodal officer notified under Section 106 BNSS 2023. Debit operations blocked.
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setAccountToFreeze(selectedAccount);
+                      setIsFreezeModalOpen(true);
+                    }}
+                    className="w-full py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>EMERGENCY ACCOUNT FREEZE (SEC 106 BNSS)</span>
+                  </button>
+                )}
+
+                {/* Laundering Pattern Diagnosis */}
+                <div className="p-2.5 rounded-lg bg-[#050b16] border border-slate-800 text-[11px] space-y-1">
+                  <div className="font-bold text-amber-400 uppercase tracking-wide text-[10px]">
+                    AI Forensics & AML Anomaly Diagnosis
+                  </div>
+                  <p className="text-slate-300 leading-relaxed text-[10.5px]">
+                    Account exhibits high velocity structuring (smurfing). Inward overseas wire was layered across mule accounts within 15 minutes of receipt without economic rationale.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-[#081023] border border-[#132342] p-6 text-center text-slate-400 text-xs">
+                Select an account from the money flow graph or mule accounts list to view details.
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* View All Modal */}
-      {activeViewModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-[#081023] border border-[#1b2f56] rounded-xl p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-[#162747] pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                {activeViewModal === 'timeline' && 'Full Transaction Timeline Feed'}
-                {activeViewModal === 'patterns' && 'All Detected Suspicious Patterns'}
-                {activeViewModal === 'high_risk' && 'All High Risk Account Dossiers'}
-                {activeViewModal === 'large_tx' && 'Large & Anomalous Transactions'}
-              </h3>
+      {/* ─── TAB 2: MULE BANK ACCOUNTS REGISTRY ─── */}
+      {activeTab === 'accounts' && (
+        <div className="rounded-xl bg-[#081023] border border-[#132342] p-4 flex flex-col space-y-3 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#12203c]">
+            <div>
+              <h2 className="text-sm font-extrabold text-white uppercase tracking-wider">
+                MULE & SYNDICATE BANK ACCOUNTS REGISTRY
+              </h2>
+              <p className="text-xs text-slate-400">
+                Identified beneficiary and intermediary bank accounts flagged for proceeds of crime
+              </p>
+            </div>
+            <div className="text-xs font-mono text-cyan-400 bg-cyan-950/80 px-3 py-1 rounded border border-cyan-500/30 font-bold">
+              {accounts.length} Monitored Accounts
+            </div>
+          </div>
+
+          {/* Accounts Grid Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 text-[10px] uppercase font-sans">
+                  <th className="py-2.5 px-3">Account Holder</th>
+                  <th className="py-2.5 px-3">Account No & IFSC</th>
+                  <th className="py-2.5 px-3">Bank & Branch</th>
+                  <th className="py-2.5 px-3">Role Tier</th>
+                  <th className="py-2.5 px-3">Current Balance</th>
+                  <th className="py-2.5 px-3">Risk Level</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                {accounts.map((acc) => (
+                  <tr key={acc.id} className="hover:bg-[#0c162b] transition-colors">
+                    <td className="py-3 px-3 font-sans font-bold text-white">
+                      <div>{acc.holder_name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{acc.account_type}</div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="text-cyan-300 font-bold">{acc.account_number}</div>
+                      <div className="text-[10px] text-slate-500">{acc.ifsc_code}</div>
+                    </td>
+                    <td className="py-3 px-3 font-sans">
+                      <div className="text-slate-200">{acc.bank_name}</div>
+                      <div className="text-[10px] text-slate-400">{acc.branch}</div>
+                    </td>
+                    <td className="py-3 px-3 font-sans">
+                      <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-amber-300 border border-slate-700">
+                        {acc.tier.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-bold text-emerald-400 text-sm">
+                      ₹{acc.current_balance_inr.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-3 px-3">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                          acc.risk_level === 'CRITICAL'
+                            ? 'bg-red-950 text-red-300 border border-red-500/40'
+                            : 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                        }`}
+                      >
+                        {acc.risk_score}% ({acc.risk_level})
+                      </span>
+                    </td>
+                    <td className="py-3 px-3">
+                      {acc.status === 'FROZEN' ? (
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-mono">
+                          🔒 FROZEN
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-red-950 text-red-300 border border-red-500/40 font-mono animate-pulse">
+                          ● ACTIVE DEBIT
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      {acc.status === 'FROZEN' ? (
+                        <span className="text-[10px] font-mono text-slate-500">Order Dispatched</span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setAccountToFreeze(acc);
+                            setIsFreezeModalOpen(true);
+                          }}
+                          className="px-2.5 py-1 rounded bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold transition-all shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+                        >
+                          Freeze Account
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 3: CRYPTO & BLOCKCHAIN TRAILS ─── */}
+      {activeTab === 'crypto' && (
+        <div className="rounded-xl bg-[#081023] border border-[#132342] p-4 flex flex-col space-y-3 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#12203c]">
+            <div>
+              <h2 className="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
+                <Coins className="w-4 h-4 text-amber-400" />
+                <span>BLOCKCHAIN & CRYPTO OTC OFF-RAMP TRAILS</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Tracking Tether (TRC-20 USDT), Ethereum mixer hops, and peer-to-peer crypto OTC cash brokers
+              </p>
+            </div>
+            <div className="text-xs font-mono text-amber-400 bg-amber-950/80 px-3 py-1 rounded border border-amber-500/30 font-bold">
+              {cryptoTrails.length} Verified Crypto Hops
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {cryptoTrails.map((trail) => (
+              <div
+                key={trail.id}
+                className="p-3.5 rounded-xl bg-[#0c162b] border border-[#192b4d] hover:border-amber-500/60 transition-all space-y-2.5 font-mono text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded text-[9px] font-extrabold bg-amber-950 text-amber-300 border border-amber-500/40">
+                    {trail.blockchain} • {trail.asset}
+                  </span>
+                  <span className="text-[10px] text-cyan-300">
+                    {new Date(trail.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="text-sm font-extrabold text-white">
+                    {trail.amount.toLocaleString()} {trail.asset}
+                  </div>
+                  <div className="text-xs font-bold text-emerald-400">
+                    ≈ ₹{trail.amount_inr_equivalent.toLocaleString('en-IN')} INR
+                  </div>
+                </div>
+
+                <div className="space-y-1 bg-[#060c18] p-2 rounded border border-slate-800 text-[10px]">
+                  <div>
+                    <span className="text-slate-500 block text-[9px]">Source Wallet:</span>
+                    <span className="text-slate-300 truncate block">{trail.source_address}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[9px]">Destination / OTC Desk:</span>
+                    <span className="text-amber-300 truncate block">{trail.target_address}</span>
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-slate-300 flex items-center justify-between pt-1 border-t border-slate-800">
+                  <span className="font-sans font-semibold text-slate-400">{trail.service_tag}</span>
+                  <span className="px-1.5 py-0.2 rounded bg-purple-950 text-purple-300 text-[9px] font-bold">
+                    {trail.risk_category}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-[9px] text-slate-500">
+                  <div className="truncate max-w-[180px]">Tx: {trail.tx_hash}</div>
+                  <button
+                    onClick={() => handleCopy(trail.tx_hash)}
+                    className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-bold"
+                  >
+                    {copiedText === trail.tx_hash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedText === trail.tx_hash ? 'Copied' : 'Copy Hash'}</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 4: HAWALA & ANGADIA LEDGER ─── */}
+      {activeTab === 'hawala' && (
+        <div className="rounded-xl bg-[#081023] border border-[#132342] p-4 flex flex-col space-y-3 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#12203c]">
+            <div>
+              <h2 className="text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-purple-400" />
+                <span>HAWALA & ANGADIA CASH SETTLEMENT LEDGER</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Physical cash token serials, currency note half matches, and courier handover records
+              </p>
+            </div>
+            <div className="text-xs font-mono text-purple-400 bg-purple-950/80 px-3 py-1 rounded border border-purple-500/30 font-bold">
+              {hawalaLedger.length} Hawala Settlement Entries
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {hawalaLedger.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 rounded-xl bg-[#0c162b] border border-[#192b4d] hover:border-purple-500/60 transition-all space-y-3 font-mono text-xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-purple-950 text-purple-300 border border-purple-500/40">
+                    TOKEN: #{item.token_number}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-mono">
+                    {item.status}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] text-slate-400 font-sans">Settlement Value</div>
+                    <div className="text-xl font-extrabold text-white font-mono">
+                      ₹{item.amount_inr.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-slate-400 font-sans">Corridor</div>
+                    <div className="text-xs font-bold text-cyan-300 font-sans">
+                      {item.origin_city} ➔ {item.destination_city}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-[#060c18] border border-slate-800 space-y-1 text-[10.5px]">
+                  <div className="text-amber-400 font-bold">Note Serial Token Match:</div>
+                  <div className="text-slate-200">{item.note_serial_prefix}</div>
+                  <div className="text-slate-400 pt-1 border-t border-slate-800/80">
+                    Courier: <b className="text-white">{item.angadia_courier_name}</b>
+                  </div>
+                </div>
+
+                <div className="p-2 rounded bg-purple-950/20 border border-purple-500/30 text-[10px] text-slate-300 leading-relaxed font-sans">
+                  <b>Forensic Evidence:</b> {item.forensic_note}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── TAB 5: ALL TRANSACTIONS LEDGER ─── */}
+      {activeTab === 'transactions' && (
+        <div className="rounded-xl bg-[#081023] border border-[#132342] p-4 flex flex-col space-y-3 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#12203c]">
+            <div>
+              <h2 className="text-sm font-extrabold text-white uppercase tracking-wider">
+                COMPREHENSIVE FINANCIAL TRANSACTION LEDGER
+              </h2>
+              <p className="text-xs text-slate-400">
+                Detailed UTR logs, IMPS, RTGS, UPI, and crypto transfers with suspicious risk scoring
+              </p>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search UTR, holder, channel..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#0c162b] border border-[#192b4d] rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/60"
+              />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 text-[10px] uppercase font-sans">
+                  <th className="py-2.5 px-3">Transaction Ref / UTR</th>
+                  <th className="py-2.5 px-3">Source Account</th>
+                  <th className="py-2.5 px-3">Beneficiary Target</th>
+                  <th className="py-2.5 px-3">Channel</th>
+                  <th className="py-2.5 px-3">Amount (INR)</th>
+                  <th className="py-2.5 px-3">Risk Score</th>
+                  <th className="py-2.5 px-3">Flag Reason</th>
+                  <th className="py-2.5 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                {filteredTransactions.map((t) => (
+                  <tr key={t.id} className="hover:bg-[#0c162b] transition-colors">
+                    <td className="py-2.5 px-3 text-cyan-300 font-bold">{t.transaction_ref}</td>
+                    <td className="py-2.5 px-3 font-sans">
+                      <div className="text-white font-bold">{t.source_holder}</div>
+                      <div className="text-[10px] font-mono text-slate-500">{t.source_account}</div>
+                    </td>
+                    <td className="py-2.5 px-3 font-sans">
+                      <div className="text-white font-bold">{t.target_holder}</div>
+                      <div className="text-[10px] font-mono text-slate-500">{t.target_account}</div>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-200">
+                        {t.channel}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 font-bold text-emerald-400 text-sm">
+                      ₹{t.amount_inr.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                          t.suspicious_score >= 90
+                            ? 'bg-red-950 text-red-300 border border-red-500/40'
+                            : 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                        }`}
+                      >
+                        {t.suspicious_score}%
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 font-sans text-[11px] text-slate-300 max-w-xs truncate">
+                      {t.flag_reason}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                        {t.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: EMERGENCY ACCOUNT FREEZE REQUISITION (SEC 106 BNSS) ─── */}
+      {isFreezeModalOpen && accountToFreeze && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-[#091122] border border-red-500/60 rounded-xl shadow-2xl p-5 space-y-4 text-slate-100">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-red-950 border border-red-500/50 flex items-center justify-center text-red-400">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">
+                    EMERGENCY DEBIT FREEZE REQUISITION
+                  </h3>
+                  <span className="text-[10px] text-red-400 font-mono">
+                    Statutory Provision: Section 106 BNSS 2023 / Section 5 PMLA 2002
+                  </span>
+                </div>
+              </div>
               <button
-                onClick={() => setActiveViewModal(null)}
+                onClick={() => {
+                  setIsFreezeModalOpen(false);
+                  setFreezeSuccessData(null);
+                }}
                 className="text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 text-xs pr-1">
-              <p className="text-slate-400">
-                Detailed audit and ledger verification report generated for{' '}
-                <span className="text-cyan-400 font-semibold">{activeDateRange}</span>.
-              </p>
-              <div className="p-3 bg-[#050b18] rounded-lg border border-[#142340] text-slate-300 leading-relaxed">
-                All records have been synchronized with the Central Financial Intelligence Unit (FIU) and verified against the Blockchain Vault with immutable cryptographic audit trail.
-              </div>
-            </div>
+            {freezeSuccessData ? (
+              /* Freeze Success Screen */
+              <div className="p-4 rounded-xl bg-cyan-950/50 border border-cyan-500/60 space-y-3 font-mono text-xs">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold text-sm">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <span>DEBIT FREEZE ORDER DISPATCHED & REGISTERED</span>
+                </div>
 
-            <div className="flex justify-end pt-3 border-t border-[#162747]">
-              <button
-                onClick={() => setActiveViewModal(null)}
-                className="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow"
-              >
-                Close
-              </button>
-            </div>
+                <div className="space-y-1 bg-[#050b16] p-3 rounded-lg border border-slate-800 text-[11px]">
+                  <div>Order Reference Token: <b className="text-white">{freezeSuccessData.freeze_order_ref}</b></div>
+                  <div>Account Number: <b className="text-cyan-300">{freezeSuccessData.account_number}</b></div>
+                  <div>Bank / Branch: <b className="text-slate-200">{freezeSuccessData.bank_name}</b></div>
+                  <div>Amount Attached: <b className="text-emerald-400">₹{freezeSuccessData.amount_frozen_inr.toLocaleString('en-IN')}</b></div>
+                  <div>Authorized Officer: <b className="text-slate-200">{freezeSuccessData.freezing_officer}</b></div>
+                  <div>Timestamp: <b className="text-slate-400">{new Date(freezeSuccessData.timestamp).toLocaleString()}</b></div>
+                </div>
+
+                <div className="text-[10px] text-slate-300 font-sans leading-relaxed">
+                  Notice transmitted through automated API to the Bank's Chief Vigilance & Nodal Operations Officer. All debit and withdrawal channels locked.
+                </div>
+
+                <button
+                  onClick={() => {
+                    setIsFreezeModalOpen(false);
+                    setFreezeSuccessData(null);
+                  }}
+                  className="w-full py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs"
+                >
+                  Close & Return to Dossier
+                </button>
+              </div>
+            ) : (
+              /* Freeze Confirmation Form */
+              <div className="space-y-3.5 text-xs">
+                <div className="p-3 rounded-lg bg-[#060c18] border border-slate-800 space-y-1.5 font-mono">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase font-sans">Target Bank Account</div>
+                  <div className="text-sm font-bold text-white">{accountToFreeze.holder_name}</div>
+                  <div className="text-cyan-300">A/C: {accountToFreeze.account_number} • IFSC: {accountToFreeze.ifsc_code}</div>
+                  <div className="text-slate-400">{accountToFreeze.bank_name} ({accountToFreeze.branch})</div>
+                  <div className="text-emerald-400 font-bold pt-1 border-t border-slate-800">
+                    Live Attached Balance: ₹{accountToFreeze.current_balance_inr.toLocaleString('en-IN')}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-300 uppercase block mb-1">
+                    Statutory Requisition Justification:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={freezeReason}
+                    onChange={(e) => setFreezeReason(e.target.value)}
+                    className="w-full bg-[#060c18] border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                  />
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-amber-950/30 border border-amber-500/40 text-[11px] text-amber-300 leading-relaxed font-sans">
+                  ⚠ <b>Legal Warning:</b> Executing this freeze will immediately lock all outward transactions and ATM withdrawals on this account under emergency powers.
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    onClick={() => setIsFreezeModalOpen(false)}
+                    className="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleExecuteFreeze}
+                    disabled={isFreezing}
+                    className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(239,68,68,0.4)]"
+                  >
+                    {isFreezing ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Dispatching Order...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Execute Freeze Order</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

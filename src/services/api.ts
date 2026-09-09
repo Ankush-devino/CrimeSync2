@@ -150,11 +150,43 @@ export const api = {
       }),
   },
 
-  // 4. Financial Intelligence (PostgreSQL)
+  // 4. Financial Intelligence
   financial: {
-    getAll: () => request<any[]>(`/financial`),
-    getFlagged: (threshold = 0.8) => request<any[]>(`/financial/flagged?threshold=${threshold}`),
-    getAccountTrail: (account: string) => request<any[]>(`/financial/trail/${account}`),
+    getSummary: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any>(`/financial/summary${qs}`);
+    },
+    getAccounts: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any[]>(`/financial/accounts${qs}`);
+    },
+    getTransactions: (caseId?: string, limit = 100) => {
+      const params = new URLSearchParams();
+      if (caseId && caseId !== 'ALL') params.append('case_id', caseId);
+      if (limit) params.append('limit', String(limit));
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      return request<any[]>(`/financial/transactions${qs}`);
+    },
+    getFlowNetwork: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<{ nodes: any[]; links: any[] }>(`/financial/flow-network${qs}`);
+    },
+    getCryptoTrails: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any[]>(`/financial/crypto-trails${qs}`);
+    },
+    getHawalaLedger: (caseId?: string) => {
+      const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any[]>(`/financial/hawala-ledger${qs}`);
+    },
+    freezeAccount: (payload: { account_id: string; reason?: string; officer_name?: string }) =>
+      request<any>(`/financial/freeze-account`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    getAll: () => request<any[]>(`/financial/transactions`),
+    getFlagged: (threshold = 0.8) => request<any[]>(`/financial/transactions?threshold=${threshold}`),
+    getAccountTrail: (account: string) => request<any[]>(`/financial/transactions?account=${account}`),
   },
 
   // 5. Geo-Intelligence (PostgreSQL)
