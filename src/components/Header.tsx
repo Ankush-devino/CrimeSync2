@@ -203,19 +203,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
 
           {/* Case Switcher Dropdown */}
           {showCaseSwitcher && (
-            <div className="absolute left-0 mt-2 w-80 sm:w-96 bg-[#061026] border border-blue-500/50 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[480px]">
+            <div className="absolute left-0 top-full mt-2 w-84 sm:w-96 bg-[#061026] border border-blue-500/60 rounded-xl shadow-[0_15px_50px_rgba(0,0,0,0.9)] z-[100] overflow-hidden flex flex-col max-h-[500px] backdrop-blur-xl">
               {/* Dropdown Header */}
               <div className="p-3 border-b border-slate-800 bg-[#040c20] flex items-center justify-between">
                 <div className="space-y-0.5">
                   <div className="text-xs font-extrabold text-white flex items-center gap-2">
                     <FolderKanban className="w-4 h-4 text-blue-400" />
-                    <span>Active Cases ({cases.length})</span>
+                    <span>Authorized Investigations ({cases.length})</span>
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    Full System Access: <strong className="text-blue-300">{currentUser.roleTitle}</strong>
+                    Active Officer: <strong className="text-blue-300">{currentUser.name}</strong>
                   </div>
                 </div>
-                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40">
+                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40 font-bold">
                   {currentUser.role}
                 </span>
               </div>
@@ -228,14 +228,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                     type="text"
                     value={caseFilterQuery}
                     onChange={(e) => setCaseFilterQuery(e.target.value)}
-                    placeholder="Search authorized cases..."
+                    placeholder="Search authorized cases or cities..."
                     className="w-full bg-[#061026] border border-slate-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-400 font-sans"
                   />
                 </div>
               </div>
 
               {/* Case Items List */}
-              <div className="divide-y divide-slate-800/80 overflow-y-auto flex-1 p-1">
+              <div className="divide-y divide-slate-800/80 overflow-y-auto flex-1 p-1 space-y-0.5">
                 {loading ? (
                   <div className="p-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                     <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
@@ -258,8 +258,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                         }}
                         className={`w-full text-left p-2.5 rounded-lg transition-all flex items-start justify-between gap-2 ${
                           isSelected
-                            ? 'bg-blue-950/90 border border-blue-500 text-white'
-                            : 'hover:bg-slate-900/90 text-slate-300 border border-transparent'
+                            ? 'bg-blue-950/90 border border-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.3)]'
+                            : 'hover:bg-slate-900 text-slate-300 border border-transparent'
                         }`}
                       >
                         <div className="space-y-1 min-w-0 flex-1">
@@ -283,7 +283,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                           <div className="text-[10px] text-slate-400 flex items-center gap-2">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-red-400" />
-                              {c.jurisdiction_city}
+                              {c.jurisdiction_city || 'National'}
                             </span>
                             <span>•</span>
                             <span className="text-blue-300">{c.status}</span>
@@ -291,7 +291,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                         </div>
 
                         {isSelected && (
-                          <div className="mt-1 flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white">
+                          <div className="mt-1 flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white shrink-0">
                             <Check className="w-3.5 h-3.5" />
                           </div>
                         )}

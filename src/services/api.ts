@@ -159,8 +159,33 @@ export const api = {
 
   // 5. Geo-Intelligence (PostgreSQL)
   geo: {
-    getHotspots: () => request<any[]>(`/geo/hotspots`),
+    getHotspots: (params?: { case_id?: string; city?: string; severity?: string; event_type?: string }) => {
+      const qs = params ? `?${new URLSearchParams(params as any).toString()}` : "";
+      return request<any[]>(`/geo/hotspots${qs}`);
+    },
     getClusters: () => request<any[]>(`/geo/clusters`),
+    getSuspectMovements: (caseId?: string) => {
+      const qs = caseId ? `?case_id=${encodeURIComponent(caseId)}` : "";
+      return request<any[]>(`/geo/suspect-movements${qs}`);
+    },
+    getCctvFeeds: (city?: string) => {
+      const qs = city ? `?city=${encodeURIComponent(city)}` : "";
+      return request<any[]>(`/geo/cctv-feeds${qs}`);
+    },
+    getPoliceStations: (city?: string) => {
+      const qs = city ? `?city=${encodeURIComponent(city)}` : "";
+      return request<any[]>(`/geo/police-stations${qs}`);
+    },
+    createEvent: (payload: any) =>
+      request<any>(`/geo/events`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    triangulateBts: (towers: { latitude: number; longitude: number; distance_km: number; rssi_dbm?: number }[]) =>
+      request<any>(`/geo/triangulate`, {
+        method: "POST",
+        body: JSON.stringify({ towers }),
+      }),
   },
 
   // 6. Threat Intel (PostgreSQL)
