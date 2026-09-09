@@ -515,6 +515,30 @@ export class BlockchainController {
       res.status(500).json(formatResponse(false, null, undefined, error.message));
     }
   }
+
+  async handleAnchorEvidence(req: Request, res: Response) {
+    try {
+      const {
+        evidenceId, evidenceTitle, officerBadge,
+        fromOfficer, toOfficer, location, action, notes, sha256Hash
+      } = req.body;
+
+      if (!evidenceId || !officerBadge || !action) {
+        return res.status(400).json(
+          formatResponse(false, null, undefined, "evidenceId, officerBadge, and action are required")
+        );
+      }
+
+      const result = globalBlockchainLedger.anchorCustodyTransaction({
+        evidenceId, evidenceTitle, officerBadge,
+        fromOfficer, toOfficer, location, action, notes, sha256Hash
+      });
+
+      res.json(formatResponse(true, result, `Evidence ${evidenceId} anchored on blockchain in block #${result.block.blockNumber}`));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
 }
 
 export const blockchainController = new BlockchainController();
@@ -526,5 +550,6 @@ export function blockchainRoutes(): Router {
   router.get("/stats", (req, res) => blockchainController.handleGetStats(req, res));
   router.get("/audit", (req, res) => blockchainController.handleAuditChain(req, res));
   router.post("/verify", (req, res) => blockchainController.handleVerifyProof(req, res));
+  router.post("/anchor", (req, res) => blockchainController.handleAnchorEvidence(req, res));
   return router;
 }

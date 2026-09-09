@@ -214,6 +214,35 @@ export const BlockchainExplorerPage: React.FC<BlockchainExplorerPageProps> = ({
     setTimeout(() => setCopiedHash(false), 2000);
   };
 
+  /* ── anchor evidence on-chain ── */
+  const handleAnchor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!anchorForm.evidenceId || !anchorForm.officerBadge) return;
+    setAnchorLoading(true);
+    setAnchorResult(null);
+    setAnchorError('');
+    try {
+      const r = await api.blockchain.anchorEvidence({
+        evidenceId: anchorForm.evidenceId,
+        evidenceTitle: anchorForm.evidenceTitle,
+        officerBadge: anchorForm.officerBadge,
+        fromOfficer: anchorForm.fromOfficer,
+        toOfficer: anchorForm.toOfficer,
+        location: anchorForm.location,
+        action: anchorForm.action,
+        notes: anchorForm.notes,
+      });
+      setAnchorResult(r);
+      await loadBlocks();
+      await loadStats();
+      if (onSelectAction) onSelectAction(`Anchored Evidence ${anchorForm.evidenceId} on blockchain`);
+    } catch (err: any) {
+      setAnchorError(err.message || 'Anchoring failed');
+    } finally {
+      setAnchorLoading(false);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;

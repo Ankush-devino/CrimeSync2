@@ -278,35 +278,6 @@ export const api = {
       }),
   },
 
-  // 7b. Evidence DNA & Forensics Fingerprinting (Polygon PoS & Multi-Hash)
-  evidenceDna: {
-    getProfiles: (caseId?: string) =>
-      request<any[]>(`/evidence/dna/profiles${caseId ? `?caseId=${encodeURIComponent(caseId)}` : ''}`),
-    getProfileById: (id: string) =>
-      request<any>(`/evidence/dna/profile/${encodeURIComponent(id)}`),
-    getStats: () =>
-      request<any>(`/evidence/dna/stats`),
-    generateDna: (payload: {
-      fileName: string;
-      fileType?: string;
-      fileSize?: string;
-      rawContent?: string;
-      caseId?: string;
-      algorithm?: string;
-    }) =>
-      request<any>(`/evidence/dna/generate`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }),
-    verifyBlockchain: (evidenceId: string, hash?: string) =>
-      request<any>(`/evidence/dna/verify-blockchain`, {
-        method: "POST",
-        body: JSON.stringify({ evidenceId, hash }),
-      }),
-    getCertificate: (evidenceId: string) =>
-      request<any>(`/evidence/dna/certificate/${encodeURIComponent(evidenceId)}`),
-  },
-
   // 8. Auth & Officers
   auth: {
     login: (credentials: { username?: string; email?: string; badge_number?: string; password?: string }) =>
@@ -445,6 +416,25 @@ export const api = {
       }),
     auditChain: () => request<any>(`/blockchain/audit`),
     getStats: () => request<any>(`/blockchain/stats`),
+    anchorEvidence: (payload: {
+      evidenceId: string;
+      evidenceTitle?: string;
+      officerBadge: string;
+      fromOfficer?: string;
+      toOfficer?: string;
+      location?: string;
+      action: string;
+      notes?: string;
+      sha256Hash?: string;
+    }) =>
+      request<{
+        transaction: any;
+        block: any;
+        merkleProof: string[];
+      }>(`/blockchain/anchor`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
 
 
