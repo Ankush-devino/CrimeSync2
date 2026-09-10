@@ -178,7 +178,7 @@ export const AICollationTerminal: React.FC<AICollationTerminalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
       <div className="bg-[#050b18] border border-cyan-500/40 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.25)] w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
         
         {/* Terminal Title Bar */}

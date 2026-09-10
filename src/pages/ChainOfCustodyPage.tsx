@@ -128,7 +128,7 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
   onSelectAction,
   onNavigateTab
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, enforceAdaptiveAction, isAdaptiveRestricted } = useAuth();
   const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-001');
   const [custodyItems, setCustodyItems] = useState<CustodyItem[]>([]);
   const [selectedFilterExhibit, setSelectedFilterExhibit] = useState<string>('ALL');
@@ -323,36 +323,42 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
 
   // Handle Handover Submission
   const handleInitiateHandover = async () => {
-    const evId = handoverEvidenceId || custodyItems[0]?.evidenceId || 'EVD-501';
-    setIsSubmittingHandover(true);
-    try {
-      const payload = {
-        evidenceId: evId,
-        caseRef: selectedCaseId,
-        recipientName: handoverTo,
-        recipientBadge: handoverBadge,
-        destinationLocation: handoverLocation,
-        action: handoverAction.toUpperCase(),
-        reasonNotes: handoverReason,
-        currentOfficerName: currentUser.name,
-        currentOfficerBadge: currentUser.badgeNumber || 'DEL-IPS-8821'
-      };
+    const isCleared = enforceAdaptiveAction('Anchor Custody Transfer to Blockchain Ledger', async () => {
+      const evId = handoverEvidenceId || custodyItems[0]?.evidenceId || 'EVD-501';
+      setIsSubmittingHandover(true);
+      try {
+        const payload = {
+          evidenceId: evId,
+          caseRef: selectedCaseId,
+          recipientName: handoverTo,
+          recipientBadge: handoverBadge,
+          destinationLocation: handoverLocation,
+          action: handoverAction.toUpperCase(),
+          reasonNotes: handoverReason,
+          currentOfficerName: currentUser.name,
+          currentOfficerBadge: currentUser.badgeNumber || 'DEL-IPS-8821'
+        };
 
-      const res = await api.custody.logHandover(payload);
-      await loadCustodyData();
+        const res = await api.custody.logHandover(payload);
+        await loadCustodyData();
 
-      if (onSelectAction) {
-        onSelectAction(
-          `[${selectedCaseId}] Custody of ${evId} transferred to ${handoverTo} at ${handoverLocation} (Anchored in Block #${res?.block?.blockNumber || '19842601'})`
-        );
+        if (onSelectAction) {
+          onSelectAction(
+            `[${selectedCaseId}] Custody of ${evId} transferred to ${handoverTo} at ${handoverLocation} (Anchored in Block #${res?.block?.blockNumber || '19842601'})`
+          );
+        }
+
+        setIsHandoverModalOpen(false);
+      } catch (err: any) {
+        console.error('Handover error:', err);
+        setIsHandoverModalOpen(false);
+      } finally {
+        setIsSubmittingHandover(false);
       }
+    }, 'BLOCKCHAIN_WRITE');
 
+    if (!isCleared) {
       setIsHandoverModalOpen(false);
-    } catch (err: any) {
-      console.error('Handover error:', err);
-      setIsHandoverModalOpen(false);
-    } finally {
-      setIsSubmittingHandover(false);
     }
   };
 

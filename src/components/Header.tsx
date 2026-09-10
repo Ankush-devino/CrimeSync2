@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCaseContext } from '../context/CaseContext';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -55,8 +56,8 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
     subtitle: 'Money flow analysis, hawala tracking and transaction mapping',
   },
   'identity-security': {
-    title: 'IDENTITY SECURITY',
-    subtitle: 'Doppelgänger detection, ID fraud and biometric verification',
+    title: 'IDENTITY DOPPELGÄNGER',
+    subtitle: 'Threat Detection & Adaptive Permission Control',
   },
   'attack-graph': {
     title: 'ATTACK GRAPH',
@@ -101,8 +102,9 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
 };
 
 export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
-  const { currentUser, logout, permissions } = useAuth();
+  const { currentUser, logout, permissions, trustScore, isAdaptiveRestricted } = useAuth();
   const { cases, selectedCaseId, selectedCase, setSelectedCaseId, loading } = useCaseContext();
+  const { setActiveCaseId } = useAuditLog();
 
   const [timeStr, setTimeStr] = useState('10:42 PM');
   const [dateStr, setDateStr] = useState('27 Aug 2026');
@@ -154,7 +156,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
   });
 
   return (
-    <header className="bg-[#040814] border-b border-slate-800/80 sticky top-0 z-[1000] backdrop-blur-md flex-shrink-0">
+    <header className="bg-[#040814] border-b border-slate-800/80 sticky top-0 z-30 backdrop-blur-md flex-shrink-0">
       {/* Main Header Row */}
       <div className="px-4 h-16 flex items-center justify-between gap-3">
         {/* Left: Page Title & Subtitle */}
@@ -254,6 +256,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                         type="button"
                         onClick={() => {
                           setSelectedCaseId(c.id);
+                          setActiveCaseId(c.id);
                           setShowCaseSwitcher(false);
                         }}
                         className={`w-full text-left p-2.5 rounded-lg transition-all flex items-start justify-between gap-2 ${
@@ -322,12 +325,33 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
 
         {/* Right: Security Meters, Time, Persona Dropdown */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
-          {/* System Shield */}
-          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <div className="flex flex-col text-left leading-none">
-              <span className="text-[9px] text-emerald-500/80 font-normal">System Shield</span>
-              <span className="text-[11px] font-semibold text-emerald-400">Active</span>
+          {/* Adaptive Containment / Trust Meter */}
+          <div
+            className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-xl border text-xs font-mono transition-all ${
+              isAdaptiveRestricted
+                ? 'bg-red-950/90 border-red-500 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse'
+                : trustScore < 80
+                ? 'bg-amber-950/60 border-amber-500/40 text-amber-300'
+                : 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+            }`}
+            title={
+              isAdaptiveRestricted
+                ? 'Session Contained: Trust Score < 50. Sensitive write and exfiltration operations are strictly blocked.'
+                : `Session Trust Score: ${trustScore}/100`
+            }
+          >
+            {isAdaptiveRestricted ? (
+              <Lock className="w-4 h-4 text-red-400 flex-shrink-0 animate-bounce" />
+            ) : (
+              <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            )}
+            <div className="flex flex-col text-left leading-tight">
+              <span className="text-[8.5px] uppercase font-bold tracking-wider text-slate-400">
+                {isAdaptiveRestricted ? 'CONTAINMENT ACTIVE' : 'TRUST ENGINE'}
+              </span>
+              <span className={`text-[11px] font-black ${isAdaptiveRestricted ? 'text-red-300' : 'text-white'}`}>
+                {trustScore} / 100 {isAdaptiveRestricted ? '• LOCKED' : '• CLEAR'}
+              </span>
             </div>
           </div>
 

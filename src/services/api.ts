@@ -528,11 +528,34 @@ export const api = {
       const qs = caseId && caseId !== 'ALL' ? `?case_id=${encodeURIComponent(caseId)}` : "";
       return request<any>(`/identity/stats${qs}`);
     },
+
+    // Behavioral Identity Doppelgänger & Session Trust Analysis
+    getBehavioralSession: (params?: { officerId?: string; mode?: 'NORMAL' | 'SUSPICIOUS' | 'COMPROMISED' }) => {
+      const qs = params ? `?${new URLSearchParams(params as any).toString()}` : "";
+      return request<any>(`/identity/behavioral-session${qs}`);
+    },
+    simulateBehavioralSession: (mode: 'TRUSTED' | 'SUSPICIOUS' | 'COMPROMISED' | 'HONEY_TRIGGERED' | 'NORMAL') =>
+      request<any>(`/identity/behavioral-session/simulate`, {
+        method: "POST",
+        body: JSON.stringify({ mode }),
+      }),
+    triggerHoneyTrap: () =>
+      request<any>(`/identity/behavioral-session/honey-trap`, {
+        method: "POST",
+      }),
+    quarantineBehavioralSession: (payload?: { officerId?: string; reason?: string }) =>
+      request<any>(`/identity/behavioral-session/quarantine`, {
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }),
   },
 
   // 16. Attack Graph & Lateral Movement
   attackGraph: {
-    getKillChain: () => request<any>(`/attack-graph/kill-chain`),
+    getReconstructedSession: (simulated = true) =>
+      request<any>(`/attack-graph/reconstructed-session?simulated=${simulated}`),
+    getKillChain: (simulated = true) =>
+      request<any>(`/attack-graph/kill-chain?simulated=${simulated}`),
     isolate: (nodeId: string) =>
       request<any>(`/attack-graph/isolate`, {
         method: "POST",

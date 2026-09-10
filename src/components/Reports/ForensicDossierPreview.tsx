@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import type { ForensicDossier } from '../../services/dossierService';
 import { printCourtDossier } from '../../utils/courtDossierPrinter';
+import { useAuth } from '../../context/AuthContext';
 
 interface ForensicDossierPreviewProps {
   dossier: ForensicDossier;
@@ -58,9 +59,21 @@ export const ForensicDossierPreview: React.FC<ForensicDossierPreviewProps> = ({
   onRegenerate,
   onSelectAction,
 }) => {
+  const { enforceAdaptiveAction, isAdaptiveRestricted } = useAuth();
   const [activeSection, setActiveSection] = useState('sec-summary');
   const [copiedHash, setCopiedHash] = useState(false);
   const documentCanvasRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape key press
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -73,10 +86,12 @@ export const ForensicDossierPreview: React.FC<ForensicDossierPreviewProps> = ({
   };
 
   const handlePrint = () => {
-    if (onSelectAction) {
-      onSelectAction(`Printed Section 65B Certified Dossier: ${dossier.firNumber}`);
-    }
-    printCourtDossier(dossier);
+    enforceAdaptiveAction(`Export Section 65B Certified Court Dossier (${dossier.firNumber})`, () => {
+      if (onSelectAction) {
+        onSelectAction(`Printed Section 65B Certified Dossier: ${dossier.firNumber}`);
+      }
+      printCourtDossier(dossier);
+    }, 'EXFILTRATION');
   };
 
   const handleCopyHash = () => {
@@ -91,21 +106,21 @@ export const ForensicDossierPreview: React.FC<ForensicDossierPreviewProps> = ({
   const { sections } = dossier;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[#030712] text-slate-100 font-sans overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#030712] text-slate-100 font-sans overflow-hidden">
       
       {/* ── 1. TOP COMMAND BAR ─────────────────────────────────────────────────── */}
       <div className="h-14 px-5 bg-[#050b18] border-b border-[#14233c] flex items-center justify-between flex-shrink-0 z-30 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 flex-shrink-0">
             <FileText className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
                 {dossier.firNumber}
               </span>
               <span className="text-slate-400 text-xs">·</span>
-              <span className="text-xs text-slate-200 font-medium truncate max-w-md">
+              <span className="text-xs text-slate-200 font-medium truncate max-w-xs md:max-w-md">
                 {dossier.reportName}
               </span>
               <span
@@ -122,40 +137,53 @@ export const ForensicDossierPreview: React.FC<ForensicDossierPreviewProps> = ({
         </div>
 
         {/* Action Toolbar */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {dossier.status === 'Outdated' && (
             <button
               onClick={onRegenerate}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-black font-bold text-xs font-mono transition-colors shadow-sm cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Regenerate Dossier</span>
+              <span className="hidden sm:inline">Regenerate Dossier</span>
             </button>
           )}
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#081224] hover:bg-[#0e1d38] border border-[#162744] text-xs font-mono text-slate-200 hover:text-white transition-colors cursor-pointer"
-            title="Print Official Court Submission"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono transition-colors cursor-pointer ${
+              isAdaptiveRestricted
+                ? 'bg-red-950/40 border-red-500/50 text-red-300 hover:bg-red-900/50'
+                : 'bg-[#081224] hover:bg-[#0e1d38] border-[#162744] text-slate-200 hover:text-white'
+            }`}
+            title={isAdaptiveRestricted ? 'Action restricted: High-Risk session behavior' : 'Print Official Court Submission'}
           >
-            <Printer className="w-3.5 h-3.5 text-cyan-400" />
+            {isAdaptiveRestricted ? <Lock className="w-3.5 h-3.5 text-red-400" /> : <Printer className="w-3.5 h-3.5 text-cyan-400" />}
             <span className="hidden sm:inline">Print Document</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono transition-colors shadow-[0_0_12px_rgba(37,99,235,0.4)] cursor-pointer"
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs font-mono transition-colors cursor-pointer ${
+              isAdaptiveRestricted
+                ? 'bg-red-950 border border-red-500 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
+                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
+            }`}
+            title={isAdaptiveRestricted ? 'Action restricted: High-Risk session behavior' : 'Download Court PDF'}
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download PDF</span>
+            {isAdaptiveRestricted ? <Lock className="w-3.5 h-3.5 text-red-400" /> : <Download className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">Download PDF</span>
           </button>
 
+          {/* Prominent Close Button */}
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-[#081224] hover:bg-slate-800 text-slate-400 hover:text-white border border-[#162744] transition-colors ml-2 cursor-pointer"
-            title="Close Preview"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white border border-red-500/40 hover:border-red-500 transition-all text-xs font-mono font-bold ml-2 cursor-pointer shadow-sm group"
+            title="Close Dossier Preview (Esc)"
+            aria-label="Close Dossier Preview"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+            <span>Close</span>
+            <kbd className="hidden md:inline-block px-1.5 py-0.2 bg-black/40 border border-red-500/30 rounded text-[9px] text-red-200">ESC</kbd>
           </button>
         </div>
       </div>
@@ -743,6 +771,14 @@ export const ForensicDossierPreview: React.FC<ForensicDossierPreviewProps> = ({
               >
                 <Share2 className="w-3.5 h-3.5" />
                 <span>Share Cryptographic Proof</span>
+              </button>
+
+              <button
+                onClick={onClose}
+                className="w-full py-2 px-3 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 hover:border-red-500/60 text-red-300 hover:text-white font-mono text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Close Preview Window (Esc)</span>
               </button>
             </div>
           </div>

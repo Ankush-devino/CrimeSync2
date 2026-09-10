@@ -8,6 +8,8 @@ import { ActionModal } from './components/Modals/ActionModal';
 import { AnalysisModal } from './components/Modals/AnalysisModal';
 import { CaseProvider } from './context/CaseContext';
 import { AuthProvider } from './context/AuthContext';
+import { DbProvider, useDbContext } from './context/DbContext';
+import { useAuditLog } from './hooks/useAuditLog';
 import { logOfficerAction } from './services/activityLogger';
 
 // Pages
@@ -195,13 +197,16 @@ const PLACEHOLDER_PAGES: Record<
 
 // ─── Main App Content Component ────────────────────────────────────────────────
 const AppContent: React.FC = () => {
+  const { logEvent } = useAuditLog();
   const [activeTab, setActiveTab] = useState('command-center');
   const [selectedNode, setSelectedNode] = useState<NetworkNode | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
+
   const handleNavigateTab = (tab: string) => {
     setActiveTab(tab);
+    logEvent('TAB_SWITCH', { tabId: tab }, { module: 'Navigation', category: 'NAVIGATION', details: `Officer navigated to ${tab}` });
     const moduleActions: Record<string, { action: string; module: string; details: string; category: any }> = {
       'command-center': {
         action: 'Supervised Central Command Center',
@@ -578,11 +583,13 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <CaseProvider>
-        <AppContent />
-      </CaseProvider>
-    </AuthProvider>
+    <DbProvider>
+      <AuthProvider>
+        <CaseProvider>
+          <AppContent />
+        </CaseProvider>
+      </AuthProvider>
+    </DbProvider>
   );
 };
 

@@ -1,5 +1,6 @@
 // Identity Security, Biometrics, Doppelganger Detection & Identity Trail Module
 import { Router, Request, Response } from "express";
+import { pgPool } from "../../config/db";
 import { formatResponse } from "../../utils/api-response";
 
 export interface OfficerBaselinePattern {
@@ -959,6 +960,585 @@ export class IdentityService {
       lastAuditSync: new Date().toISOString()
     };
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Behavioral Identity Doppelgänger & Session Trust Engine (Rule-Based SIH)
+  // ─────────────────────────────────────────────────────────────────────────
+  private activeBehavioralMode: "TRUSTED" | "SUSPICIOUS" | "COMPROMISED" | "HONEY_TRIGGERED" | "NORMAL" = "TRUSTED";
+  private isBehavioralQuarantined: boolean = false;
+
+  async getBehavioralSession(officerId?: string, modeOverride?: string) {
+    let currentMode = (modeOverride || this.activeBehavioralMode) as "TRUSTED" | "SUSPICIOUS" | "COMPROMISED" | "HONEY_TRIGGERED" | "NORMAL";
+    if (currentMode === "NORMAL") currentMode = "TRUSTED";
+    const targetOfficerId = officerId || "USR-101";
+
+    // 1. Fetch from PostgreSQL `users` table
+    let officerRecord = {
+      id: "USR-101",
+      name: "ACP Rajeshwar Sharma",
+      badgeNumber: "DEL-IPS-8821",
+      rank: "Assistant Commissioner of Police",
+      department: "Special Cell / Cyber Crime Unit",
+      city: "New Delhi",
+      status: "Active"
+    };
+
+    if (pgPool) {
+      try {
+        const userRes = await pgPool.query(
+          "SELECT id, full_name, badge_number, role, department, city, is_active FROM users WHERE id = $1 OR full_name ILIKE $2 LIMIT 1",
+          [targetOfficerId, `%${targetOfficerId}%`]
+        );
+        if (userRes.rows.length > 0) {
+          const row = userRes.rows[0];
+          officerRecord = {
+            id: row.id,
+            name: row.full_name,
+            badgeNumber: row.badge_number,
+            rank: row.role === 'LEAD_INVESTIGATOR' ? 'Assistant Commissioner of Police (ACP)' : row.role,
+            department: row.department,
+            city: row.city,
+            status: row.is_active ? 'Active' : 'Suspended'
+          };
+        }
+      } catch (err) {
+        console.warn("[Identity] PostgreSQL users query fallback:", err);
+      }
+    }
+
+    // 2. Audit Trail Events (Simulating `audit_logs` table)
+    let auditEvents = [
+      {
+        id: 'AUD-01',
+        timestamp: '10:17 AM',
+        timeAgo: 'Just now',
+        action: 'Successful authentication via Kerberos SSO Ticket #KDC-DEL-8821',
+        module: 'Session Auth',
+        details: 'Valid 256-bit AES cryptographic session key issued by Delhi Police KDC',
+        category: 'AUTH',
+        status: 'Success',
+        isHoneyTripwire: false,
+      },
+      {
+        id: 'AUD-02',
+        timestamp: '10:19 AM',
+        timeAgo: '6 min ago',
+        action: 'Opened Case FIR/DEL/2026/1420 (Operation Rakshak)',
+        module: 'Investigations',
+        details: 'Inspected case dossier and active suspect telemetric graphs',
+        category: 'CASES',
+        status: 'Success',
+        isHoneyTripwire: false,
+      },
+      {
+        id: 'AUD-03',
+        timestamp: '10:24 AM',
+        timeAgo: '12 min ago',
+        action: 'Generated AI Forensic Dossier & Section 65B Seal',
+        module: 'AI Engine',
+        details: 'Compiled 10-section prosecution charge-sheet ready for judicial submission',
+        category: 'AI_REPORT',
+        status: 'Success',
+        isHoneyTripwire: false,
+      },
+      {
+        id: 'AUD-04',
+        timestamp: '10:31 AM',
+        timeAgo: '19 min ago',
+        action: 'Inspected Digital Evidence Exhibit #EVD-501 (OnePlus 12)',
+        module: 'Evidence DNA',
+        details: 'Verified SHA-256 digital custody seal: 9f83c18b... on Hyperledger Besu',
+        category: 'EVIDENCE',
+        status: 'Success',
+        isHoneyTripwire: false,
+      },
+      {
+        id: 'AUD-05',
+        timestamp: '10:39 AM',
+        timeAgo: '27 min ago',
+        action: 'Traversed Entity Links in Neo4j Knowledge Graph',
+        module: 'Knowledge Graph',
+        details: 'Executed shortest path graph traversal across 3 financial laundering hubs',
+        category: 'GRAPH',
+        status: 'Success',
+        isHoneyTripwire: false,
+      }
+    ];
+
+    if (currentMode === "HONEY_TRIGGERED") {
+      auditEvents.unshift({
+        id: 'AUD-TRIP-99',
+        timestamp: '10:44 AM',
+        timeAgo: 'Just now',
+        action: 'Viewed Evidence EV9999 (Confidential Swiss Wiretap & Off-Shore Hawala Ledger)',
+        module: 'Deception Trap',
+        details: 'TRIPWIRE ACTIVATED: Rogue session accessed decoy honey artifact EV9999. Incident dispatched to Attack Graph & SOAR circuit breaker.',
+        category: 'HONEY_EVIDENCE',
+        status: 'TRIPWIRE_SPRUNG',
+        isHoneyTripwire: true,
+      });
+    }
+
+    // 3. Mode Evaluation & Explicit Rule Calculations
+    let trustScore = 100;
+    let status = "Status: Trusted";
+    let sessionRisk = "Session Risk: Low";
+    let rawStatus = "Trusted";
+    let rawRisk = "Low";
+
+    interface ComparisonParam {
+      parameter: string;
+      historical: string;
+      current: string;
+      isMatch: boolean;
+      severity: 'NORMAL' | 'SUSPICIOUS' | 'CRITICAL';
+      statusBadge: string;
+      details: string;
+    }
+
+    let deviceComparison: ComparisonParam = {
+      parameter: "Device",
+      historical: "Dell Latitude 7440 (Asset #NCRB-DL-9821)",
+      current: "Dell Latitude 7440 (Asset #NCRB-DL-9821)",
+      isMatch: true,
+      severity: "NORMAL",
+      statusBadge: "Known Device (+20)",
+      details: "Hardware TPM 2.0 endorsement key matches registered NCRB device inventory."
+    };
+
+    let browserComparison: ComparisonParam = {
+      parameter: "Browser",
+      historical: "Chrome Enterprise v128 (Hardened POL-OS)",
+      current: "Chrome Enterprise v128 (Hardened POL-OS)",
+      isMatch: true,
+      severity: "NORMAL",
+      statusBadge: "Same Browser (+15)",
+      details: "Hardened Chrome Enterprise binary and sandboxing profile identical."
+    };
+
+    let locationComparison: ComparisonParam = {
+      parameter: "Location",
+      historical: "Delhi Police HQ (Subnet 10.240.8.0/24)",
+      current: "Delhi Police HQ (IP 10.240.8.21)",
+      isMatch: true,
+      severity: "NORMAL",
+      statusBadge: "Same Location (+15)",
+      details: "Static authenticated intranet fiber subnet inside headquarters perimeter."
+    };
+
+    let loginTimeComparison: ComparisonParam = {
+      parameter: "Login Time",
+      historical: "09:00 AM – 06:30 PM IST (Mon-Fri)",
+      current: "09:14 AM IST (Normal Hours)",
+      isMatch: true,
+      severity: "NORMAL",
+      statusBadge: "Normal Hours (+10)",
+      details: "Authentication aligns with officer's scheduled institutional duty shift."
+    };
+
+    let riskEngineBreakdown: Array<{
+      id: string;
+      factor: string;
+      points: number;
+      type: 'CREDIT' | 'PENALTY';
+      description: string;
+      category: 'CREDENTIAL' | 'DEVICE' | 'LOCATION' | 'TEMPORAL' | 'CADENCE' | 'EXFILTRATION';
+    }> = [];
+
+    let suspiciousAlerts: Array<{
+      id: string;
+      title: string;
+      description: string;
+      severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+      timestamp: string;
+      triggerMetric: string;
+      attackGraphFeed: boolean;
+      recommendedMitigation: string;
+    }> = [];
+
+    if (currentMode === "TRUSTED") {
+      trustScore = 100;
+      status = "Status: Trusted";
+      sessionRisk = "Session Risk: Low";
+      rawStatus = "Trusted";
+      rawRisk = "Low";
+
+      riskEngineBreakdown = [
+        { id: "R-01", factor: "Base Auth: Correct Password", points: 40, type: "CREDIT", description: "Master password and Kerberos ticket validated by KDC", category: "CREDENTIAL" },
+        { id: "R-02", factor: "Known Device", points: 20, type: "CREDIT", description: "Hardware TPM 2.0 endorsement matches Dell Latitude registry", category: "DEVICE" },
+        { id: "R-03", factor: "Same Location", points: 15, type: "CREDIT", description: "Originates within authorized Delhi Police HQ subnet 10.240.8.0/24", category: "LOCATION" },
+        { id: "R-04", factor: "Normal Hours", points: 10, type: "CREDIT", description: "Login at 09:14 AM matches standard operational duty window", category: "TEMPORAL" },
+        { id: "R-05", factor: "Same Browser", points: 15, type: "CREDIT", description: "Mandated Chrome Enterprise v128 profile verified", category: "DEVICE" },
+      ];
+    } else if (currentMode === "SUSPICIOUS") {
+      trustScore = 65;
+      status = "Status: Suspicious";
+      sessionRisk = "Session Risk: Medium";
+      rawStatus = "Suspicious";
+      rawRisk = "Medium";
+
+      browserComparison = {
+        parameter: "Browser",
+        historical: "Chrome Enterprise v128 (Hardened POL-OS)",
+        current: "Firefox Developer v129 (Untracked)",
+        isMatch: false,
+        severity: "SUSPICIOUS",
+        statusBadge: "Different Browser (-10)",
+        details: "Session initialized through non-standard Firefox browser profile."
+      };
+
+      loginTimeComparison = {
+        parameter: "Login Time",
+        historical: "09:00 AM – 06:30 PM IST (Mon-Fri)",
+        current: "08:45 PM IST (After-Hours Shift)",
+        isMatch: false,
+        severity: "SUSPICIOUS",
+        statusBadge: "Late Night Access (-10)",
+        details: "Authentication event occurred after standard daytime shift closure."
+      };
+
+      riskEngineBreakdown = [
+        { id: "R-01", factor: "Base Auth: Correct Password", points: 40, type: "CREDIT", description: "Valid credentials supplied during Kerberos handshake", category: "CREDENTIAL" },
+        { id: "R-02", factor: "Known Device", points: 20, type: "CREDIT", description: "Hardware TPM signature matches Dell Latitude asset", category: "DEVICE" },
+        { id: "R-03", factor: "Same Location", points: 15, type: "CREDIT", description: "Delhi Police HQ internal subnet verified", category: "LOCATION" },
+        { id: "R-04", factor: "Different Browser", points: -10, type: "PENALTY", description: "Firefox Developer Edition used instead of mandated Chrome", category: "DEVICE" },
+        { id: "R-05", factor: "Off-Hours Login", points: -10, type: "PENALTY", description: "Session initiated at 08:45 PM outside core schedule", category: "TEMPORAL" },
+        { id: "R-06", factor: "Account Standing Baseline", points: 10, type: "CREDIT", description: "Institutional baseline standing for senior investigator", category: "CREDENTIAL" },
+      ];
+
+      suspiciousAlerts = [
+        {
+          id: "ALT-SUS-01",
+          title: "Different Browser Detected",
+          description: "Session initiated via Firefox Developer Edition (-10 pts penalty).",
+          severity: "MEDIUM",
+          timestamp: "18 min ago",
+          triggerMetric: "Browser Discrepancy",
+          attackGraphFeed: true,
+          recommendedMitigation: "Enforce Chrome Enterprise profile lock."
+        }
+      ];
+    } else if (currentMode === "COMPROMISED") {
+      trustScore = 40;
+      status = "Status: Potentially Compromised";
+      sessionRisk = "Session Risk: High Risk";
+      rawStatus = "Potentially Compromised";
+      rawRisk = "High Risk";
+
+      deviceComparison = {
+        parameter: "Device",
+        historical: "Dell Latitude 7440 (Asset #NCRB-DL-9821)",
+        current: "MacBook Pro M3 Max (Asset #UNREGISTERED)",
+        isMatch: false,
+        severity: "CRITICAL",
+        statusBadge: "Unknown Device (-20)",
+        details: "Hardware TPM endorsement missing. Apple macOS Darwin signature observed."
+      };
+
+      browserComparison = {
+        parameter: "Browser",
+        historical: "Chrome Enterprise v128 (Hardened POL-OS)",
+        current: "Safari 17.4 / WebKit (Untracked)",
+        isMatch: false,
+        severity: "CRITICAL",
+        statusBadge: "Different Browser (-10)",
+        details: "Safari browser engine detected, incompatible with Delhi Police intranet standard."
+      };
+
+      locationComparison = {
+        parameter: "Location",
+        historical: "Delhi Police HQ (Subnet 10.240.8.0/24)",
+        current: "Frankfurt, Germany (Tor Proxy 185.220.101.44)",
+        isMatch: false,
+        severity: "CRITICAL",
+        statusBadge: "New City (-25)",
+        details: "Egress IP shifted 6,100 km from Delhi within 42 minutes. Impossible velocity."
+      };
+
+      loginTimeComparison = {
+        parameter: "Login Time",
+        historical: "09:00 AM – 06:30 PM IST (Mon-Fri)",
+        current: "02:17 AM IST (Nocturnal Anomaly)",
+        isMatch: false,
+        severity: "CRITICAL",
+        statusBadge: "2 AM Login (-15)",
+        details: "Login initiated during 02:00-04:00 inactive circadian trough (0% historical match)."
+      };
+
+      riskEngineBreakdown = [
+        { id: "R-01", factor: "Base Auth: Correct Password", points: 40, type: "CREDIT", description: "Harvested/leaked password presented with valid token format", category: "CREDENTIAL" },
+        { id: "R-02", factor: "Unknown Device", points: -20, type: "PENALTY", description: "Apple MacBook Pro hardware signature not registered in departmental inventory", category: "DEVICE" },
+        { id: "R-03", factor: "New City / Foreign Proxy", points: -25, type: "PENALTY", description: "Egress originating from Frankfurt Tor node (185.220.101.44), impossible travel", category: "LOCATION" },
+        { id: "R-04", factor: "Login at 2:17 AM", points: -15, type: "PENALTY", description: "Nocturnal access outside all registered officer duty schedules", category: "TEMPORAL" },
+        { id: "R-05", factor: "Different Browser", points: -10, type: "PENALTY", description: "Safari WebKit engine used instead of enterprise Chrome", category: "DEVICE" },
+        { id: "R-06", factor: "Account Standing Baseline", points: 70, type: "CREDIT", description: "Institutional baseline standing for senior officer ACP Rajeshwar Sharma", category: "CREDENTIAL" },
+      ];
+
+      suspiciousAlerts = [
+        {
+          id: "ALT-CRIT-01",
+          title: "Unknown Device Detected",
+          description: "Hardware signature identified as MacBook Pro Darwin WebKit (-20 pts).",
+          severity: "HIGH",
+          timestamp: "11 min ago",
+          triggerMetric: "Hardware TPM Mismatch",
+          attackGraphFeed: true,
+          recommendedMitigation: "Revoke active token and enforce step-up biometric challenge."
+        },
+        {
+          id: "ALT-CRIT-02",
+          title: "New City / Foreign Geo Shift",
+          description: "Session active from Frankfurt, Germany (185.220.101.44) 42 minutes after New Delhi duty station log (-25 pts).",
+          severity: "CRITICAL",
+          timestamp: "11 min ago",
+          triggerMetric: "Geo-IP Transit Velocity 8,700 km/h",
+          attackGraphFeed: true,
+          recommendedMitigation: "Enforce geographical perimeter lock and block proxy subnet."
+        },
+        {
+          id: "ALT-CRIT-03",
+          title: "2:17 AM Nocturnal Login Anomaly",
+          description: "Session initiated at 02:17 AM IST during officer's non-operational circadian sleep cycle (-15 pts).",
+          severity: "MEDIUM",
+          timestamp: "11 min ago",
+          triggerMetric: "Circadian Anomaly",
+          attackGraphFeed: true,
+          recommendedMitigation: "Trigger supervisor override approval."
+        }
+      ];
+    } else if (currentMode === "HONEY_TRIGGERED") {
+      trustScore = 10;
+      status = "Status: Potentially Compromised";
+      sessionRisk = "Session Risk: Critical (Tripwire Active)";
+      rawStatus = "Potentially Compromised";
+      rawRisk = "Critical";
+
+      deviceComparison = {
+        parameter: "Device",
+        historical: "Dell Latitude 7440 (Asset #NCRB-DL-9821)",
+        current: "MacBook Pro M3 Max (Asset #UNREGISTERED)",
+        isMatch: false,
+        severity: "CRITICAL",
+        statusBadge: "Unknown Device (-20)",
+        details: "Hardware TPM endorsement missing. Apple macOS Darwin signature observed."
+      };
+
+      browserComparison = {
+        parameter: "Browser",
+        historical: "Chrome Enterprise v128 (Hardened POL-OS)",
+        current: "Tor Browser v13.5 (Onion WebKit)",
+        isMatch: false,
+        severity: "CRITICAL",
+        statusBadge: "Different Browser (-10)",
+        details: "Tor routing engine detected."
+      };
+
+      locationComparison = {
+        parameter: "Location",
+        historical: "Delhi Police HQ (Subnet 10.240.8.0/24)",
+        current: "Frankfurt, Germany (Tor Proxy 185.220.101.44)",
+        isMatch: false,
+        severity: "CRITICAL",
+        statusBadge: "New City (-25)",
+        details: "Egress IP shifted 6,100 km from Delhi within 42 minutes."
+      };
+
+      loginTimeComparison = {
+        parameter: "Login Time",
+        historical: "09:00 AM – 06:30 PM IST (Mon-Fri)",
+        current: "02:17 AM IST (Nocturnal Anomaly)",
+        isMatch: false,
+        severity: "CRITICAL",
+        statusBadge: "2 AM Login (-15)",
+        details: "Login initiated during 02:00-04:00 deep inactive circadian trough."
+      };
+
+      riskEngineBreakdown = [
+        { id: "R-01", factor: "Base Auth: Correct Password", points: 40, type: "CREDIT", description: "Harvested credentials used", category: "CREDENTIAL" },
+        { id: "R-02", factor: "Unknown Device", points: -20, type: "PENALTY", description: "Apple MacBook Pro hardware signature", category: "DEVICE" },
+        { id: "R-03", factor: "New City / Foreign Proxy", points: -25, type: "PENALTY", description: "Frankfurt Tor proxy egress", category: "LOCATION" },
+        { id: "R-04", factor: "Login at 2:17 AM", points: -15, type: "PENALTY", description: "Nocturnal login outside registered duty hours", category: "TEMPORAL" },
+        { id: "R-05", factor: "Different Browser", points: -10, type: "PENALTY", description: "Tor Browser engine used", category: "DEVICE" },
+        { id: "R-06", factor: "Rapid Evidence Access: Honey Trap EV9999", points: -30, type: "PENALTY", description: "Rogue session accessed planted decoy artifact EV9999 (Confidential Swiss Hawala Ledger)", category: "EXFILTRATION" },
+        { id: "R-07", factor: "Account Standing Baseline", points: 70, type: "CREDIT", description: "Institutional baseline standing for senior officer", category: "CREDENTIAL" },
+      ];
+
+      suspiciousAlerts = [
+        {
+          id: "ALT-HONEY-01",
+          title: "TRIPWIRE ACTIVATED: Honey Evidence EV9999 Accessed",
+          description: "Rogue session opened fake decoy file EV9999 (Swiss Wiretap & Hawala Ledger). Intruder confirmed. Anomaly dispatched to Attack Graph.",
+          severity: "CRITICAL",
+          timestamp: "Just now",
+          triggerMetric: "Decoy Artifact Access (-30 pts)",
+          attackGraphFeed: true,
+          recommendedMitigation: "Immediate SOAR kill-chain isolation and token revocation."
+        }
+      ];
+    }
+
+    // 4. Adaptive Permissions Matrix (Prevention)
+    const isRestricted = trustScore < 50;
+    const adaptivePermissions = [
+      {
+        id: "perm-view-case",
+        feature: "View Assigned Case Records",
+        category: "CASE_ACCESS",
+        status: "Allowed",
+        isBlocked: false,
+        severity: "NORMAL",
+        badge: "Allowed",
+        reason: "User is NOT locked out; investigative context preserved."
+      },
+      {
+        id: "perm-view-evidence",
+        feature: "View Primary Evidence Artifacts",
+        category: "EVIDENCE",
+        status: isRestricted ? "Restricted (Preview Only)" : "Allowed",
+        isBlocked: isRestricted,
+        severity: isRestricted ? "MEDIUM" : "NORMAL",
+        badge: isRestricted ? "Restricted" : "Allowed",
+        reason: isRestricted ? "Full artifact payload masked due to elevated session risk (< 50)." : "Standard forensic inspection authorized."
+      },
+      {
+        id: "perm-export-report",
+        feature: "Export Section 65B Certified Dossier",
+        category: "EXFILTRATION",
+        status: isRestricted ? "Blocked" : "Allowed",
+        isBlocked: isRestricted,
+        severity: isRestricted ? "CRITICAL" : "NORMAL",
+        badge: isRestricted ? "Blocked" : "Allowed",
+        reason: isRestricted ? "Action restricted due to High-Risk session behavior." : "Court dossier generation authorized."
+      },
+      {
+        id: "perm-download-cdr",
+        feature: "Download Raw CDR & Cell Tower Dumps",
+        category: "TELEMETRY",
+        status: isRestricted ? "Blocked" : "Allowed",
+        isBlocked: isRestricted,
+        severity: isRestricted ? "CRITICAL" : "NORMAL",
+        badge: isRestricted ? "Blocked" : "Allowed",
+        reason: isRestricted ? "Action restricted due to High-Risk session behavior." : "Cellular triangulation telemetry available."
+      },
+      {
+        id: "perm-blockchain-write",
+        feature: "Anchor State Hash to Blockchain Ledger",
+        category: "BLOCKCHAIN",
+        status: isRestricted ? "Blocked" : "Allowed",
+        isBlocked: isRestricted,
+        severity: isRestricted ? "CRITICAL" : "NORMAL",
+        badge: isRestricted ? "Blocked" : "Allowed",
+        reason: isRestricted ? "Action restricted due to High-Risk session behavior." : "Immutable ledger mutation permitted."
+      },
+      {
+        id: "perm-bulk-report",
+        feature: "Bulk Report Generation & Multi-Dossier Export",
+        category: "EXFILTRATION",
+        status: isRestricted ? "Blocked" : "Allowed",
+        isBlocked: isRestricted,
+        severity: isRestricted ? "CRITICAL" : "NORMAL",
+        badge: isRestricted ? "Blocked" : "Allowed",
+        reason: isRestricted ? "Bulk data scraping restricted due to High-Risk session behavior." : "Automated intelligence reporting cleared."
+      },
+      {
+        id: "perm-knowledge-graph",
+        feature: "Knowledge Graph Traversal & Cypher Query",
+        category: "GRAPH",
+        status: isRestricted ? "Read Only (Masked Entities)" : "Allowed",
+        isBlocked: false,
+        severity: isRestricted ? "MEDIUM" : "NORMAL",
+        badge: isRestricted ? "Read Only" : "Allowed",
+        reason: isRestricted ? "Entities masked to prevent mass syndicate scraping." : "Full graph traversal and centrality calculations enabled."
+      }
+    ];
+
+    // 5. Honey Evidence Seeded Decoy Record
+    const honeyEvidence = {
+      id: "EV9999",
+      title: "EV9999: Swiss Secret Banking Hawala Ledger & Wiretap Dump",
+      category: "DECEPTION_TRIPWIRE",
+      classification: "TOP SECRET // DECOY ARTIFACT",
+      hashSha256: "9f83c18bdeadbeef99990000111122223333444455556666777788889999aaaa",
+      status: currentMode === "HONEY_TRIGGERED" ? "TRIPWIRE_SPRUNG" : "DORMANT_DECOY",
+      isSprung: currentMode === "HONEY_TRIGGERED",
+      decoyDetails: "Planted deceptive record designed to catch unauthorized account takeover scraping. Access immediately alerts SOC.",
+      attackGraphNode: "ANOMALY-DOPPELGANGER-HONEY-EV9999",
+    };
+
+    return {
+      officer: officerRecord,
+      session: {
+        sessionId: currentMode === "TRUSTED" ? "SES-2026-9921" : currentMode === "SUSPICIOUS" ? "SES-2026-9922" : "SES-2026-9923-INTRUDER",
+        status: this.isBehavioralQuarantined ? "Quarantined (Revoked)" : currentMode === "TRUSTED" ? "Active (Trusted)" : currentMode === "SUSPICIOUS" ? "Active (Monitored)" : "Active (High-Risk Anomaly)",
+        loginTime: currentMode === "TRUSTED" ? "09:14 AM IST (Today)" : currentMode === "SUSPICIOUS" ? "08:45 PM IST" : "02:17 AM IST (Nocturnal Anomaly)",
+        ipAddress: currentMode === "TRUSTED" || currentMode === "SUSPICIOUS" ? "10.240.8.21 (Delhi HQ Intranet)" : "185.220.101.44 (Frankfurt Tor / Proxy Exit)",
+        device: deviceComparison.current,
+        browser: browserComparison.current,
+        location: locationComparison.current,
+        casesAccessedCount: currentMode === "TRUSTED" ? 3 : currentMode === "SUSPICIOUS" ? 8 : 19,
+        evidenceExportCount: currentMode === "TRUSTED" ? 0 : currentMode === "SUSPICIOUS" ? 1 : 14,
+        kerberosTicket: currentMode === "TRUSTED" ? "KDC-DEL-8821-V4" : "KDC-STOLEN-TOKEN-44",
+        encryption: "TLS 1.3 / AES-256-GCM",
+        duration: currentMode === "TRUSTED" ? "42 mins active" : "11 mins active",
+        mode: currentMode
+      },
+      trustScore,
+      status,
+      sessionRisk,
+      rawStatus,
+      rawRisk,
+      isRestricted,
+      behavioralComparison: [
+        deviceComparison,
+        browserComparison,
+        locationComparison,
+        loginTimeComparison,
+      ],
+      riskEngineBreakdown,
+      adaptivePermissions,
+      honeyEvidence,
+      liveAuditEvents: auditEvents,
+      suspiciousAlerts,
+      simulatedPostgresSources: {
+        users: "SELECT id, full_name, badge_number, role, department, city FROM users WHERE id = 'USR-101'",
+        user_behavior_profile: "SELECT working_hours, registered_device, authorized_subnets, avg_daily_cases FROM user_behavior_profile WHERE user_id = 'USR-101'",
+        login_history: "SELECT login_time, ip_address, device, browser, status FROM login_history WHERE user_id = 'USR-101' ORDER BY login_time DESC LIMIT 5",
+        audit_logs: "SELECT action, module, details, timestamp FROM audit_logs WHERE user_id = 'USR-101' ORDER BY timestamp DESC LIMIT 10"
+      }
+    };
+  }
+
+  async setBehavioralSimulation(mode: "TRUSTED" | "SUSPICIOUS" | "COMPROMISED" | "HONEY_TRIGGERED" | "NORMAL") {
+    this.activeBehavioralMode = mode === "NORMAL" ? "TRUSTED" : mode;
+    this.isBehavioralQuarantined = false;
+    return {
+      success: true,
+      mode: this.activeBehavioralMode,
+      message: `Behavioral simulation switched to ${this.activeBehavioralMode}`
+    };
+  }
+
+  async triggerHoneyTrap() {
+    this.activeBehavioralMode = "HONEY_TRIGGERED";
+    return {
+      success: true,
+      honeyEvidenceId: "EV9999",
+      message: "Honey evidence EV9999 accessed! Tripwire sprung. Session downgraded to Critical and dispatched to Attack Graph.",
+      attackGraphNode: "ANOMALY-DOPPELGANGER-HONEY-EV9999",
+    };
+  }
+
+  async quarantineBehavioralSession(officerId?: string, reason?: string) {
+    this.isBehavioralQuarantined = true;
+    return {
+      success: true,
+      officerId: officerId || "USR-101",
+      quarantinedAt: new Date().toISOString(),
+      reason: reason || "Autonomous SOAR behavioral quarantine enforced due to trust score drop below threshold (<50)",
+      attackGraphNodeCreated: "ANOMALY-DOPPELGANGER-SES-9923",
+      message: "Session quarantined and credentials revoked across all NCRB nodes"
+    };
+  }
 }
 
 export const identityService = new IdentityService();
@@ -968,6 +1548,47 @@ export const identityService = new IdentityService();
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class IdentityController {
+  async handleGetBehavioralSession(req: Request, res: Response) {
+    try {
+      const officerId = req.query.officerId ? String(req.query.officerId) : undefined;
+      const mode = req.query.mode ? String(req.query.mode) : undefined;
+      const data = await identityService.getBehavioralSession(officerId, mode);
+      res.json(formatResponse(true, data, "Behavioral session telemetry retrieved"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async handleSimulateBehavioralSession(req: Request, res: Response) {
+    try {
+      const mode = ((req.body && req.body.mode) || req.query.mode || "TRUSTED") as "TRUSTED" | "SUSPICIOUS" | "COMPROMISED" | "HONEY_TRIGGERED" | "NORMAL";
+      const data = await identityService.setBehavioralSimulation(mode);
+      res.json(formatResponse(true, data, "Behavioral simulation mode updated"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async handleTriggerHoneyTrap(_req: Request, res: Response) {
+    try {
+      const data = await identityService.triggerHoneyTrap();
+      res.json(formatResponse(true, data, "Honey trap tripwire executed"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
+  async handleQuarantineBehavioralSession(req: Request, res: Response) {
+    try {
+      const officerId = req.body?.officerId || req.query.officerId || "USR-101";
+      const reason = req.body?.reason || req.query.reason || "Autonomous SOAR behavioral quarantine enforced";
+      const data = await identityService.quarantineBehavioralSession(String(officerId), String(reason));
+      res.json(formatResponse(true, data, "Behavioral session quarantined"));
+    } catch (error: any) {
+      res.status(500).json(formatResponse(false, null, undefined, error.message));
+    }
+  }
+
   async handleListProfiles(req: Request, res: Response) {
     try {
       const caseId = req.query.case_id ? String(req.query.case_id) : undefined;
@@ -1067,6 +1688,13 @@ export const identityController = new IdentityController();
 
 export function identityRoutes(): Router {
   const router = Router();
+  // Behavioral Identity Doppelgänger endpoints
+  router.get("/behavioral-session", (req, res) => identityController.handleGetBehavioralSession(req, res));
+  router.post("/behavioral-session/simulate", (req, res) => identityController.handleSimulateBehavioralSession(req, res));
+  router.post("/behavioral-session/honey-trap", (req, res) => identityController.handleTriggerHoneyTrap(req, res));
+  router.post("/behavioral-session/quarantine", (req, res) => identityController.handleQuarantineBehavioralSession(req, res));
+
+  // Legacy endpoints
   router.get("/profiles", (req, res) => identityController.handleListProfiles(req, res));
   router.get("/profiles/:id", (req, res) => identityController.handleGetProfile(req, res));
   router.get("/trail", (req, res) => identityController.handleGetTrail(req, res));

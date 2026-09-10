@@ -50,7 +50,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
   onNavigateTab,
 }) => {
   const { selectedCaseId, selectedCase, cases, setSelectedCaseId } = useCaseContext();
-  const { currentUser, permissions } = useAuth();
+  const { currentUser, permissions, enforceAdaptiveAction, isAdaptiveRestricted, trustScore } = useAuth();
 
   // Master dossiers repository state scoped to authorized cases
   const [dossiers, setDossiers] = useState<ForensicDossier[]>(() => {
@@ -143,20 +143,22 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
     }
   };
 
-  // Generate New Dossier for Active Case
+  // Generate New Dossier for Active Case with Adaptive Security Enforcement
   const handleGenerateNewForActiveCase = () => {
-    const targetCase = selectedCase || cases[0];
-    if (!targetCase) return;
+    enforceAdaptiveAction('Generate Section 65B Certified Dossier', () => {
+      const targetCase = selectedCase || cases[0];
+      if (!targetCase) return;
 
-    const newDossier = buildDossierForCase(
-      targetCase,
-      currentUser.name,
-      currentUser.badgeNumber,
-      currentUser.department,
-      false
-    );
+      const newDossier = buildDossierForCase(
+        targetCase,
+        currentUser.name,
+        currentUser.badgeNumber,
+        currentUser.department,
+        false
+      );
 
-    setActiveDossierForCollation(newDossier);
+      setActiveDossierForCollation(newDossier);
+    }, 'REPORT_GENERATION');
   };
 
   const handleCopyHash = (dossier: ForensicDossier, e: React.MouseEvent) => {
@@ -475,27 +477,39 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
                     {/* Download PDF Button */}
                     <button
                       onClick={() => {
-                        printCourtDossier(dossier);
-                        if (onSelectAction) onSelectAction(`Exported Court PDF: ${dossier.firNumber}`);
+                        enforceAdaptiveAction(`Export Section 65B Court PDF (${dossier.firNumber})`, () => {
+                          printCourtDossier(dossier);
+                          if (onSelectAction) onSelectAction(`Exported Court PDF: ${dossier.firNumber}`);
+                        }, 'EXFILTRATION');
                       }}
-                      className="p-1.5 px-2.5 rounded-xl bg-[#081224] hover:bg-[#0e1d38] border border-[#162744] text-slate-300 hover:text-white font-mono text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Download Court PDF"
+                      className={`p-1.5 px-2.5 rounded-xl border font-mono text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                        isAdaptiveRestricted
+                          ? 'bg-red-950/40 border-red-500/50 text-red-300 hover:bg-red-900/50'
+                          : 'bg-[#081224] hover:bg-[#0e1d38] border-[#162744] text-slate-300 hover:text-white'
+                      }`}
+                      title={isAdaptiveRestricted ? 'Action restricted: High-Risk session behavior' : 'Download Court PDF'}
                     >
-                      <Download className="w-3.5 h-3.5 text-cyan-400" />
+                      {isAdaptiveRestricted ? <Lock className="w-3.5 h-3.5 text-red-400" /> : <Download className="w-3.5 h-3.5 text-cyan-400" />}
                       <span className="hidden sm:inline">PDF</span>
                     </button>
 
                     {/* Regenerate Button */}
                     <button
-                      onClick={() => setActiveDossierForCollation(dossier)}
+                      onClick={() => {
+                        enforceAdaptiveAction(`AI Collation & Re-Seal (${dossier.firNumber})`, () => {
+                          setActiveDossierForCollation(dossier);
+                        }, 'REPORT_GENERATION');
+                      }}
                       className={`p-1.5 px-2.5 rounded-xl border font-mono text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                        !isCertified
+                        isAdaptiveRestricted
+                          ? 'bg-red-950/40 border-red-500/40 text-red-300'
+                          : !isCertified
                           ? 'bg-amber-600 hover:bg-amber-500 text-black border-amber-400 font-extrabold shadow-[0_0_10px_rgba(245,158,11,0.4)]'
                           : 'bg-[#081224] hover:bg-[#0e1d38] border-[#162744] text-slate-300 hover:text-white'
                       }`}
-                      title={!isCertified ? 'New Evidence Uploaded — Click to Re-Seal' : 'Regenerate Dossier'}
+                      title={isAdaptiveRestricted ? 'Action restricted: High-Risk session behavior' : !isCertified ? 'New Evidence Uploaded — Click to Re-Seal' : 'Regenerate Dossier'}
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      {isAdaptiveRestricted ? <Lock className="w-3.5 h-3.5 text-red-400" /> : <RefreshCw className="w-3.5 h-3.5" />}
                       <span className="hidden sm:inline">Regenerate</span>
                     </button>
 

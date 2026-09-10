@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -32,6 +32,7 @@ import {
   X,
   Radio
 } from 'lucide-react';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 interface EvidenceDnaPageProps {
   onSelectAction?: (action: string) => void;
@@ -272,6 +273,7 @@ const SAMPLE_CASES: Record<number, EvidenceCase> = {
 };
 
 export const EvidenceDnaPage: React.FC<EvidenceDnaPageProps> = ({ onSelectAction }) => {
+  const { logEvent } = useAuditLog();
   const [selectedCaseNum, setSelectedCaseNum] = useState<number>(1);
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('SHA-256 + AI Fingerprint');
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: string; type: string } | null>(null);
@@ -289,8 +291,22 @@ export const EvidenceDnaPage: React.FC<EvidenceDnaPageProps> = ({ onSelectAction
 
   const currentCase = SAMPLE_CASES[selectedCaseNum] || SAMPLE_CASES[1];
 
+  // Auto-log exhibit inspection when case changes
+  useEffect(() => {
+    logEvent(
+      'EVIDENCE_VIEW',
+      { id: currentCase.evidenceId, fileName: currentCase.fileName, sha256: currentCase.sha256 },
+      { module: 'Evidence DNA Lab', category: 'EVIDENCE', targetId: currentCase.evidenceId }
+    );
+  }, [selectedCaseNum]);
+
   // Handle Generate DNA button click
   const handleGenerateDna = () => {
+    logEvent(
+      'AI_QUERY',
+      { action: 'GENERATE_DNA_VECTOR', evidenceId: currentCase.evidenceId, algorithm: selectedAlgorithm },
+      { module: 'Neural DNA Engine', category: 'AI' }
+    );
     setIsGenerating(true);
     setGenerationProgress(10);
     setGenerationStage('Reading binary stream & computing cryptographic hash...');

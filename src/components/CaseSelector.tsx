@@ -3,6 +3,7 @@ import { Briefcase, ChevronDown } from 'lucide-react';
 import { type LawCase, getCaseById } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 import { useAuth } from '../context/AuthContext';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 interface CaseSelectorProps {
   selectedCaseId: string;
@@ -23,6 +24,7 @@ export const CaseSelector: React.FC<CaseSelectorProps> = ({
 }) => {
   const { cases: contextCases } = useCaseContext();
   const { permissions } = useAuth();
+  const { logEvent, setActiveCaseId } = useAuditLog();
 
   const caseList = (propCases && propCases.length > 0) ? propCases : contextCases;
   const activeCase: LawCase | undefined = caseList.find((c: any) => c.id === selectedCaseId) || getCaseById(selectedCaseId);
@@ -41,6 +43,9 @@ export const CaseSelector: React.FC<CaseSelectorProps> = ({
           onChange={(e) => {
             const val = e.target.value;
             onSelectCase(val);
+            if (val !== 'ALL') {
+              setActiveCaseId(val);
+            }
           }}
           className="appearance-none bg-transparent text-xs font-bold text-white pr-7 focus:outline-none cursor-pointer max-w-[280px] sm:max-w-[340px] truncate"
         >

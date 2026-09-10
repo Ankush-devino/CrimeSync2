@@ -164,7 +164,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <UserCheck className="w-3.5 h-3.5 text-sky-400" />
-            <span>Identity Security</span>
+            <span>Identity Doppelgänger</span>
           </button>
           <button
             onClick={() => setActiveTab('attack-graph')}

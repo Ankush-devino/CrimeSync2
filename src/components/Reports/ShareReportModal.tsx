@@ -45,7 +45,7 @@ export const ShareReportModal: React.FC<ShareReportModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-[#050b18] border border-[#162744] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-150 text-xs">
         {/* Header */}
         <div className="p-4 border-b border-[#14233c] flex items-center justify-between bg-[#030814]">
