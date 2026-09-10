@@ -8,6 +8,11 @@ export const pgPool = new Pool({
   ssl: ENV.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
+pgPool.on("error", (err) => {
+  console.error("⚠️ [PostgreSQL Pool Error]:", err.message);
+});
+
+
 // 2. Neo4j Graph Driver Client
 export let neo4jDriver: Driver | null = null;
 

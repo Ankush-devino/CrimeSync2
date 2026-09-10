@@ -404,3 +404,70 @@ export interface SiemConnectorHealth {
   bufferUtilization: number; // 0 - 100%
   lastSync: string;
 }
+
+// ==========================================
+// LEAN THREAT ALERTS & INSIDER WATCHDOGS
+// ==========================================
+
+export type VulnerabilitySeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+export type VulnerabilityStatus = 'VULNERABLE' | 'PATCHING' | 'PATCHED';
+
+export interface PlatformVulnerability {
+  id: string;
+  cveId: string;
+  title: string;
+  targetComponent: 'Web Frontend' | 'Express REST API' | 'Neon PostgreSQL' | 'AuraDB Neo4j' | 'Auth & Sessions';
+  severity: VulnerabilitySeverity;
+  status: VulnerabilityStatus;
+  description: string;
+  patchActionLabel: string;
+  impactDescription: string;
+  cvssScore: number; // e.g. 9.1
+}
+
+export type OfficerWatchdogType = 
+  | 'EVIDENCE_TAMPER' 
+  | 'CANARY_TRAP' 
+  | 'BULK_EXPORT' 
+  | 'DEVICE_HIJACK';
+
+export interface OfficerAuditStep {
+  time: string;
+  action: string;
+  detail: string;
+  ip: string;
+  device: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'INFO';
+}
+
+export interface SuspiciousOfficerWatchdog {
+  id: string;
+  officerId: string;
+  officerName: string;
+  badgeNumber: string;
+  rank: string;
+  department: string;
+  jurisdictionCity: string;
+  avatarUrl?: string;
+  watchdogType: OfficerWatchdogType;
+  threatTitle: string;
+  riskScore: number; // 0 - 100
+  timeAgo: string;
+  timestamp: string;
+  caseRef: string;
+  caseTitle: string;
+  status: 'ACTIVE_FLAG' | 'CONTAINED' | 'DISMISSED';
+  actionTaken?: string;
+  summary: string;
+  primaryActionLabel: string;
+  primaryActionType: 'FREEZE_LEDGER' | 'FLAG_MOLE' | 'BLOCK_EXPORT' | 'KILL_SESSION';
+  forensicEvidence: {
+    targetResource: string;
+    anomalyMetric: string;
+    ipAddress: string;
+    deviceFingerprint: string;
+    geolocation: string;
+  };
+  auditTrail: OfficerAuditStep[];
+}
+

@@ -220,13 +220,31 @@ export const api = {
       }),
   },
 
-  // 6. Threat Intel (PostgreSQL)
+  // 6. Threat Intel & AppSec Defense Center (PostgreSQL & Live Engine)
   threats: {
     getAll: (params?: { severity?: string; status?: string }) => {
       const qs = params ? `?${new URLSearchParams(params as any).toString()}` : "";
       return request<any[]>(`/threats${qs}`);
     },
     getById: (id: string) => request<any>(`/threats/${id}`),
+    getVulnerabilities: () => request<any[]>(`/threats/vulnerabilities`),
+    patchVulnerability: (id: string) =>
+      request<any>(`/threats/vulnerabilities/${encodeURIComponent(id)}/patch`, { method: "POST" }),
+    rollbackVulnerability: (id: string) =>
+      request<any>(`/threats/vulnerabilities/${encodeURIComponent(id)}/rollback`, { method: "POST" }),
+    patchAllVulnerabilities: () =>
+      request<any>(`/threats/vulnerabilities/patch-all`, { method: "POST" }),
+    getWatchdogs: () => request<any[]>(`/threats/watchdogs`),
+    containOfficer: (id: string, actionType?: string) =>
+      request<any>(`/threats/watchdogs/${encodeURIComponent(id)}/contain`, {
+        method: "POST",
+        body: JSON.stringify({ actionType }),
+      }),
+    resetOfficerStatus: (id: string) =>
+      request<any>(`/threats/watchdogs/${encodeURIComponent(id)}/reset`, { method: "POST" }),
+    scanSystem: () => request<any>(`/threats/scan`, { method: "POST" }),
+    simulateDrill: () => request<any>(`/threats/simulate-drill`, { method: "POST" }),
+    resetAll: () => request<any>(`/threats/reset-all`, { method: "POST" }),
   },
 
   // 7. Evidence & Chain of Custody (PostgreSQL)
@@ -561,4 +579,5 @@ export const api = {
     getAll: () => request<any[]>(`/auth/users`),
   },
 };
+
 

@@ -3,6 +3,14 @@ import { connectDB } from "./config/db";
 import { ENV } from "./config/env";
 import { logger } from "./utils/logger";
 
+process.on("uncaughtException", (err) => {
+  logger.error("⚠️ [Uncaught Exception]:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logger.error("⚠️ [Unhandled Rejection]:", reason);
+});
+
 export async function bootstrap() {
   try {
     logger.info(`Starting CrimeSync Backend Server on port ${ENV.PORT}...`);
@@ -21,7 +29,6 @@ export async function bootstrap() {
     return server;
   } catch (error) {
     logger.error("Failed to start CrimeSync Server:", error);
-    process.exit(1);
   }
 }
 
