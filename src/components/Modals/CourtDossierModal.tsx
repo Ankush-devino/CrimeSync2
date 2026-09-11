@@ -45,7 +45,7 @@ export const CourtDossierModal: React.FC<CourtDossierModalProps> = ({
       module: 'Dossier Engine',
       caseId: selectedCase?.fir_number || selectedCaseId,
       status: 'Success',
-      category: 'REPORTS',
+      category: 'REPORT',
       details: `${currentUser.name} generated 10-section charge-sheet package for ${selectedCase?.title}.`,
     });
 

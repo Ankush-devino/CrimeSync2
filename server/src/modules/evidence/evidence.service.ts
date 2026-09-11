@@ -33,15 +33,37 @@ export class EvidenceService {
     evidence_code: string;
     title: string;
     category: string;
+    sub_type?: string;
+    file_url?: string;
     hash_sha256: string;
+    ai_fingerprint?: string;
+    block_height?: number;
+    tx_hash?: string;
+    merkle_root?: string;
+    metadata?: any;
     collected_by_id?: string;
     current_custody_officer_id?: string;
     status?: string;
   }) {
     const id = `EVD-${Date.now().toString().slice(-6)}`;
+    const subType = data.sub_type || data.category || "BIOMETRIC_EVIDENCE";
+    const fingerprint = data.ai_fingerprint || `DNA-${Date.now().toString(16).slice(-8).toUpperCase()}`;
+    const blockHeight = data.block_height || 19842600 + Math.floor(Math.random() * 100);
+    const txHash = data.tx_hash || `0x${require('crypto').createHash('sha256').update(id + data.hash_sha256 + Date.now()).digest('hex')}`;
+    const merkleRoot = data.merkle_root || `0x${require('crypto').createHash('sha256').update(txHash + data.evidence_code).digest('hex')}`;
+    const metadataJson = data.metadata ? JSON.stringify(data.metadata) : JSON.stringify({
+      integrityStatus: 'Verified',
+      sealedUnderSection65B: true,
+      timestamp: new Date().toISOString()
+    });
+
     const query = `
-      INSERT INTO evidence (id, case_id, evidence_code, title, category, hash_sha256, collected_by_id, current_custody_officer_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO evidence (
+        id, case_id, evidence_code, title, category, sub_type, file_url,
+        hash_sha256, ai_fingerprint, block_height, tx_hash, merkle_root, metadata,
+        collected_by_id, current_custody_officer_id, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `;
     const values = [
@@ -49,8 +71,15 @@ export class EvidenceService {
       data.case_id,
       data.evidence_code,
       data.title,
-      data.category || "DIGITAL_HARDWARE",
+      data.category || "DNA_PROFILE",
+      subType,
+      data.file_url || null,
       data.hash_sha256,
+      fingerprint,
+      blockHeight,
+      txHash,
+      merkleRoot,
+      metadataJson,
       data.collected_by_id || "USR-101",
       data.current_custody_officer_id || data.collected_by_id || "USR-101",
       data.status || "SECURED",

@@ -23,6 +23,7 @@ export interface User {
   role: UserRole;
   roleTitle: string;
   badgeNumber: string;
+  badge_number?: string;
   department: string;
   jurisdiction: string;
   clearanceLevel: string;

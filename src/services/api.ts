@@ -256,7 +256,14 @@ export const api = {
       evidence_code: string;
       title: string;
       category: string;
+      sub_type?: string;
+      file_url?: string;
       hash_sha256: string;
+      ai_fingerprint?: string;
+      block_height?: number;
+      tx_hash?: string;
+      merkle_root?: string;
+      metadata?: any;
       collected_by_id?: string;
       current_custody_officer_id?: string;
       status?: string;

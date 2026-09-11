@@ -6,7 +6,7 @@ import { formatResponse } from "../../utils/api-response";
 export class CustodyController {
   async handleListAll(req: Request, res: Response) {
     try {
-      const caseId = req.query.case_id ? String(req.query.case_id) : undefined;
+      const caseId = (req.query.case_id || req.query.caseId) ? String(req.query.case_id || req.query.caseId) : undefined;
       const data = await custodyService.getAllCustodyItems(caseId);
       res.json(formatResponse(true, data, "Chain of custody records retrieved"));
     } catch (error: any) {
@@ -16,7 +16,7 @@ export class CustodyController {
 
   async handleGetStats(req: Request, res: Response) {
     try {
-      const caseId = req.query.case_id ? String(req.query.case_id) : undefined;
+      const caseId = (req.query.case_id || req.query.caseId) ? String(req.query.case_id || req.query.caseId) : undefined;
       const data = await custodyService.getCustodyStats(caseId);
       res.json(formatResponse(true, data, "Custody statistics calculated"));
     } catch (error: any) {

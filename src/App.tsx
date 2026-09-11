@@ -28,7 +28,6 @@ import { AttackGraphPage } from './pages/AttackGraphPage';
 import { IdentitySecurityPage } from './pages/IdentitySecurityPage';
 import { EvidenceDnaPage } from './pages/EvidenceDnaPage';
 import { ChainOfCustodyPage } from './pages/ChainOfCustodyPage';
-import { BlockchainExplorerPage } from './pages/BlockchainExplorerPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { AuditTrailPage } from './pages/AuditTrailPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
@@ -146,21 +145,6 @@ const PLACEHOLDER_PAGES: Record<
       'Multi-party verification',
       'Smart contract enforcement',
       'Court-ready export',
-    ],
-  },
-  'blockchain-explorer': {
-    title: 'Blockchain Explorer',
-    subtitle: 'BLOCKCHAIN VAULT',
-    icon: <Search className="w-9 h-9" />,
-    accentColor: '#a855f7',
-    glowColor: '#a855f7',
-    features: [
-      'Block-by-block evidence search',
-      'Transaction hash lookup',
-      'Ledger integrity dashboard',
-      'Multi-chain support',
-      'Smart contract viewer',
-      'Public / Private chain explorer',
     ],
   },
   'reports': {
@@ -296,12 +280,6 @@ const AppContent: React.FC = () => {
         action: 'Supervised Chain of Custody Handover',
         module: 'Chain of Custody',
         details: 'Approved digital custody sign-off for physical evidence transfer to Central Lab',
-        category: 'EVIDENCE'
-      },
-      'blockchain-explorer': {
-        action: 'Inspected Immutable Evidence Ledger',
-        module: 'Blockchain Explorer',
-        details: 'Audited block #15842 cryptographic Merkle root and transaction nonce verification',
         category: 'EVIDENCE'
       },
       'reports': {
@@ -472,15 +450,6 @@ const AppContent: React.FC = () => {
       );
     }
 
-    if (activeTab === 'blockchain-explorer') {
-      return (
-        <BlockchainExplorerPage
-          onSelectAction={setSelectedAction}
-          onNavigateTab={setActiveTab}
-        />
-      );
-    }
-
     if (activeTab === 'reports') {
       return (
         <ReportsPage
@@ -533,7 +502,6 @@ const AppContent: React.FC = () => {
     activeTab === 'identity-security' ||
     activeTab === 'evidence-dna' ||
     activeTab === 'chain-of-custody' ||
-    activeTab === 'blockchain-explorer' ||
     activeTab === 'reports' ||
     activeTab === 'audit-trail';
 

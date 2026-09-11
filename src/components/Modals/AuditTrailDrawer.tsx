@@ -27,7 +27,7 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
   onClose,
   onNavigateToAuditPage,
 }) => {
-  const { auditEvents } = useAuditLog();
+  const { auditLogs } = useAuditLog();
   const { currentUser } = useAuth();
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [searchFilter, setSearchFilter] = useState('');

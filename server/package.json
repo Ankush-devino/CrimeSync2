@@ -23,6 +23,7 @@
     "@types/express": "^5.0.6",
     "@types/pg": "^8.23.1",
     "cors": "^2.8.6",
+    "crimesync": "file:..",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "neo4j-driver": "^6.2.0",

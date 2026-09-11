@@ -1550,8 +1550,8 @@ export class CustodyService {
     if (pgPool) {
       try {
         let query = `
-          SELECT e.id as evidence_id, e.title as evidence_name, e.category as evidence_type, e.status, e.hash_sha256 as seal_hash,
-                 c.id as case_ref, c.title as case_title,
+          SELECT e.id as evidence_id, e.evidence_code, e.title as evidence_name, e.category as evidence_type, e.sub_type, e.status, e.hash_sha256 as seal_hash, e.metadata, e.block_height, e.tx_hash, e.merkle_root,
+                 c.id as case_ref, c.title as case_title, c.fir_number as case_fir,
                  u1.full_name as current_custodian, u1.role as custodian_role, u1.city as current_location,
                  u1.badge_number as custodian_badge
           FROM evidence e
@@ -1568,83 +1568,94 @@ export class CustodyService {
         const res = await pgPool.query(query, params);
         if (res.rows.length > 0) {
           for (const row of res.rows) {
-            const dbSteps = await this.getCustodySteps(row.evidence_id);
-            const fallback = FALLBACK_CUSTODY_ITEMS[row.evidence_id];
+            const evCode = row.evidence_code || row.evidence_id;
+            const dbSteps = await this.getCustodySteps(evCode);
+            const fallback = FALLBACK_CUSTODY_ITEMS[evCode] || FALLBACK_CUSTODY_ITEMS[row.evidence_id];
             let steps = dbSteps.length > 0 ? dbSteps : fallback?.steps || [];
 
+            let meta = row.metadata;
+            if (typeof meta === "string") {
+              try { meta = JSON.parse(meta); } catch { meta = {}; }
+            } else if (!meta) {
+              meta = {};
+            }
+
+            const storageLoc = meta.storageLocation;
+            const facility = storageLoc?.facility || (row.current_location ? `${row.current_location} Forensic Vault` : "Central Forensic Science Laboratory (CFSL)");
+            const loc = storageLoc?.physicalLockerNumber ? `${facility} (${storageLoc.physicalLockerNumber})` : facility;
+            const seedHash = row.seal_hash ? (row.seal_hash.startsWith("0x") ? row.seal_hash : `0x${row.seal_hash}`) : "0x" + crypto.createHash("sha256").update(evCode).digest("hex");
+
             if (steps.length === 0) {
-              const leadName = row.current_custodian || fallback?.currentCustodian || "Investigating Officer";
+              const leadName = row.current_custodian || fallback?.currentCustodian || "ACP Rajeshwar Sharma";
               const leadBadge = row.custodian_badge || "DEL-IPS-8821";
-              const loc = row.current_location ? `${row.current_location} Forensic Vault` : "Central Cyber Command";
-              const seedHash = row.seal_hash ? `0x${row.seal_hash}` : "0x" + crypto.createHash("sha256").update(row.evidence_id).digest("hex");
 
               steps = [
                 {
-                  id: `step-${row.evidence_id.toLowerCase()}-1`,
-                  evidenceId: row.evidence_id,
+                  id: `step-${evCode.toLowerCase()}-1`,
+                  evidenceId: evCode,
                   action: "COLLECTED",
                   actionColor: "text-amber-400",
-                  circleColor: "bg-red-600/20 border-red-500 text-red-400",
+                  circleColor: "bg-red-600/20 border-red-500 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]",
                   iconType: "user",
                   actorName: leadName,
                   actorRole: row.custodian_role || "Crime Scene Officer",
                   actorBadge: leadBadge,
-                  location: loc,
+                  location: storageLoc?.vaultRoom || "Crime Scene Perimeter",
                   timestamp: "08 Sep 2026, 02:15 AM",
-                  txHash: "0x" + crypto.createHash("sha256").update(`${row.evidence_id}:collected:1`).digest("hex"),
+                  txHash: row.tx_hash || ("0x" + crypto.createHash("sha256").update(`${evCode}:collected:1`).digest("hex")),
                   signature: `ECDSA-secp256k1 (0x${seedHash.slice(2, 10)}...${seedHash.slice(-8)})`,
-                  notes: `Initial evidence seizure and physical tamper seal application for ${row.evidence_name || row.evidence_id}.`,
+                  notes: `Seized and sealed under Section 65B BSA 2023 for ${row.evidence_name || evCode}.`,
                   verifiedOnChain: true,
-                  blockNumber: 19842598
+                  blockNumber: row.block_height ? row.block_height - 2 : 19842598
                 },
                 {
-                  id: `step-${row.evidence_id.toLowerCase()}-2`,
-                  evidenceId: row.evidence_id,
+                  id: `step-${evCode.toLowerCase()}-2`,
+                  evidenceId: evCode,
                   action: "ANALYZED",
                   actionColor: "text-emerald-400",
-                  circleColor: "bg-emerald-600/20 border-emerald-500 text-emerald-400",
+                  circleColor: "bg-emerald-600/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]",
                   iconType: "lab",
                   actorName: "DSP Arvind Swaminathan",
                   actorRole: "Forensic Science Laboratory (FSL)",
                   actorBadge: "BLR-INT-1102",
-                  location: "Forensic Science Laboratory, Bengaluru",
+                  location: facility,
                   timestamp: "08 Sep 2026, 09:30 AM",
-                  txHash: "0x" + crypto.createHash("sha256").update(`${row.evidence_id}:analyzed:2`).digest("hex"),
+                  txHash: "0x" + crypto.createHash("sha256").update(`${evCode}:analyzed:2`).digest("hex"),
                   signature: `ECDSA-secp256k1 (0x1102${seedHash.slice(6, 12)}...${seedHash.slice(-6)})`,
-                  notes: "Bit-stream forensic dump and integrity verification completed. SHA-256 match confirmed.",
+                  notes: `Forensic laboratory intake and cryptographic verification completed. Bitstream hash: ${seedHash.slice(0, 18)}...`,
                   verifiedOnChain: true,
-                  blockNumber: 19842599
+                  blockNumber: row.block_height ? row.block_height - 1 : 19842599
                 },
                 {
-                  id: `step-${row.evidence_id.toLowerCase()}-3`,
-                  evidenceId: row.evidence_id,
+                  id: `step-${evCode.toLowerCase()}-3`,
+                  evidenceId: evCode,
                   action: "STORED",
                   actionColor: "text-purple-400",
-                  circleColor: "bg-purple-600/20 border-purple-500 text-purple-400",
+                  circleColor: "bg-purple-600/20 border-purple-500 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.3)]",
                   iconType: "lock",
                   actorName: leadName,
                   actorRole: row.custodian_role || "Custodian Officer",
                   actorBadge: leadBadge,
                   location: loc,
                   timestamp: "08 Sep 2026, 02:00 PM",
-                  txHash: "0x" + crypto.createHash("sha256").update(`${row.evidence_id}:stored:3`).digest("hex"),
+                  txHash: "0x" + crypto.createHash("sha256").update(`${evCode}:stored:3`).digest("hex"),
                   signature: `ECDSA-secp256k1 (0x${seedHash.slice(2, 8)}8821...${seedHash.slice(-8)})`,
-                  notes: "Evidence secured in biometric locker with continuous video audit trail.",
+                  notes: `Secured in biometric vault at ${facility}. Sub-Zero / Cloud vault URI anchored on-chain.`,
                   verifiedOnChain: true,
-                  blockNumber: 19842600
+                  blockNumber: row.block_height || 19842600
                 }
               ];
             }
 
             items.push({
               id: `c-${row.evidence_id}`,
-              evidenceId: row.evidence_id,
-              evidenceName: row.evidence_name || fallback?.evidenceName || "Digital Exhibit",
-              evidenceType: row.evidence_type || fallback?.evidenceType || "Digital Hardware",
-              caseRef: row.case_ref || fallback?.caseRef || "CASE-2026-001",
-              currentCustodian: row.current_custodian || fallback?.currentCustodian || "Investigating Officer",
-              custodianRole: row.custodian_role || fallback?.custodianRole || "Custodian",
-              currentLocation: row.current_location || fallback?.currentLocation || "Evidence Vault",
+              evidenceId: evCode,
+              evidenceName: row.evidence_name || fallback?.evidenceName || "Forensic Exhibit",
+              evidenceType: row.evidence_type || fallback?.evidenceType || "Biological Evidence",
+              caseRef: row.case_ref || fallback?.caseRef || (caseId || "CASE-2026-001"),
+              currentCustodian: row.current_custodian || fallback?.currentCustodian || "ACP Rajeshwar Sharma",
+              custodianRole: row.custodian_role || fallback?.custodianRole || "Custodian Officer",
+              currentLocation: loc,
               status: row.status === "SECURED" || row.status === "IN_FORENSICS" ? "In Custody" : "In Court",
               integrityStatus: "Verified",
               complianceScore: 100,
@@ -1652,29 +1663,20 @@ export class CustodyService {
               totalCustodians: new Set(steps.map((s) => s.actorName)).size || 1,
               breaksInChain: 0,
               lastUpdated: steps[steps.length - 1]?.timestamp || fallback?.lastUpdated || "08 Sep 2026",
-              sealHash: row.seal_hash ? `0x${row.seal_hash}` : fallback?.sealHash || "0x" + "0".repeat(64),
-              blockHeight: steps[steps.length - 1]?.blockNumber || fallback?.blockHeight || 19842600,
+              sealHash: seedHash,
+              blockHeight: row.block_height || steps[steps.length - 1]?.blockNumber || fallback?.blockHeight || 19842600,
               steps
             });
           }
+          return items;
         }
       } catch (err) {
         console.warn("CustodyService database query warning:", err);
       }
     }
 
-    if (items.length === 0) {
-      // Use in-memory store
-      items = Object.values(FALLBACK_CUSTODY_ITEMS);
-    } else {
-      // Merge fallback items if they belong to requested case and not present
-      for (const [k, v] of Object.entries(FALLBACK_CUSTODY_ITEMS)) {
-        if (!items.some((i) => i.evidenceId.toUpperCase() === k.toUpperCase())) {
-          items.push(v);
-        }
-      }
-    }
-
+    // Only if database returned 0 rows, use filtered in-memory fallback
+    items = Object.values(FALLBACK_CUSTODY_ITEMS);
     if (caseId && caseId !== "ALL") {
       items = items.filter((i) => i.caseRef.toUpperCase() === caseId.toUpperCase());
     }

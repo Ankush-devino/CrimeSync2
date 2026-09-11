@@ -252,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <Box className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Evidence DNA</span>
+            <span>Evidence</span>
           </button>
           <button
             onClick={() => setActiveTab('chain-of-custody')}
@@ -264,17 +264,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
             <span>Chain of Custody</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('blockchain-explorer')}
-            className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2.5 text-xs transition-all cursor-pointer ${
-              activeTab === 'blockchain-explorer'
-                ? 'bg-purple-600 text-white font-semibold shadow-[0_0_12px_rgba(168,85,247,0.6)]'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Search className="w-3.5 h-3.5 text-purple-400" />
-            <span>Blockchain Explorer</span>
           </button>
         </div>
 

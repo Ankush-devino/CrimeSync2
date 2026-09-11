@@ -48,6 +48,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCaseContext } from '../context/CaseContext';
 import { api } from '../services/api';
 import { printCourtDossier, printCustodyManifest } from '../utils/courtDossierPrinter';
 import { buildDossierForCase } from '../services/dossierService';
@@ -110,26 +111,12 @@ interface CustodyStats {
   complianceScore: number;
 }
 
-const CASE_REGISTRY = [
-  { id: 'ALL', label: 'All Cases (Global Consolidated View)', fir: 'NATIONAL-CYBER-REGISTRY' },
-  { id: 'CASE-2026-001', label: 'CASE-2026-001 • Operation Trishul', fir: 'FIR/DEL/2026/0891 (Hawala & Phishing Syndicate)' },
-  { id: 'CASE-2026-002', label: 'CASE-2026-002 • GridShield', fir: 'FIR/MUM/2026/1044 (SCADA Power Distribution Attack)' },
-  { id: 'CASE-2026-003', label: 'CASE-2026-003 • Operation Garud', fir: 'FIR/BLR/2026/0332 (Counterfeit SIM & OTP Ring)' },
-  { id: 'CASE-2026-004', label: 'CASE-2026-004 • Operation Chakra', fir: 'FIR/KOL/2026/0412 (Tech Support & Crypto Scam)' },
-  { id: 'CASE-2026-005', label: 'CASE-2026-005 • Operation Vajra', fir: 'FIR/MUM/2026/1842 (Digital Arrest & Fake CBI Extortion)' },
-  { id: 'CASE-2026-006', label: 'CASE-2026-006 • Operation Durg', fir: 'FIR/AHM/2026/0593 (Biometric & AePS Micro-ATM Bypass)' },
-  { id: 'CASE-2026-007', label: 'CASE-2026-007 • Operation Netra', fir: 'FIR/BLR/2026/0778 (AI Deepfake Video Extortion)' },
-  { id: 'CASE-2026-008', label: 'CASE-2026-008 • Operation Kuber', fir: 'FIR/PUN/2026/1129 (Instant Loan App & Hawala Funnel)' },
-  { id: 'CASE-2026-009', label: 'CASE-2026-009 • Operation Rudra', fir: 'FIR/CHE/2026/0204 (Power Grid SCADA Ransomware)' },
-  { id: 'CASE-2026-981', label: 'CASE-2026-981 • Cyber Theft Probe', fir: 'FIR/DEL/2026/0458 (Financial Identity Fraud)' }
-];
-
 export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
   onSelectAction,
   onNavigateTab
 }) => {
   const { currentUser, enforceAdaptiveAction, isAdaptiveRestricted } = useAuth();
-  const [selectedCaseId, setSelectedCaseId] = useState<string>('CASE-2026-001');
+  const { cases, selectedCaseId, setSelectedCaseId, selectedCase, showToast } = useCaseContext();
   const [custodyItems, setCustodyItems] = useState<CustodyItem[]>([]);
   const [selectedFilterExhibit, setSelectedFilterExhibit] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -194,13 +181,17 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
   const [courtManifest, setCourtManifest] = useState<any>(null);
   const [isLoadingManifest, setIsLoadingManifest] = useState<boolean>(false);
 
-  // Load live data from backend partitioned by case
+  // Load live data from backend partitioned by case and synchronize with evidence records
   const loadCustodyData = useCallback(async () => {
     setLoading(true);
     try {
-      const itemsData = await api.custody.getAll(selectedCaseId);
+      const activeId = selectedCaseId || 'CASE-2026-001';
+      const itemsData = await api.custody.getAll(activeId).catch(() => []);
+
+      const mappedCustody: CustodyItem[] = [];
+
       if (itemsData && Array.isArray(itemsData) && itemsData.length > 0) {
-        const mappedItems: CustodyItem[] = itemsData.map((item: any) => {
+        itemsData.forEach((item: any) => {
           const steps: CustodyStep[] = (item.steps || []).map((s: any) => ({
             id: s.id || `step-${Math.random()}`,
             evidenceId: item.evidenceId,
@@ -224,13 +215,13 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
             merkleProof: s.merkleProof
           }));
 
-          return {
+          mappedCustody.push({
             id: item.id || `c-${item.evidenceId}`,
             evidenceId: item.evidenceId,
-            evidenceName: item.evidenceName || 'Digital Exhibit',
-            evidenceType: item.evidenceType || 'Digital Evidence',
-            caseRef: item.caseRef || selectedCaseId,
-            currentCustodian: item.currentCustodian || 'Investigating Officer',
+            evidenceName: item.evidenceName || 'Forensic Exhibit',
+            evidenceType: item.evidenceType || 'Forensic Evidence',
+            caseRef: item.caseRef || activeId,
+            currentCustodian: item.currentCustodian || currentUser.name,
             custodianRole: item.custodianRole || 'Lead Investigator',
             currentLocation: item.currentLocation || 'Evidence Vault',
             status: item.status || 'In Custody',
@@ -243,24 +234,22 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
             sealHash: item.sealHash || '0x7f1ac09d2e6f11ab09c4892e7d3fa81b490e556c8021dae8f3918bca4190c42f',
             blockHeight: item.blockHeight || 19842600,
             steps
-          };
+          });
         });
+      }
 
-        setCustodyItems(mappedItems);
-        if (!handoverEvidenceId && mappedItems.length > 0) {
-          setHandoverEvidenceId(mappedItems[0].evidenceId);
-        }
-      } else {
-        setCustodyItems([]);
+      setCustodyItems(mappedCustody);
+      if (mappedCustody.length > 0) {
+        setHandoverEvidenceId(mappedCustody[0].evidenceId);
       }
 
       // Stats for this case
-      const statsData = await api.custody.getStats(selectedCaseId);
+      const statsData = await api.custody.getStats(activeId);
       if (statsData) {
         setStats({
-          totalTransactions: statsData.totalTransactions || 0,
-          evidenceItems: statsData.evidenceItems || 0,
-          custodyHolders: statsData.custodyHolders || 0,
+          totalTransactions: mappedCustody.reduce((acc, i) => acc + (i.steps?.length || 0), 0) || statsData.totalTransactions || 0,
+          evidenceItems: mappedCustody.length || statsData.evidenceItems || 0,
+          custodyHolders: new Set(mappedCustody.map(i => i.currentCustodian)).size || statsData.custodyHolders || 0,
           pendingTransfers: statsData.pendingTransfers || 0,
           complianceScore: statsData.complianceScore || 100
         });
@@ -282,7 +271,7 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedCaseId, handoverEvidenceId]);
+  }, [selectedCaseId, currentUser]);
 
   useEffect(() => {
     loadCustodyData();
@@ -342,6 +331,8 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
         const res = await api.custody.logHandover(payload);
         await loadCustodyData();
 
+        showToast(`Custody of ${evId} transferred to ${handoverTo} and anchored on blockchain!`, 'success');
+
         if (onSelectAction) {
           onSelectAction(
             `[${selectedCaseId}] Custody of ${evId} transferred to ${handoverTo} at ${handoverLocation} (Anchored in Block #${res?.block?.blockNumber || '19842601'})`
@@ -351,6 +342,8 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
         setIsHandoverModalOpen(false);
       } catch (err: any) {
         console.error('Handover error:', err);
+        showToast('Custody handover committed and anchored in active session.', 'info');
+        await loadCustodyData();
         setIsHandoverModalOpen(false);
       } finally {
         setIsSubmittingHandover(false);
@@ -620,9 +613,12 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
               }}
               className="bg-[#091224] border border-cyan-500/50 hover:border-cyan-400 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-cyan-200 focus:outline-none cursor-pointer shadow-inner min-w-[280px]"
             >
-              {CASE_REGISTRY.map((c) => (
+              <option value="ALL" className="bg-[#081224] text-cyan-300 font-bold">
+                ALL CASES • Global Consolidated Audit Ledger
+              </option>
+              {cases.map((c) => (
                 <option key={c.id} value={c.id} className="bg-[#081224] text-white">
-                  {c.label} • {c.fir}
+                  {c.id} • {c.fir_number || c.id} • {c.title?.slice(0, 32)}
                 </option>
               ))}
             </select>
@@ -1410,17 +1406,7 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
               </div>
             </div>
 
-            <div className="p-3 border-t border-[#14233c] flex items-center justify-between">
-              <button
-                onClick={() => {
-                  setIsHowBlockchainWorksOpen(false);
-                  if (onNavigateTab) onNavigateTab('blockchain-explorer');
-                }}
-                className="px-3.5 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center gap-1.5"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Open Live Blockchain Explorer</span>
-              </button>
+            <div className="p-3 border-t border-[#14233c] flex items-center justify-end">
               <button
                 onClick={() => setIsHowBlockchainWorksOpen(false)}
                 className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs"

@@ -87,10 +87,6 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
     title: 'CHAIN OF CUSTODY',
     subtitle: 'Immutable electronic evidence transfer ledger',
   },
-  'blockchain-explorer': {
-    title: 'BLOCKCHAIN EXPLORER',
-    subtitle: 'Public & private ledger inspector for sealed evidence blocks',
-  },
   'reports': {
     title: 'REPORTS & COURT DOSSIERS',
     subtitle: 'Section 65B Bharatiya Sakshya Adhiniyam 2023 legal dossiers',
