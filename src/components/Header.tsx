@@ -308,16 +308,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
         </div>
 
         {/* Center: Global Search Bar */}
-        <div className="flex-1 max-w-md hidden lg:block">
+        <div className="flex-1 max-w-md min-w-[280px] flex-shrink-0 hidden lg:block">
           <button
             onClick={onOpenSearch}
             className="w-full h-9 bg-[#0b1220] border border-slate-700/60 rounded-lg px-3 flex items-center justify-between text-xs text-slate-400 hover:border-cyan-500/50 hover:text-slate-200 transition-all group shadow-inner"
           >
-            <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
-              <span>Search people, phones, cases, evidence...</span>
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Search className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+              <span className="truncate whitespace-nowrap">Search people, phones, cases, evidence...</span>
             </div>
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-slate-800/80 border border-slate-700 rounded text-slate-400">
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-slate-800/80 border border-slate-700 rounded text-slate-400 flex-shrink-0 ml-2">
               Ctrl + K
             </kbd>
           </button>
