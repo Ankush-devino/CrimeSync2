@@ -1461,7 +1461,7 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
 
       {/* ─── MODAL 1: BTS Cellular Triangulation ─── */}
       {isTriangulateModalOpen && (
-        <div className="fixed inset-0 z-[1200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#081023] border border-[#1c335e] rounded-xl w-full max-w-xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#142647]">
               <div className="flex items-center gap-2 text-amber-400">
@@ -1578,7 +1578,7 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
 
       {/* ─── MODAL 2: Add Sighting / Pin Event ─── */}
       {isAddPinModalOpen && (
-        <div className="fixed inset-0 z-[1200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <form
             onSubmit={handleCreatePin}
             className="bg-[#081023] border border-[#1c335e] rounded-xl w-full max-w-lg p-5 shadow-2xl space-y-3.5"
@@ -1720,7 +1720,7 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
 
       {/* ─── MODAL 3: CCTV Live Stream Preview ─── */}
       {isCctvModalOpen && selectedCctv && (
-        <div className="fixed inset-0 z-[1200] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#081023] border border-[#1c335e] rounded-xl w-full max-w-2xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#142647]">
               <div className="flex items-center gap-2 text-cyan-400">

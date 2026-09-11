@@ -574,11 +574,11 @@ export const GeoIntelMap: React.FC<GeoIntelMapProps> = ({
   }, [triangulationData, triangulationTowers]);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative isolate">
       <div ref={mapContainerRef} className="w-full h-full min-h-[480px] rounded-lg overflow-hidden" />
       {/* Dynamic Crosshair Indicator for Pin Mode */}
       {activeTool === 'pin' && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-blue-900/90 border border-blue-500/80 text-blue-200 text-xs font-semibold shadow-lg backdrop-blur-md z-[1000] flex items-center gap-2 pointer-events-none animate-pulse">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-blue-900/90 border border-blue-500/80 text-blue-200 text-xs font-semibold shadow-lg backdrop-blur-md z-20 flex items-center gap-2 pointer-events-none animate-pulse">
           <span>📍</span> Click anywhere on map to drop a new Field Intelligence pin
         </div>
       )}

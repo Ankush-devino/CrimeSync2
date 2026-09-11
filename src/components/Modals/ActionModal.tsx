@@ -28,7 +28,7 @@ export const ActionModal: React.FC<ActionModalProps> = ({ actionName, onClose })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-[#0b1322] border border-cyan-500/40 rounded-2xl w-full max-w-lg overflow-hidden shadow-[0_0_40px_rgba(0,240,255,0.2)] animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-center justify-between p-4 bg-[#0d172a] border-b border-slate-800">

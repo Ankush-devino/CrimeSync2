@@ -34,6 +34,7 @@ import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 import { useAuth } from '../context/AuthContext';
+import { getActiveCaseIntelligence } from '../data/activeCaseNetworks';
 
 interface KnowledgeGraphPageProps {
   onSelectAction?: (action: string) => void;
@@ -47,6 +48,7 @@ interface RenderNode {
   y: number;
   sublabel?: string;
   sublabel2?: string;
+  avatar?: string;
   bgClass: string;
   borderColor: string;
   properties: Record<string, any>;
@@ -62,31 +64,45 @@ interface RenderEdge {
 
 const CATEGORY_STYLES: Record<string, { bg: string; border: string }> = {
   Suspect: { bg: 'bg-red-600 text-white', border: 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' },
+  People: { bg: 'bg-purple-600 text-white', border: 'border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]' },
+  Person: { bg: 'bg-purple-600 text-white', border: 'border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.5)]' },
   Account: { bg: 'bg-emerald-600 text-white', border: 'border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]' },
+  Accounts: { bg: 'bg-emerald-600 text-white', border: 'border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]' },
   Phone: { bg: 'bg-blue-600 text-white', border: 'border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.4)]' },
-  IPAddress: { bg: 'bg-amber-600 text-white', border: 'border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]' },
-  Location: { bg: 'bg-cyan-600 text-white', border: 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]' },
-  Evidence: { bg: 'bg-indigo-600 text-white', border: 'border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.4)]' },
+  Phones: { bg: 'bg-blue-600 text-white', border: 'border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.4)]' },
+  Vehicle: { bg: 'bg-amber-600 text-white', border: 'border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]' },
+  Vehicles: { bg: 'bg-amber-600 text-white', border: 'border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]' },
+  IPAddress: { bg: 'bg-rose-600 text-white', border: 'border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)]' },
+  Organisations: { bg: 'bg-red-600 text-white', border: 'border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.4)]' },
   Company: { bg: 'bg-pink-600 text-white', border: 'border-pink-400 shadow-[0_0_12px_rgba(236,72,153,0.4)]' },
+  Location: { bg: 'bg-cyan-600 text-white', border: 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]' },
+  Locations: { bg: 'bg-cyan-600 text-white', border: 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]' },
+  Evidence: { bg: 'bg-indigo-600 text-white', border: 'border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.4)]' },
   Case: { bg: 'bg-purple-600 text-white', border: 'border-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.4)]' },
 };
 
 function computeCleanLayout(
-  nodes: Array<{ id: string; label: string; category: string; properties: any }>,
+  nodes: Array<{ id: string; label: string; category: string; avatar?: string; properties: any }>,
   edges: Array<{ source: string; target: string; relationship: string; properties: any }>
 ): { renderNodes: RenderNode[]; renderEdges: RenderEdge[] } {
-  const sortedNodes = [...nodes].sort((a, b) => (b.category === 'Case' ? 1 : b.category === 'Suspect' ? 2 : 3));
-  const centerNode = sortedNodes[0] || { id: 'center', label: 'Investigation Center', category: 'Case', properties: {} };
+  const sortedNodes = [...nodes].sort((a, b) => {
+    if (a.properties?.role === 'center' || a.id.includes('tariq') || a.id.includes('kunwar') || a.id.includes('vikram') || a.id.includes('irfan') || a.id.includes('harsh')) return -1;
+    if (b.properties?.role === 'center' || b.id.includes('tariq') || b.id.includes('kunwar') || b.id.includes('vikram') || b.id.includes('irfan') || b.id.includes('harsh')) return 1;
+    return 0;
+  });
+
+  const centerNode = sortedNodes[0] || { id: 'center', label: 'Primary Suspect', category: 'People', properties: {} };
   const orbitingNodes = sortedNodes.slice(1);
 
   const renderNodes: RenderNode[] = [];
 
-  // 1. Center node
+  // 1. Center node (Mastermind)
   const centerStyle = CATEGORY_STYLES[centerNode.category] || CATEGORY_STYLES.Suspect;
   renderNodes.push({
     id: centerNode.id,
     name: centerNode.label,
     category: centerNode.category,
+    avatar: centerNode.avatar || centerNode.properties?.avatar,
     x: 50,
     y: 46,
     sublabel: centerNode.properties?.role || centerNode.category,
@@ -111,9 +127,10 @@ function computeCleanLayout(
       id: node.id,
       name: node.label,
       category: node.category,
+      avatar: node.avatar || node.properties?.avatar,
       x: Math.max(8, Math.min(92, x)),
       y: Math.max(10, Math.min(88, y)),
-      sublabel: node.properties?.role || node.properties?.account_number || node.properties?.phone_number || node.category,
+      sublabel: node.properties?.role || node.properties?.account_number || node.properties?.phone_number || node.properties?.vehicleNumber || node.category,
       sublabel2: node.properties?.risk_level ? `Risk: ${node.properties.risk_level}` : '',
       bgClass: style.bg,
       borderColor: style.border,
@@ -125,10 +142,10 @@ function computeCleanLayout(
 }
 
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelectAction }) => {
-  const { selectedCaseId, setSelectedCaseId } = useCaseContext();
+  const { selectedCaseId, selectedCase, setSelectedCaseId } = useCaseContext();
   const { currentUser, permissions } = useAuth();
   const [nodes, setNodes] = useState<RenderNode[]>([]);
-  const [rawNodes, setRawNodes] = useState<Array<{ id: string; label: string; category: string; properties: any }>>([]);
+  const [rawNodes, setRawNodes] = useState<Array<{ id: string; label: string; category: string; avatar?: string; properties: any }>>([]);
   const [edges, setEdges] = useState<RenderEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<RenderNode | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -153,39 +170,59 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
   const loadGraphData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await api.knowledgeGraph.getFullGraph(100, selectedCaseId);
-      if (res && res.nodes && res.nodes.length > 0) {
-        setRawNodes(res.nodes);
-        const layout = computeCleanLayout(res.nodes, res.edges || []);
-        setNodes(layout.renderNodes);
-        setEdges(layout.renderEdges);
-        setSelectedNode(layout.renderNodes[0] || null);
-      } else {
-        // Construct visual fallback graph for selected case
-        const caseObj = getCaseById(selectedCaseId);
-        const fallbackNodes = [
-          { id: caseObj.id, label: caseObj.title, category: 'Case', properties: { fir: caseObj.fir_number, status: caseObj.status } },
-          { id: `sus-${caseObj.id}`, label: caseObj.lead_suspect, category: 'Suspect', properties: { role: caseObj.lead_suspect_role, risk_level: caseObj.priority } },
-          { id: `acc-${caseObj.id}`, label: `ICIC000${caseObj.id.replace(/\D/g, '')}89`, category: 'Account', properties: { bank: 'ICICI Bank', balance_inr: caseObj.tracked_money_inr } },
-          { id: `phone-${caseObj.id}`, label: `+91-98${caseObj.id.replace(/\D/g, '')}112233`, category: 'Phone', properties: { carrier: 'Jio 5G', suspect: caseObj.lead_suspect } },
-        ];
-        const fallbackEdges = [
-          { id: 'e1', source: `sus-${caseObj.id}`, target: caseObj.id, relationship: 'IMPLICATED_IN', properties: {} },
-          { id: 'e2', source: `sus-${caseObj.id}`, target: `acc-${caseObj.id}`, relationship: 'OPERATES_ACCOUNT', properties: {} },
-          { id: 'e3', source: `sus-${caseObj.id}`, target: `phone-${caseObj.id}`, relationship: 'OWNS_DEVICE', properties: {} },
-        ];
-        setRawNodes(fallbackNodes);
-        const layout = computeCleanLayout(fallbackNodes, fallbackEdges);
-        setNodes(layout.renderNodes);
-        setEdges(layout.renderEdges);
-        setSelectedNode(layout.renderNodes[0] || null);
+      const caseIntel = getActiveCaseIntelligence(selectedCase || { id: selectedCaseId });
+
+      let rawLoadedNodes: any[] = [];
+      let rawLoadedEdges: any[] = [];
+
+      try {
+        const res = await api.knowledgeGraph.getFullGraph(100, selectedCaseId);
+        if (res && res.nodes && res.nodes.length > 0) {
+          rawLoadedNodes = res.nodes;
+          rawLoadedEdges = res.edges || [];
+        }
+      } catch (e) {
+        // Fallback
       }
+
+      if (rawLoadedNodes.length === 0) {
+        rawLoadedNodes = caseIntel.nodes.map((n) => ({
+          id: n.id,
+          label: n.label,
+          category: n.category,
+          avatar: n.avatar,
+          properties: {
+            role: n.sublabel || n.details?.role || n.category,
+            risk_level: n.risk,
+            riskScore: n.riskScore,
+            phone: n.details?.phone,
+            vehicleNumber: n.details?.vehicleNumber,
+            location: n.details?.location,
+            notes: n.details?.notes,
+            case_id: selectedCaseId,
+          },
+        }));
+
+        rawLoadedEdges = caseIntel.edges.map((e) => ({
+          id: `rel-${e.from}-${e.to}`,
+          source: e.from,
+          target: e.to,
+          relationship: e.label || (e.isHighRisk ? 'CO_CONSPIRATOR' : 'LINKED_TO'),
+          properties: {},
+        }));
+      }
+
+      setRawNodes(rawLoadedNodes);
+      const layout = computeCleanLayout(rawLoadedNodes, rawLoadedEdges);
+      setNodes(layout.renderNodes);
+      setEdges(layout.renderEdges);
+      setSelectedNode(layout.renderNodes[0] || null);
     } catch (err) {
       console.warn('Live graph load error:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCaseId]);
+  }, [selectedCaseId, selectedCase]);
 
   useEffect(() => {
     loadGraphData();
@@ -274,11 +311,12 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
 
   const CATEGORY_COLORS = [
     { label: 'All Entities', value: 'ALL', color: 'bg-slate-700' },
-    { label: 'Suspects', value: 'Suspect', color: 'bg-red-600' },
-    { label: 'Bank Accounts', value: 'Account', color: 'bg-emerald-600' },
-    { label: 'Phones / SIMs', value: 'Phone', color: 'bg-blue-600' },
-    { label: 'Cyber IPs / C2', value: 'IPAddress', color: 'bg-amber-600' },
-    { label: 'Locations', value: 'Location', color: 'bg-cyan-600' },
+    { label: 'Suspects & Accomplices', value: 'People', color: 'bg-purple-600' },
+    { label: 'Phones / SIMs', value: 'Phones', color: 'bg-blue-600' },
+    { label: 'Bank Accounts', value: 'Accounts', color: 'bg-emerald-600' },
+    { label: 'Vehicles', value: 'Vehicles', color: 'bg-amber-600' },
+    { label: 'Locations & C2', value: 'Locations', color: 'bg-cyan-600' },
+    { label: 'Organisations', value: 'Organisations', color: 'bg-red-600' },
   ];
 
   return (
@@ -302,7 +340,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
             <h1 className="text-base font-bold text-white flex items-center gap-2">
               Syndicate Knowledge Graph & Link Discovery
               <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-[10px] font-semibold text-emerald-400">
-                Neo4j AuraDB Live
+                Knowledge Graph Engine Active
               </span>
             </h1>
             <p className="text-xs text-slate-400">
@@ -455,7 +493,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
           {isLoading ? (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
-              <span className="text-xs">Traversing Neo4j AuraDB knowledge graph for {activeCase?.title || 'Case'}...</span>
+              <span className="text-xs">Traversing knowledge graph for {activeCase?.title || 'Case'}...</span>
             </div>
           ) : (
             <div
@@ -613,7 +651,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
 
       {/* ─── ADD NODE MODAL ───────────────────────────────────────────── */}
       {isAddNodeOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-[#091122] border border-purple-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             
             {/* Modal Header */}

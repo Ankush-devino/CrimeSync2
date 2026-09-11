@@ -142,6 +142,10 @@ export function getOfficerActivities(): OfficerActivity[] {
   }
 }
 
+export function getOfficerLogs(officerId?: string): OfficerActivity[] {
+  return getOfficerActivities();
+}
+
 export function clearOfficerActivities(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([]));

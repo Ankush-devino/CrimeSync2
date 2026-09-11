@@ -5,16 +5,16 @@ import {
   Search, 
   ChevronDown, 
   Lock, 
-  UserCheck, 
-  X,
   FolderKanban,
   Check,
   LogOut,
-  Sparkles,
-  RefreshCw,
   MapPin,
+  RefreshCw,
+  X,
+  User,
   Shield,
-  Layers,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCaseContext } from '../context/CaseContext';
@@ -28,86 +28,86 @@ interface HeaderProps {
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   'command-center': {
-    title: 'COMMAND CENTER',
-    subtitle: 'Live operational overview of all active investigations and threats',
+    title: 'NATIONAL COMMAND CENTER',
+    subtitle: 'National Cyber-Intelligence & Security Operations Center (SOC)',
   },
   'investigations': {
-    title: 'INVESTIGATIONS / CASE DASHBOARD',
-    subtitle: 'Track, analyze and manage criminal investigations',
+    title: 'INVESTIGATIONS / CASE REGISTRY',
+    subtitle: 'Track, analyze and manage statutory criminal investigations',
   },
   'ai-copilot': {
-    title: 'AI COPILOT',
-    subtitle: 'Intelligent assistant for case analysis and hypothesis generation',
+    title: 'AI NEURAL COPILOT',
+    subtitle: 'Autonomous forensic reasoning and modus operandi hypothesis generation',
   },
   'knowledge-graph': {
-    title: 'KNOWLEDGE GRAPH',
-    subtitle: 'Visualize entity networks, relationships and connections',
+    title: 'KNOWLEDGE GRAPH ENGINE',
+    subtitle: 'Multi-hop syndicate entity traversal and centrality mapping',
   },
   'time-machine': {
-    title: 'TIME MACHINE',
-    subtitle: 'Visualize how the investigation evolved over time',
+    title: '4D CRIME TIME MACHINE',
+    subtitle: 'Forensic temporal replay with synchronized CDR tower handoffs and CCTV',
   },
   'geo-intelligence': {
-    title: 'GEO INTELLIGENCE',
-    subtitle: 'Satellite mapping, movement tracking and geo-spatial analysis',
+    title: 'GEO INTELLIGENCE (GIS)',
+    subtitle: 'Satellite tracking, cell tower triangulation, and threat density',
   },
   'financial-intelligence': {
     title: 'FINANCIAL INTELLIGENCE',
-    subtitle: 'Money flow analysis, hawala tracking and transaction mapping',
+    subtitle: 'Hawala smurfing, crypto wallet analysis, and mule network mapping',
   },
   'identity-security': {
     title: 'IDENTITY DOPPELGÄNGER',
-    subtitle: 'Threat Detection & Adaptive Permission Control',
+    subtitle: 'Session trust scoring, behavioral biometrics and honeypots',
   },
   'attack-graph': {
-    title: 'ATTACK GRAPH',
-    subtitle: 'Intrusion analysis, attack vector mapping and kill-chain visualization',
+    title: 'ATTACK GRAPH & LATERAL MOVEMENT',
+    subtitle: 'MITRE ATT&CK intrusion kill-chain and breach simulation',
   },
   'deception-network': {
-    title: 'DECEPTION NETWORK',
-    subtitle: 'Honey evidence deployment, canary file triggers and bait monitoring',
+    title: 'DECEPTION NETWORK (HONEYPOTS)',
+    subtitle: 'Canary tokens, ghost database tripwires and steganography',
   },
   'blast-radius': {
-    title: 'BLAST RADIUS SIMULATOR',
-    subtitle: 'Impact simulation and compromise propagation analysis',
+    title: 'THREAT BLAST RADIUS SIMULATOR',
+    subtitle: 'Hop-0 breach propagation and circuit breaker isolation',
   },
   'ai-sandbox': {
-    title: 'AI AGENT SANDBOX',
-    subtitle: 'Isolated environments for training and testing autonomous AI agents',
+    title: 'AI AGENT SANDBOX (GVISOR)',
+    subtitle: 'Containerized autonomous red-team and eBPF kernel monitoring',
   },
   'threat-alerts': {
-    title: 'THREAT ALERTS',
-    subtitle: 'Real-time threat monitoring, anomaly detection and alert management',
+    title: 'LIVE SOC THREAT ALERTS',
+    subtitle: 'Real-time SIEM event stream, anomaly detection and tripwires',
   },
   'evidence-dna': {
-    title: 'EVIDENCE DNA',
-    subtitle: 'Cryptographic integrity verification and blockchain-sealed evidence',
+    title: 'EVIDENCE DNA VAULT',
+    subtitle: 'Section 65B BSA 2023 cryptographic hashing and Merkle root sealing',
   },
   'chain-of-custody': {
     title: 'CHAIN OF CUSTODY',
-    subtitle: 'Immutable access records and tamper-proof custody logs',
+    subtitle: 'Immutable electronic evidence transfer ledger',
   },
   'blockchain-explorer': {
     title: 'BLOCKCHAIN EXPLORER',
-    subtitle: 'Public ledger browser for sealed evidence hashes and transactions',
+    subtitle: 'Public & private ledger inspector for sealed evidence blocks',
   },
   'reports': {
-    title: 'REPORTS & DOSSIERS',
-    subtitle: 'Generate PDF intelligence reports, suspect dossiers and case summaries',
+    title: 'REPORTS & COURT DOSSIERS',
+    subtitle: 'Section 65B Bharatiya Sakshya Adhiniyam 2023 legal dossiers',
   },
   'audit-trail': {
-    title: 'AUDIT TRAIL',
-    subtitle: 'Full system activity log — who accessed what, when and where',
+    title: 'IMMUTABLE AUDIT TRAIL',
+    subtitle: 'Tamper-proof system activity log and officer access records',
   },
 };
 
 export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
-  const { currentUser, logout, permissions, trustScore, isAdaptiveRestricted } = useAuth();
+  const { currentUser, logout, trustScore, isAdaptiveRestricted } = useAuth();
   const { cases, selectedCaseId, selectedCase, setSelectedCaseId, loading } = useCaseContext();
   const { setActiveCaseId } = useAuditLog();
 
-  const [timeStr, setTimeStr] = useState('10:42 PM');
-  const [dateStr, setDateStr] = useState('27 Aug 2026');
+  const [timeStr, setTimeStr] = useState<string>('');
+  const [dateStr, setDateStr] = useState<string>('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showCaseSwitcher, setShowCaseSwitcher] = useState(false);
@@ -118,17 +118,29 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
 
   const meta = PAGE_META[activeTab] ?? PAGE_META['command-center'];
 
-  // Digital clock update
+  // Digital clock updating every 1000ms (every second)
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      setDateStr(now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
+      setTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+      setDateStr(now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }));
     };
     updateTime();
-    const interval = setInterval(updateTime, 10000);
+    const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Keyboard shortcut listener for Universal Search (CMD+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        onOpenSearch();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onOpenSearch]);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -151,23 +163,34 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
     return (
       c.title?.toLowerCase().includes(q) ||
       c.fir_number?.toLowerCase().includes(q) ||
-      c.jurisdiction_city?.toLowerCase().includes(q)
+      c.jurisdiction_city?.toLowerCase().includes(q) ||
+      c.crime_category?.toLowerCase().includes(q)
     );
   });
 
   return (
-    <header className="bg-[#040814] border-b border-slate-800/80 sticky top-0 z-30 backdrop-blur-md flex-shrink-0">
-      {/* Main Header Row */}
+    <header className="bg-[#040814]/95 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-xl flex-shrink-0 select-none shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
       <div className="px-4 h-16 flex items-center justify-between gap-3">
-        {/* Left: Page Title & Subtitle */}
-        <div className="flex-shrink-0 max-w-[200px] xl:max-w-xs hidden md:block">
-          <h1 className="text-xs sm:text-sm font-extrabold text-white tracking-wide leading-tight truncate">
-            {meta.title}
-          </h1>
-          <p className="text-[10px] text-slate-400 leading-tight truncate">{meta.subtitle}</p>
+        
+        {/* Left: Page Title & Meta Badge */}
+        <div className="flex items-center gap-3 flex-shrink-0 min-w-[200px] xl:min-w-[260px]">
+          <div className="w-9 h-9 rounded-lg bg-blue-950/80 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.25)] flex-shrink-0">
+            <Shield className="w-5 h-5 text-blue-400" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xs sm:text-sm font-black text-white tracking-wider leading-tight truncate">
+                {meta.title}
+              </h1>
+              <span className="text-[9px] font-mono font-bold bg-blue-950/80 text-cyan-300 px-1.5 py-0.2 rounded border border-blue-500/30 hidden xl:inline-block">
+                LIVE SOC
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-tight truncate">{meta.subtitle}</p>
+          </div>
         </div>
 
-        {/* ─── GLOBAL ACTIVE CASE SWITCHER (TOP BAR SELECTOR) ─────────── */}
+        {/* ─── 1. GLOBAL ACTIVE INVESTIGATION SWITCHER ───────────────────────── */}
         <div className="relative" ref={caseSwitcherRef}>
           <button
             onClick={() => {
@@ -175,77 +198,78 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
               if (showProfileMenu) setShowProfileMenu(false);
               if (showNotifications) setShowNotifications(false);
             }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#08132e] border border-blue-500/40 hover:border-blue-400 text-left transition-all shadow-[0_0_12px_rgba(37,99,235,0.2)] group"
+            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#08132e] via-[#0b1b3d] to-[#08132e] border border-blue-500/50 hover:border-blue-400 text-left transition-all shadow-[0_0_16px_rgba(37,99,235,0.25)] group"
           >
-            <div className="w-6 h-6 rounded-md bg-blue-600/30 border border-blue-400/50 flex items-center justify-center text-blue-300">
-              <FolderKanban className="w-3.5 h-3.5" />
+            <div className="w-7 h-7 rounded-lg bg-blue-600/30 border border-blue-400/50 flex items-center justify-center text-blue-300 group-hover:scale-105 transition-transform flex-shrink-0">
+              <FolderKanban className="w-4 h-4 text-cyan-300" />
             </div>
 
-            <div className="flex flex-col min-w-0 pr-1 max-w-[170px] sm:max-w-[240px]">
+            <div className="flex flex-col min-w-0 pr-1 max-w-[160px] sm:max-w-[240px] md:max-w-[280px]">
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-bold text-blue-300 uppercase tracking-wider">
+                <span className="text-[9px] font-extrabold text-blue-300 uppercase tracking-wider">
                   Active Investigation
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
               </div>
-              <div className="text-xs font-mono font-bold text-white truncate group-hover:text-blue-200">
+              <div className="text-xs font-mono font-bold text-white truncate group-hover:text-cyan-200 transition-colors">
                 {selectedCase ? (
                   <>
-                    <span className="text-cyan-300 mr-1.5">{selectedCase.fir_number}</span>
-                    <span className="text-slate-200 font-sans">{selectedCase.title}</span>
+                    <span className="text-cyan-300 mr-1.5 font-black">{selectedCase.fir_number}</span>
+                    <span className="text-slate-200 font-sans font-semibold">{selectedCase.title}</span>
                   </>
                 ) : (
-                  'No Case Selected'
+                  'Select Investigation'
                 )}
               </div>
             </div>
 
-            <ChevronDown className="w-3.5 h-3.5 text-blue-400 ml-1 transition-transform group-hover:translate-y-0.5" />
+            <ChevronDown className={`w-4 h-4 text-blue-400 ml-1 transition-transform duration-200 ${showCaseSwitcher ? 'rotate-180 text-cyan-300' : 'group-hover:translate-y-0.5'}`} />
           </button>
 
           {/* Case Switcher Dropdown */}
           {showCaseSwitcher && (
-            <div className="absolute left-0 top-full mt-2 w-84 sm:w-96 bg-[#061026] border border-blue-500/60 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-[1100] overflow-hidden flex flex-col max-h-[500px]">
+            <div className="absolute left-0 top-full mt-2 w-88 sm:w-96 bg-[#061026] border border-blue-500/60 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-[1100] overflow-hidden flex flex-col max-h-[520px] backdrop-blur-2xl">
               {/* Dropdown Header */}
-              <div className="p-3 border-b border-slate-800 bg-[#040c20] flex items-center justify-between">
+              <div className="p-3.5 border-b border-slate-800/90 bg-gradient-to-r from-[#06122e] to-[#040c20] flex items-center justify-between">
                 <div className="space-y-0.5">
                   <div className="text-xs font-extrabold text-white flex items-center gap-2">
                     <FolderKanban className="w-4 h-4 text-blue-400" />
                     <span>Authorized Investigations ({cases.length})</span>
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    Active Officer: <strong className="text-blue-300">{currentUser.name}</strong>
+                    Logged Officer: <strong className="text-blue-300">{currentUser.name}</strong>
                   </div>
                 </div>
-                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/40 font-bold">
+                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded-md border border-cyan-500/40 font-bold">
                   {currentUser.role}
                 </span>
               </div>
 
               {/* Search Filter */}
-              <div className="p-2 border-b border-slate-800 bg-[#030918]">
+              <div className="p-2.5 border-b border-slate-800/90 bg-[#030918]">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
+                  <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
                   <input
                     type="text"
                     value={caseFilterQuery}
                     onChange={(e) => setCaseFilterQuery(e.target.value)}
-                    placeholder="Search authorized cases or cities..."
-                    className="w-full bg-[#061026] border border-slate-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-400 font-sans"
+                    placeholder="Search by FIR, Title, City or Category..."
+                    className="w-full bg-[#061026] border border-slate-700/80 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 font-sans"
+                    autoFocus
                   />
                 </div>
               </div>
 
               {/* Case Items List */}
-              <div className="divide-y divide-slate-800/80 overflow-y-auto flex-1 p-1 space-y-0.5">
+              <div className="divide-y divide-slate-800/60 overflow-y-auto flex-1 p-1.5 space-y-1">
                 {loading ? (
-                  <div className="p-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                  <div className="p-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                     <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
-                    <span>Loading cases...</span>
+                    <span>Querying PostgreSQL Case Registry...</span>
                   </div>
                 ) : filteredSwitcherCases.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-slate-400">
-                    No authorized cases match query.
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    No authorized investigations matched query.
                   </div>
                 ) : (
                   filteredSwitcherCases.map((c) => {
@@ -259,10 +283,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                           setActiveCaseId(c.id);
                           setShowCaseSwitcher(false);
                         }}
-                        className={`w-full text-left p-2.5 rounded-lg transition-all flex items-start justify-between gap-2 ${
+                        className={`w-full text-left p-3 rounded-xl transition-all flex items-start justify-between gap-2.5 ${
                           isSelected
-                            ? 'bg-blue-950/90 border border-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.3)]'
-                            : 'hover:bg-slate-900 text-slate-300 border border-transparent'
+                            ? 'bg-blue-950/90 border border-blue-500 text-white shadow-[0_0_16px_rgba(59,130,246,0.35)]'
+                            : 'hover:bg-slate-900/90 text-slate-300 border border-transparent hover:border-slate-800'
                         }`}
                       >
                         <div className="space-y-1 min-w-0 flex-1">
@@ -273,8 +297,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                             <span
                               className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase ${
                                 c.priority === 'CRITICAL'
-                                  ? 'bg-red-950 text-red-300 border border-red-600/60'
-                                  : 'bg-amber-950 text-amber-300 border border-amber-600/60'
+                                  ? 'bg-red-950/90 text-red-300 border border-red-600/60'
+                                  : 'bg-amber-950/90 text-amber-300 border border-amber-600/60'
                               }`}
                             >
                               {c.priority}
@@ -284,17 +308,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                           <div className="text-xs font-bold text-white truncate">{c.title}</div>
 
                           <div className="text-[10px] text-slate-400 flex items-center gap-2">
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 text-slate-300">
                               <MapPin className="w-3 h-3 text-red-400" />
-                              {c.jurisdiction_city || 'National'}
+                              {c.jurisdiction_city || 'National Scope'}
                             </span>
                             <span>•</span>
-                            <span className="text-blue-300">{c.status}</span>
+                            <span className="text-blue-300 font-medium">{c.status}</span>
                           </div>
                         </div>
 
                         {isSelected && (
-                          <div className="mt-1 flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white shrink-0">
+                          <div className="mt-1 flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white shrink-0 shadow-[0_0_8px_rgba(37,99,235,0.8)]">
                             <Check className="w-3.5 h-3.5" />
                           </div>
                         )}
@@ -307,38 +331,34 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
           )}
         </div>
 
-        {/* Center: Global Search Bar */}
-        <div className="flex-1 max-w-md min-w-[280px] flex-shrink-0 hidden lg:block">
+        {/* ─── 2. UNIVERSAL SEARCH (CMD + K / CTRL + K) ─────────────────────────────────── */}
+        <div className="flex-1 max-w-md hidden lg:block">
           <button
             onClick={onOpenSearch}
-            className="w-full h-9 bg-[#0b1220] border border-slate-700/60 rounded-lg px-3 flex items-center justify-between text-xs text-slate-400 hover:border-cyan-500/50 hover:text-slate-200 transition-all group shadow-inner"
+            className="w-full h-9 bg-[#070e1c] border border-slate-700/60 rounded-xl px-3.5 flex items-center justify-between text-xs text-slate-400 hover:border-cyan-500/60 hover:text-slate-200 transition-all group shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]"
           >
-            <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <Search className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-              <span className="truncate whitespace-nowrap">Search people, phones, cases, evidence...</span>
+              <span className="truncate">Universal Search (People, Phones, Vehicles, FIRs, Evidence)...</span>
             </div>
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-slate-800/80 border border-slate-700 rounded text-slate-400 flex-shrink-0 ml-2">
-              Ctrl + K
+            <kbd className="inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-800/90 border border-slate-700 rounded-md text-slate-300 shadow-sm flex-shrink-0 ml-2">
+              CMD + K
             </kbd>
           </button>
         </div>
 
-        {/* Right: Security Meters, Time, Persona Dropdown */}
-        <div className="flex items-center gap-2.5 flex-shrink-0">
-          {/* Adaptive Containment / Trust Meter */}
+        {/* ─── 3. SECURITY META, LIVE CLOCK & OFFICER PROFILE ────────────────── */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Live Trust Score Badge */}
           <div
-            className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-xl border text-xs font-mono transition-all ${
+            className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-xl border text-xs font-mono transition-all shadow-sm ${
               isAdaptiveRestricted
                 ? 'bg-red-950/90 border-red-500 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse'
                 : trustScore < 80
-                ? 'bg-amber-950/60 border-amber-500/40 text-amber-300'
-                : 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                ? 'bg-amber-950/70 border-amber-500/50 text-amber-300'
+                : 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300'
             }`}
-            title={
-              isAdaptiveRestricted
-                ? 'Session Contained: Trust Score < 50. Sensitive write and exfiltration operations are strictly blocked.'
-                : `Session Trust Score: ${trustScore}/100`
-            }
+            title={`Session Trust Score: ${trustScore}/100 • Evaluated via Behavioral Biometrics`}
           >
             {isAdaptiveRestricted ? (
               <Lock className="w-4 h-4 text-red-400 flex-shrink-0 animate-bounce" />
@@ -350,21 +370,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                 {isAdaptiveRestricted ? 'CONTAINMENT ACTIVE' : 'TRUST ENGINE'}
               </span>
               <span className={`text-[11px] font-black ${isAdaptiveRestricted ? 'text-red-300' : 'text-white'}`}>
-                {trustScore} / 100 {isAdaptiveRestricted ? '• LOCKED' : '• CLEAR'}
+                {trustScore} / 100 {isAdaptiveRestricted ? '• LOCKED' : '• SECURE'}
               </span>
             </div>
           </div>
 
-          {/* Digital Clock */}
-          <div className="hidden sm:flex flex-col items-end text-right border-l border-slate-800/80 pl-2.5">
-            <div className="text-xs font-mono font-bold text-slate-200 tracking-wider flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              {timeStr}
+          {/* Current Date & Live Clock (updating every second) */}
+          <div className="hidden sm:flex flex-col items-end text-right border-l border-slate-800/80 pl-3">
+            <div className="text-xs font-mono font-black text-slate-100 tracking-wider flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+              <span>{timeStr || '00:00:00'}</span>
             </div>
-            <div className="text-[10px] text-slate-400 font-medium">{dateStr}</div>
+            <div className="text-[10px] text-slate-400 font-medium">{dateStr || '2026'}</div>
           </div>
 
-          {/* Notifications Icon with red badge */}
+          {/* Notifications Bell Icon with live alert badge */}
           <div className="relative">
             <button
               onClick={() => {
@@ -372,46 +392,53 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                 if (showProfileMenu) setShowProfileMenu(false);
                 if (showCaseSwitcher) setShowCaseSwitcher(false);
               }}
-              className="relative p-2 rounded-lg bg-[#0b1220] border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-colors"
+              className="relative p-2 rounded-xl bg-[#081122] border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-colors"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#060a14] shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#040814] shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse">
                 7
               </span>
             </button>
 
             {/* Notifications Dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-[#0d1527] border border-slate-700/80 rounded-xl shadow-2xl z-50 p-3">
+              <div className="absolute right-0 mt-2 w-80 bg-[#061026] border border-slate-700/80 rounded-2xl shadow-2xl z-50 p-3.5 backdrop-blur-2xl">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                   <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <Bell className="w-3.5 h-3.5 text-cyan-400" /> Notifications (7)
+                    <Bell className="w-3.5 h-3.5 text-cyan-400" /> SOC Notifications (7)
                   </span>
                   <button onClick={() => setShowNotifications(false)} className="text-slate-400 hover:text-white text-xs">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div className="space-y-2 mt-2 max-h-64 overflow-y-auto">
-                  <div className="p-2 rounded bg-red-500/10 border border-red-500/20 text-xs">
-                    <div className="flex items-center justify-between text-red-400 font-semibold">
-                      <span>Critical Alert: Honeypot Hit</span>
-                      <span className="text-[9px]">10:21 PM</span>
+                <div className="space-y-2 mt-2 max-h-64 overflow-y-auto pr-1">
+                  <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs">
+                    <div className="flex items-center justify-between text-red-400 font-bold">
+                      <span>Critical Honeypot Hit</span>
+                      <span className="text-[9px] font-mono">Just now</span>
                     </div>
-                    <p className="text-[11px] text-slate-300 mt-0.5">FIR_999_HONEY.pdf accessed without decryption token.</p>
+                    <p className="text-[11px] text-slate-300 mt-0.5">FIR_999_HONEY.pdf accessed without token authorization.</p>
                   </div>
-                  <div className="p-2 rounded bg-cyan-500/10 border border-cyan-500/20 text-xs">
-                    <div className="flex items-center justify-between text-cyan-400 font-semibold">
-                      <span>AI Copilot Hypothesis</span>
-                      <span className="text-[9px]">10:14 PM</span>
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+                    <div className="flex items-center justify-between text-amber-400 font-bold">
+                      <span>Unusual Login Alert</span>
+                      <span className="text-[9px] font-mono">2m ago</span>
                     </div>
-                    <p className="text-[11px] text-slate-300 mt-0.5">Aman Khan central node connection updated with 92% confidence.</p>
+                    <p className="text-[11px] text-slate-300 mt-0.5">New IP login detected from external subnet for ACP Raj Verma.</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs">
+                    <div className="flex items-center justify-between text-blue-400 font-bold">
+                      <span>Merkle Root Anchored</span>
+                      <span className="text-[9px] font-mono">14m ago</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-0.5">Evidence Block #19,402 committed to BSA 2023 Ledger.</p>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* ─── OFFICER PROFILE & DEMO PERSONA SWITCHER ─────────────── */}
+          {/* Officer Persona Profile Dropdown */}
           <div className="relative" ref={profileMenuRef}>
             <button
               onClick={() => {
@@ -419,86 +446,69 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                 if (showNotifications) setShowNotifications(false);
                 if (showCaseSwitcher) setShowCaseSwitcher(false);
               }}
-              className="flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-lg bg-[#0b1220] border border-slate-700/80 hover:border-cyan-500/60 transition-all group"
+              className="flex items-center gap-2 p-1 pl-2 rounded-xl bg-[#081122] border border-slate-800 hover:border-slate-700 transition-all text-left group"
             >
-              <div className="relative">
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                  className="w-7 h-7 rounded-full object-cover border border-cyan-500/60 group-hover:border-cyan-400"
-                />
-                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-[#0b1220]" />
-              </div>
-
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-bold text-white leading-tight flex items-center gap-1">
+              <div className="hidden xl:flex flex-col text-right">
+                <span className="text-xs font-bold text-white group-hover:text-blue-300 transition-colors">
                   {currentUser.name}
                 </span>
-                <span className="text-[10px] text-slate-400 leading-tight font-mono">
-                  {currentUser.role} • {currentUser.badgeNumber}
+                <span className="text-[9px] text-slate-400 font-mono">
+                  {currentUser.badge_number || currentUser.role}
                 </span>
               </div>
 
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5 transition-transform group-hover:translate-y-0.5" />
+              <div className="w-8 h-8 rounded-lg overflow-hidden border border-blue-500/40 relative shadow-[0_0_8px_rgba(59,130,246,0.3)]">
+                {currentUser.avatar ? (
+                  <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-blue-900 flex items-center justify-center text-white text-xs font-bold">
+                    <User className="w-4 h-4 text-blue-300" />
+                  </div>
+                )}
+                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-[#040814]" />
+              </div>
+
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-colors" />
             </button>
 
-            {/* Profile Dropdown */}
+            {/* Profile Menu Dropdown */}
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-[#061026] border border-slate-700 rounded-xl shadow-2xl z-50 p-3 text-xs space-y-3">
-                {/* Active Officer Header */}
-                <div className="p-2.5 rounded-lg bg-[#030918] border border-slate-800 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-white text-sm">{currentUser.name}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-500/50">
-                      {currentUser.role}
-                    </span>
+              <div className="absolute right-0 top-full mt-2 w-64 bg-[#061026] border border-slate-700/80 rounded-2xl shadow-2xl z-50 p-3 backdrop-blur-2xl">
+                <div className="pb-3 border-b border-slate-800 space-y-1">
+                  <div className="text-xs font-black text-white">{currentUser.name}</div>
+                  <div className="text-[10px] text-cyan-300 font-mono">{currentUser.email}</div>
+                  <div className="text-[10px] text-slate-400">{currentUser.department}</div>
+                </div>
+
+                <div className="py-2 text-xs space-y-1 text-slate-300">
+                  <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-slate-900/60">
+                    <span className="text-slate-400 text-[10px]">Clearance</span>
+                    <span className="font-mono text-emerald-400 text-[10px] font-bold">LEVEL 5 TOP SECRET</span>
                   </div>
-                  <p className="text-[11px] text-slate-300 font-semibold">{currentUser.roleTitle}</p>
-                  <p className="text-[10px] text-slate-400 font-mono">Badge: {currentUser.badgeNumber}</p>
-                  <p className="text-[10px] text-slate-400 font-sans">{currentUser.department}</p>
-                  <div className="pt-1.5 border-t border-slate-800/80 text-[10px] text-cyan-300 font-mono flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <Shield className="w-3 h-3 text-cyan-400" />
-                      <span>Clearance: {currentUser.clearanceLevel}</span>
-                    </div>
-                    <span className="text-emerald-400 font-bold">NIC Gateway: Active</span>
+                  <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-slate-900/60">
+                    <span className="text-slate-400 text-[10px]">Officer ID</span>
+                    <span className="font-mono text-blue-300 text-[10px] font-bold">{currentUser.badge_number || 'USR-101'}</span>
                   </div>
                 </div>
 
-                {/* Secure Session Meta */}
-                <div className="p-2 rounded-lg bg-[#030818] border border-slate-800 space-y-1 text-[10.5px] text-slate-300">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Jurisdiction Command:</span>
-                    <span className="font-bold text-white">{currentUser.jurisdiction}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Authorized FIRs:</span>
-                    <span className="font-mono text-cyan-300 font-bold">{cases.length} Live Dockets</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Cryptographic Seal:</span>
-                    <span className="font-mono text-emerald-400 font-bold">JWT HMAC-SHA256</span>
-                  </div>
-                </div>
-
-                {/* Reset Session Button */}
-                <div className="pt-1 border-t border-slate-800">
+                <div className="pt-2 border-t border-slate-800">
                   <button
-                    type="button"
                     onClick={() => {
                       setShowProfileMenu(false);
                       logout();
                     }}
-                    className="w-full py-2 px-3 rounded-lg bg-blue-950/70 hover:bg-blue-900 border border-blue-600/50 text-blue-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="w-full text-left p-2 rounded-lg hover:bg-red-500/10 text-red-400 text-xs font-bold flex items-center gap-2 transition-colors"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Reset Session State</span>
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Secure Sign Out</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
+
         </div>
+
       </div>
     </header>
   );
