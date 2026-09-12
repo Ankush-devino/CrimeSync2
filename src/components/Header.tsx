@@ -14,10 +14,13 @@ import {
   User,
   Shield,
   Clock,
-  Sparkles
+  Sparkles,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCaseContext } from '../context/CaseContext';
+import { useTheme } from '../context/ThemeContext';
 import { useAuditLog } from '../hooks/useAuditLog';
 
 interface HeaderProps {
@@ -101,6 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
   const { currentUser, logout, trustScore, isAdaptiveRestricted } = useAuth();
   const { cases, selectedCaseId, selectedCase, setSelectedCaseId, loading } = useCaseContext();
   const { setActiveCaseId } = useAuditLog();
+  const { theme, toggleTheme } = useTheme();
 
   const [timeStr, setTimeStr] = useState<string>('');
   const [dateStr, setDateStr] = useState<string>('');
@@ -169,49 +173,49 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
       <div className="px-4 h-16 flex items-center justify-between gap-3">
         
         {/* Left: Page Title & Meta Badge */}
-        <div className="flex items-center gap-3 flex-shrink-0 min-w-[200px] xl:min-w-[260px]">
-          <div className="w-9 h-9 rounded-lg bg-blue-950/80 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.25)] flex-shrink-0">
-            <Shield className="w-5 h-5 text-blue-400" />
+        <div className="flex items-center gap-2.5 flex-shrink min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-blue-950/80 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.25)] flex-shrink-0">
+            <Shield className="w-4 h-4 text-blue-400" />
           </div>
           <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xs sm:text-sm font-black text-white tracking-wider leading-tight truncate">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-xs font-black text-white tracking-wider leading-tight truncate">
                 {meta.title}
               </h1>
-              <span className="text-[9px] font-mono font-bold bg-blue-950/80 text-cyan-300 px-1.5 py-0.2 rounded border border-blue-500/30 hidden xl:inline-block">
+              <span className="text-[8px] font-mono font-bold bg-blue-950/80 text-cyan-300 px-1 py-0.2 rounded border border-blue-500/30 hidden 2xl:inline-block">
                 LIVE SOC
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 leading-tight truncate">{meta.subtitle}</p>
+            <p className="text-[9.5px] text-slate-400 leading-tight truncate hidden sm:block">{meta.subtitle}</p>
           </div>
         </div>
 
         {/* ─── 1. GLOBAL ACTIVE INVESTIGATION SWITCHER ───────────────────────── */}
-        <div className="relative" ref={caseSwitcherRef}>
+        <div className="relative flex-shrink-0" ref={caseSwitcherRef}>
           <button
             onClick={() => {
               setShowCaseSwitcher(!showCaseSwitcher);
               if (showProfileMenu) setShowProfileMenu(false);
               if (showNotifications) setShowNotifications(false);
             }}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#08132e] via-[#0b1b3d] to-[#08132e] border border-blue-500/50 hover:border-blue-400 text-left transition-all shadow-[0_0_16px_rgba(37,99,235,0.25)] group"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#08132e] via-[#0b1b3d] to-[#08132e] border border-blue-500/50 hover:border-blue-400 text-left transition-all shadow-[0_0_16px_rgba(37,99,235,0.25)] group"
           >
-            <div className="w-7 h-7 rounded-lg bg-blue-600/30 border border-blue-400/50 flex items-center justify-center text-blue-300 group-hover:scale-105 transition-transform flex-shrink-0">
-              <FolderKanban className="w-4 h-4 text-cyan-300" />
+            <div className="w-6 h-6 rounded-lg bg-blue-600/30 border border-blue-400/50 flex items-center justify-center text-blue-300 group-hover:scale-105 transition-transform flex-shrink-0">
+              <FolderKanban className="w-3.5 h-3.5 text-cyan-300" />
             </div>
 
-            <div className="flex flex-col min-w-0 pr-1 max-w-[160px] sm:max-w-[240px] md:max-w-[280px]">
+            <div className="flex flex-col min-w-0 pr-1 max-w-[130px] sm:max-w-[170px] lg:max-w-[210px]">
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-extrabold text-blue-300 uppercase tracking-wider">
-                  Active Investigation
+                <span className="text-[8.5px] font-extrabold text-blue-300 uppercase tracking-wider">
+                  Active Case
                 </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
               </div>
-              <div className="text-xs font-mono font-bold text-white truncate group-hover:text-cyan-200 transition-colors">
+              <div className="text-[11px] font-mono font-bold text-white truncate group-hover:text-cyan-200 transition-colors">
                 {selectedCase ? (
                   <>
-                    <span className="text-cyan-300 mr-1.5 font-black">{selectedCase.fir_number}</span>
-                    <span className="text-slate-200 font-sans font-semibold">{selectedCase.title}</span>
+                    <span className="text-cyan-300 mr-1 font-black">{selectedCase.fir_number}</span>
+                    <span className="text-slate-200 font-sans font-semibold hidden md:inline">{selectedCase.title}</span>
                   </>
                 ) : (
                   'Select Investigation'
@@ -219,7 +223,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
               </div>
             </div>
 
-            <ChevronDown className={`w-4 h-4 text-blue-400 ml-1 transition-transform duration-200 ${showCaseSwitcher ? 'rotate-180 text-cyan-300' : 'group-hover:translate-y-0.5'}`} />
+            <ChevronDown className={`w-3.5 h-3.5 text-blue-400 ml-0.5 transition-transform duration-200 ${showCaseSwitcher ? 'rotate-180 text-cyan-300' : 'group-hover:translate-y-0.5'}`} />
           </button>
 
           {/* Case Switcher Dropdown */}
@@ -328,26 +332,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
         </div>
 
         {/* ─── 2. UNIVERSAL SEARCH (CMD + K / CTRL + K) ─────────────────────────────────── */}
-        <div className="flex-1 max-w-md hidden lg:block">
+        <div className="flex-1 max-w-xs hidden 2xl:block">
           <button
             onClick={onOpenSearch}
-            className="w-full h-9 bg-[#070e1c] border border-slate-700/60 rounded-xl px-3.5 flex items-center justify-between text-xs text-slate-400 hover:border-cyan-500/60 hover:text-slate-200 transition-all group shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]"
+            className="w-full h-8 bg-[#070e1c] border border-slate-700/60 rounded-xl px-3 flex items-center justify-between text-xs text-slate-400 hover:border-cyan-500/60 hover:text-slate-200 transition-all group shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]"
           >
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <Search className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-              <span className="truncate">Universal Search (People, Phones, Vehicles, FIRs, Evidence)...</span>
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Search className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+              <span className="truncate text-[11px]">Universal Search...</span>
             </div>
-            <kbd className="inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-mono font-bold bg-slate-800/90 border border-slate-700 rounded-md text-slate-300 shadow-sm flex-shrink-0 ml-2">
-              CMD + K
+            <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.2 text-[9px] font-mono font-bold bg-slate-800/90 border border-slate-700 rounded-md text-slate-300 shadow-sm flex-shrink-0 ml-1.5">
+              ⌘K
             </kbd>
           </button>
         </div>
 
         {/* ─── 3. SECURITY META, LIVE CLOCK & OFFICER PROFILE ────────────────── */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Live Trust Score Badge */}
           <div
-            className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-xl border text-xs font-mono transition-all shadow-sm ${
+            className={`hidden 2xl:flex items-center gap-2 px-2.5 py-1 rounded-xl border text-xs font-mono transition-all shadow-sm ${
               isAdaptiveRestricted
                 ? 'bg-red-950/90 border-red-500 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse'
                 : trustScore < 80
@@ -357,28 +361,53 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
             title={`Session Trust Score: ${trustScore}/100 • Evaluated via Behavioral Biometrics`}
           >
             {isAdaptiveRestricted ? (
-              <Lock className="w-4 h-4 text-red-400 flex-shrink-0 animate-bounce" />
+              <Lock className="w-3.5 h-3.5 text-red-400 flex-shrink-0 animate-bounce" />
             ) : (
-              <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
             )}
             <div className="flex flex-col text-left leading-tight">
-              <span className="text-[8.5px] uppercase font-bold tracking-wider text-slate-400">
-                {isAdaptiveRestricted ? 'CONTAINMENT ACTIVE' : 'TRUST ENGINE'}
+              <span className="text-[8px] uppercase font-bold tracking-wider text-slate-400">
+                TRUST
               </span>
-              <span className={`text-[11px] font-black ${isAdaptiveRestricted ? 'text-red-300' : 'text-white'}`}>
-                {trustScore} / 100 {isAdaptiveRestricted ? '• LOCKED' : '• SECURE'}
+              <span className={`text-[10px] font-black ${isAdaptiveRestricted ? 'text-red-300' : 'text-white'}`}>
+                {trustScore}
               </span>
             </div>
           </div>
 
-          {/* Current Date & Live Clock (updating every second) */}
-          <div className="hidden sm:flex flex-col items-end text-right border-l border-slate-800/80 pl-3">
-            <div className="text-xs font-mono font-black text-slate-100 tracking-wider flex items-center gap-1.5">
+          {/* Current Date & Live Clock */}
+          <div className="hidden 2xl:flex flex-col items-end text-right border-l border-slate-800/80 pl-2">
+            <div className="text-[11px] font-mono font-black text-slate-100 tracking-wider flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
               <span>{timeStr || '00:00:00'}</span>
             </div>
-            <div className="text-[10px] text-slate-400 font-medium">{dateStr || '2026'}</div>
+            <div className="text-[9px] text-slate-400 font-medium">{dateStr || '2026'}</div>
           </div>
+
+          {/* PROMINENT THEME SWITCHER BUTTON */}
+          <button
+            onClick={toggleTheme}
+            type="button"
+            className={`relative px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 shadow-md cursor-pointer ${
+              theme === 'dark'
+                ? 'bg-gradient-to-r from-amber-950/60 to-yellow-950/40 border-amber-500/50 hover:border-amber-400 text-amber-300 hover:shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                : 'bg-gradient-to-r from-blue-100 to-indigo-100 border-blue-400 hover:border-blue-600 text-blue-900 hover:shadow-[0_0_12px_rgba(37,99,235,0.3)]'
+            }`}
+            title={theme === 'dark' ? 'Click to switch to Light Theme' : 'Click to switch to Dark Theme'}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span className="text-[10.5px] font-black font-mono tracking-wider">LIGHT ☀️</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-4 h-4 text-blue-600 animate-pulse" />
+                <span className="text-[10.5px] font-black font-mono tracking-wider">DARK 🌙</span>
+              </>
+            )}
+          </button>
 
           {/* Notifications Bell Icon with live alert badge */}
           <div className="relative">
@@ -485,6 +514,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                     <span className="text-slate-400 text-[10px]">Officer ID</span>
                     <span className="font-mono text-blue-300 text-[10px] font-bold">{currentUser.badge_number || 'USR-101'}</span>
                   </div>
+                  <button
+                    onClick={() => {
+                      toggleTheme();
+                    }}
+                    className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg bg-slate-900/60 hover:bg-slate-800/80 transition-colors text-left"
+                  >
+                    <span className="text-slate-400 text-[10px] flex items-center gap-1.5">
+                      {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-blue-400" />}
+                      Appearance Theme
+                    </span>
+                    <span className="font-mono text-cyan-300 text-[10px] font-bold uppercase">
+                      {theme} mode
+                    </span>
+                  </button>
                 </div>
 
                 <div className="pt-2 border-t border-slate-800">

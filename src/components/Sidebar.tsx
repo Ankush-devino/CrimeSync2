@@ -11,6 +11,7 @@ import {
   Zap,
   Target,
   Sun,
+  Moon,
   Cpu,
   ShieldAlert,
   Box,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -30,6 +32,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   const { currentUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   return (
     <aside className="w-60 bg-[#040813] border-r border-[#111e33] flex flex-col flex-shrink-0 select-none h-full z-20 overflow-hidden">
       {/* Brand Header (Fixed at top) */}
@@ -303,6 +306,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
 
       {/* Footer Area (Fixed at bottom) */}
       <div className="flex-shrink-0 border-t border-[#111e33]/80 p-2 bg-[#040813]/95 space-y-1.5">
+        {/* Dedicated Theme Switcher Button */}
+        <button
+          onClick={toggleTheme}
+          type="button"
+          className="w-full px-2.5 py-1.5 rounded-lg bg-[#071026] hover:bg-[#0b1b3d] border border-blue-500/40 hover:border-blue-400 flex items-center justify-between text-xs transition-all shadow-sm group cursor-pointer"
+          title={`Currently in ${theme} mode. Click to switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode.`}
+        >
+          <div className="flex items-center gap-2">
+            {theme === 'dark' ? (
+              <Sun className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition-transform" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-blue-500 group-hover:-rotate-12 transition-transform" />
+            )}
+            <span className="text-[10.5px] font-bold text-slate-200">
+              {theme === 'dark' ? 'Dark Theme' : 'Light Theme'}
+            </span>
+          </div>
+          <span className={`text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+            theme === 'dark' 
+              ? 'bg-amber-950/90 text-amber-300 border border-amber-500/50' 
+              : 'bg-blue-100 text-blue-800 border border-blue-400/50'
+          }`}>
+            {theme === 'dark' ? 'SUN ☀️' : 'MOON 🌙'}
+          </span>
+        </button>
+
         {/* Compact System Status */}
         <div className="px-2 py-1.5 rounded-lg bg-[#070e1c] border border-[#14233c] flex items-center justify-between">
           <div className="flex items-center gap-1.5">

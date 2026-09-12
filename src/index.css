@@ -9,14 +9,18 @@
     background-color: #050811;
     color: #e2e8f0;
     font-family: 'Inter', sans-serif;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 }
 
-/* Leaflet Dark Mode & Cyber Overrides */
+/* ==========================================================================
+   GLOBAL LEAFLET MAP STYLES & OVERRIDES (DARK & LIGHT THEMES)
+   ========================================================================== */
 .leaflet-container {
   background: #060b17 !important;
   font-family: 'Inter', sans-serif !important;
   z-index: 1 !important;
+  border-radius: 0.75rem;
 }
 
 .leaflet-pane {
@@ -30,6 +34,7 @@
 
 .leaflet-tile {
   filter: brightness(0.7) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75);
+  transition: filter 0.3s ease;
 }
 
 .leaflet-tile-pane {
@@ -39,7 +44,7 @@
 .leaflet-control-zoom {
   border: 1px solid #1e293b !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   overflow: hidden;
 }
 
@@ -47,18 +52,21 @@
   background-color: #0c1527 !important;
   color: #94a3b8 !important;
   border-bottom: 1px solid #1e293b !important;
+  transition: all 0.2s ease !important;
 }
 
 .leaflet-control-zoom a:hover {
   background-color: #1e293b !important;
   color: #38bdf8 !important;
+  transform: scale(1.05);
 }
 
 .leaflet-control-attribution {
   background: rgba(6, 11, 23, 0.85) !important;
   color: #64748b !important;
   font-size: 10px !important;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
+  border-radius: 4px;
 }
 
 .leaflet-control-attribution a {
@@ -69,8 +77,8 @@
   background: #081120 !important;
   color: #f1f5f9 !important;
   border: 1px solid #1e3a5f !important;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.2) !important;
-  border-radius: 8px !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.25) !important;
+  border-radius: 10px !important;
   padding: 0 !important;
   overflow: hidden;
 }
@@ -88,16 +96,20 @@
 .cyber-leaflet-popup .leaflet-popup-close-button {
   color: #94a3b8 !important;
   padding: 6px 8px !important;
+  transition: all 0.2s ease !important;
 }
 
 .cyber-leaflet-popup .leaflet-popup-close-button:hover {
   color: #f87171 !important;
+  transform: scale(1.1);
 }
 
-/* Custom Cyber Scrollbar (Global High-Visibility) */
+/* ==========================================================================
+   CUSTOM CYBER SCROLLBARS (HIGH ACCESSIBILITY & VISUAL APPEAL)
+   ========================================================================== */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
 }
 
 ::-webkit-scrollbar-track {
@@ -107,9 +119,10 @@
 
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #0284c7 0%, #06b6d4 50%, #6366f1 100%);
-  border-radius: 5px;
+  border-radius: 6px;
   border: 2px solid #060a14;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+  transition: all 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -117,7 +130,6 @@
   box-shadow: 0 0 14px rgba(6, 182, 212, 0.8);
 }
 
-/* Sidebar High-Visibility Scrollbar */
 .sidebar-scroll::-webkit-scrollbar {
   width: 6px;
 }
@@ -132,7 +144,6 @@
   background: rgba(59, 130, 246, 0.9);
 }
 
-/* Custom High-Visibility Cyber Scrollbars */
 .custom-scrollbar {
   scrollbar-width: thin !important;
   scrollbar-color: #0284c7 #060a14 !important;
@@ -180,95 +191,76 @@
   border-radius: 3px;
 }
 
-/* Custody Timeline High-Visibility Cyber Scrollbar */
 .custody-scrollbar {
   scrollbar-width: thin !important;
   scrollbar-color: #06b6d4 #070e1c !important;
   scroll-behavior: smooth !important;
 }
 .custody-scrollbar::-webkit-scrollbar {
-  width: 12px !important;
-  height: 12px !important;
+  width: 10px !important;
+  height: 10px !important;
   display: block !important;
 }
 .custody-scrollbar::-webkit-scrollbar-track {
   background: #070e1c !important;
-  border-left: 2px solid rgba(6, 182, 212, 0.3) !important;
+  border-left: 1px solid rgba(6, 182, 212, 0.3) !important;
   border-radius: 6px;
 }
 .custody-scrollbar::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%) !important;
   border-radius: 6px !important;
   border: 2px solid #070e1c !important;
-  box-shadow: 0 0 14px rgba(6, 182, 212, 0.6) !important;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.5) !important;
 }
 .custody-scrollbar::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #22d3ee 0%, #60a5fa 50%, #a855f7 100%) !important;
-  box-shadow: 0 0 20px rgba(6, 182, 212, 0.9) !important;
+  box-shadow: 0 0 18px rgba(6, 182, 212, 0.9) !important;
 }
 
-/* Custom Scrollbar Utility */
-.custom-scrollbar {
-  scrollbar-width: thin !important;
-  scrollbar-color: #06b6d4 #060a14 !important;
-  scroll-behavior: smooth !important;
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px !important;
-  height: 8px !important;
-  display: block !important;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #060a14 !important;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0284c7 0%, #06b6d4 100%) !important;
-  border-radius: 4px !important;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8 !important;
-}
-
-
-/* Cyber Glows & Borders */
+/* ==========================================================================
+   CYBER GLOWS, CARD STRUCTURES & ANIMATIONS
+   ========================================================================== */
 .cyber-card {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.75) 0%, rgba(8, 14, 28, 0.9) 100%);
-  border: 1px solid rgba(30, 41, 59, 0.8);
-  backdrop-filter: blur(12px);
-  border-radius: 0.5rem;
-  transition: all 0.2s ease-in-out;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(8, 14, 28, 0.95) 100%);
+  border: 1px solid rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(16px);
+  border-radius: 0.75rem;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              background-color 0.25s ease;
 }
 
 .cyber-card:hover {
-  border-color: rgba(56, 189, 248, 0.3);
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.15);
 }
 
 .cyber-border-cyan {
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.18);
 }
 
 .cyber-border-purple {
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.18);
 }
 
 .cyber-border-red {
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.18);
 }
 
 .cyber-border-emerald {
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.18);
 }
 
 .cyber-border-teal {
-  border: 1px solid rgba(20, 184, 166, 0.3);
-  box-shadow: 0 0 12px rgba(20, 184, 166, 0.15);
+  border: 1px solid rgba(20, 184, 166, 0.35);
+  box-shadow: 0 0 14px rgba(20, 184, 166, 0.18);
 }
 
-/* Radar Scan line */
 @keyframes radarSweep {
   from {
     transform: rotate(0deg);
@@ -283,7 +275,6 @@
   transform-origin: center center;
 }
 
-/* Pulse animation for active nodes */
 @keyframes nodePulse {
   0% {
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
@@ -300,15 +291,708 @@
   animation: nodePulse 2s infinite;
 }
 
-/* Grid background pattern */
 .cyber-grid-bg {
   background-size: 30px 30px;
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
 }
 
-/* Court Document White Canvas Overrides */
+@keyframes moneyFlowDash {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.flow-dash-anim {
+  animation: moneyFlowDash 1.2s linear infinite;
+}
+
+/* ==========================================================================
+   UNIVERSAL WORKABLE & INTERACTIVE MICRO-INTERACTIONS
+   Ensures every clickable/workable element responds with delight on hover
+   ========================================================================== */
+
+/* 1. Universal Interactive Buttons, Triggers, and Clickables */
+button,
+[role="button"],
+a[href],
+a.cursor-pointer,
+.cursor-pointer,
+input[type="checkbox"],
+input[type="radio"],
+select {
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              background-color 0.2s ease, 
+              border-color 0.2s ease, 
+              color 0.2s ease,
+              opacity 0.2s ease !important;
+}
+
+/* Button & Action Hover Lift & Ambient Glow */
+button:hover:not(:disabled),
+[role="button"]:hover:not(:disabled),
+a.cursor-pointer:hover,
+.cursor-pointer:hover:not(.no-hover):not(tbody tr) {
+  transform: translateY(-2px);
+}
+
+/* Active Press State */
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled),
+.cursor-pointer:active:not(.no-hover) {
+  transform: translateY(0px) scale(0.96) !important;
+}
+
+/* 2. Interactive SVG Icons inside buttons/cards */
+button:hover:not(:disabled) svg,
+[role="button"]:hover:not(:disabled) svg,
+.group:hover .group-hover\:scale-110,
+.cyber-card:hover .card-icon {
+  transform: scale(1.1);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 3. Sidebar Navigation Links */
+aside button {
+  position: relative;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.2s ease,
+              color 0.2s ease,
+              box-shadow 0.2s ease !important;
+}
+
+aside button:hover {
+  transform: translateX(5px) !important;
+}
+
+aside button:hover svg {
+  transform: scale(1.15) !important;
+  transition: transform 0.2s ease !important;
+}
+
+/* 4. Interactive Cards, Widgets & Metric Tiles */
+.cyber-card.cursor-pointer:hover,
+[class*="rounded-2xl"].cursor-pointer:hover,
+[class*="rounded-xl"].cursor-pointer:hover,
+.interactive-card:hover {
+  transform: translateY(-4px) scale(1.008) !important;
+  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.45), 0 0 20px rgba(56, 189, 248, 0.25) !important;
+}
+
+/* 5. Data Tables, Case Lists & Item Rows */
+tbody tr,
+.divide-y > button,
+.interactive-list-row {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              background-color 0.2s ease,
+              border-color 0.2s ease !important;
+  cursor: pointer;
+}
+
+tbody tr:hover,
+.divide-y > button:hover,
+.interactive-list-row:hover {
+  transform: translateX(4px) !important;
+  background-color: rgba(30, 58, 138, 0.2) !important;
+}
+
+/* 6. Form Inputs & Textareas Hover & Focus */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  transition: border-color 0.2s ease, 
+              box-shadow 0.2s ease, 
+              background-color 0.2s ease !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):hover,
+textarea:hover,
+select:hover {
+  border-color: rgba(56, 189, 248, 0.6) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25) !important;
+  outline: none !important;
+}
+
+/* 7. Interactive Badges, Pills & Status Tags */
+.badge-interactive,
+[class*="rounded-full"].cursor-pointer {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.2s ease,
+              filter 0.2s ease !important;
+}
+
+.badge-interactive:hover,
+[class*="rounded-full"].cursor-pointer:hover {
+  transform: scale(1.08) translateY(-1px) !important;
+  filter: brightness(1.15) !important;
+}
+
+/* 8. Graph Interactive Nodes Hover Pulse & Scale */
+.graph-interactive-node {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+              filter 0.25s ease !important;
+  cursor: pointer !important;
+}
+
+.graph-interactive-node:hover {
+  transform: scale(1.22) !important;
+  filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.8)) !important;
+  z-index: 50 !important;
+}
+
+/* ==========================================================================
+   ENTERPRISE LIGHT THEME SYSTEM (VIBRANT, RICH & HIGH-CONTRAST PALETTE)
+   Expertly balanced, colorful executive command center styling.
+   ========================================================================== */
+
+html.light body {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light ::selection {
+  background-color: rgba(37, 99, 235, 0.25) !important;
+  color: #1e3a8a !important;
+}
+
+/* Base Viewports, Containers & Canvases */
+html.light main,
+html.light .min-h-screen,
+html.light [class*="min-h-screen"],
+html.light .h-screen,
+html.light .cyber-grid-bg {
+  background-color: #f1f5f9 !important;
+  background-image: 
+    radial-gradient(at 100% 0%, rgba(224, 231, 255, 0.6) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(224, 242, 254, 0.6) 0px, transparent 50%),
+    linear-gradient(to right, rgba(148, 163, 184, 0.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.18) 1px, transparent 1px) !important;
+}
+
+/* Header & Sidebar in Light Mode */
+html.light header {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  box-shadow: 0 2px 10px -2px rgba(15, 23, 42, 0.08) !important;
+}
+
+html.light aside {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  border-right: 1px solid #cbd5e1 !important;
+  box-shadow: 2px 0 10px -2px rgba(15, 23, 42, 0.05) !important;
+}
+
+html.light aside button.bg-blue-600 {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
+}
+
+html.light aside button:not(.bg-blue-600) {
+  color: #334155 !important;
+}
+
+html.light aside button:not(.bg-blue-600):hover {
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* RICH THEMATIC CARD GRADIENTS (LIGHT MODE) */
+
+/* 1. Blue Theme Cards (Active Case Allotment, Network Graph Header, Global Stats) */
+html.light [class*="from-[#081530]"],
+html.light [class*="from-[#081326]"],
+html.light [class*="from-[#09152b]"] {
+  background: linear-gradient(145deg, #ffffff 0%, #eff6ff 100%) !important;
+  border: 1.5px solid #93c5fd !important;
+  box-shadow: 0 4px 16px -2px rgba(37, 99, 235, 0.12), 0 1px 3px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+html.light [class*="from-[#081530]"]:hover,
+html.light [class*="from-[#081326]"]:hover,
+html.light [class*="from-[#09152b]"]:hover {
+  border-color: #2563eb !important;
+  box-shadow: 0 16px 32px -4px rgba(37, 99, 235, 0.22), 0 0 0 1px rgba(37, 99, 235, 0.4) !important;
+}
+
+/* 2. Purple Theme Cards (AI Assistant Insights, Suspect Networks, Time Machine) */
+html.light [class*="from-[#180a24]"],
+html.light [class*="from-[#140a28]"],
+html.light [class*="from-[#110c26]"] {
+  background: linear-gradient(145deg, #ffffff 0%, #faf5ff 100%) !important;
+  border: 1.5px solid #d8b4fe !important;
+  box-shadow: 0 4px 16px -2px rgba(168, 85, 247, 0.12), 0 1px 3px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+html.light [class*="from-[#180a24]"]:hover,
+html.light [class*="from-[#140a28]"]:hover,
+html.light [class*="from-[#110c26]"]:hover {
+  border-color: #9333ea !important;
+  box-shadow: 0 16px 32px -4px rgba(168, 85, 247, 0.22), 0 0 0 1px rgba(168, 85, 247, 0.4) !important;
+}
+
+/* 3. Red & Rose Theme Cards (Critical Alerts, Priority Alerts Feed, Incident Tracing) */
+html.light [class*="from-[#22070e]"],
+html.light [class*="from-[#18080f]"],
+html.light [class*="from-[#200812]"] {
+  background: linear-gradient(145deg, #ffffff 0%, #fef2f2 100%) !important;
+  border: 1.5px solid #fca5a5 !important;
+  box-shadow: 0 4px 16px -2px rgba(239, 68, 68, 0.12), 0 1px 3px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+html.light [class*="from-[#22070e]"]:hover,
+html.light [class*="from-[#18080f]"]:hover,
+html.light [class*="from-[#200812]"]:hover {
+  border-color: #dc2626 !important;
+  box-shadow: 0 16px 32px -4px rgba(239, 68, 68, 0.22), 0 0 0 1px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* 4. Emerald & Green Theme Cards (Verified Evidence DNA, Blockchain Merkle Vault) */
+html.light [class*="from-[#051c19]"],
+html.light [class*="from-[#0a1816]"] {
+  background: linear-gradient(145deg, #ffffff 0%, #ecfdf5 100%) !important;
+  border: 1.5px solid #86efac !important;
+  box-shadow: 0 4px 16px -2px rgba(16, 185, 129, 0.12), 0 1px 3px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+html.light [class*="from-[#051c19]"]:hover,
+html.light [class*="from-[#0a1816]"]:hover {
+  border-color: #059669 !important;
+  box-shadow: 0 16px 32px -4px rgba(16, 185, 129, 0.22), 0 0 0 1px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* 5. Cyan & Teal Theme Cards (Connected Entities, Live Network Graph Canvas, Launcher Tiles) */
+html.light [class*="from-[#06182c]"],
+html.light [class*="from-[#060f22]"],
+html.light [class*="from-[#061426]"] {
+  background: linear-gradient(145deg, #ffffff 0%, #ecfeff 100%) !important;
+  border: 1.5px solid #67e8f9 !important;
+  box-shadow: 0 4px 16px -2px rgba(6, 182, 212, 0.12), 0 1px 3px 0 rgba(15, 23, 42, 0.06) !important;
+}
+
+html.light [class*="from-[#06182c]"]:hover,
+html.light [class*="from-[#060f22]"]:hover,
+html.light [class*="from-[#061426]"]:hover {
+  border-color: #0891b2 !important;
+  box-shadow: 0 16px 32px -4px rgba(6, 182, 212, 0.22), 0 0 0 1px rgba(6, 182, 212, 0.4) !important;
+}
+
+/* General Dark Panels Fallback in Light Mode */
+html.light [class*="bg-gradient-to-"]:not([class*="from-[#081530]"]):not([class*="from-[#180a24]"]):not([class*="from-[#22070e]"]):not([class*="from-[#051c19]"]):not([class*="from-[#06182c]"]):not([class*="from-[#060f22]"]):not([class*="from-[#140a28]"]):not([class*="from-[#18080f]"]):not([class*="from-[#081326]"]):not([class*="from-[#09152b]"]):not([class*="from-[#110c26]"]),
+html.light [class*="bg-[#0"],
+html.light [class*="bg-[#1"],
+html.light [class*="bg-[#2"],
+html.light [class*="bg-slate-900"],
+html.light [class*="bg-slate-950"],
+html.light [class*="bg-slate-800"] {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+
+/* Inset Wells & Sub-panels in Light Mode */
+html.light [class*="bg-slate-900/"],
+html.light [class*="bg-slate-800/"],
+html.light [class*="bg-slate-950/"],
+html.light [class*="bg-[#071329]"],
+html.light [class*="bg-[#040c20]"],
+html.light [class*="bg-[#081534]"],
+html.light [class*="bg-[#08132e]"],
+html.light [class*="bg-[#06112a]"],
+html.light [class*="bg-[#040d24]"],
+html.light [class*="bg-[#02050e]"],
+html.light [class*="bg-[#091122]"],
+html.light [class*="bg-[#081224]"],
+html.light [class*="bg-[#0e1b38]"],
+html.light [class*="bg-[#0d1c3a]"],
+html.light [class*="bg-[#0b1322]"],
+html.light [class*="bg-[#070c16]"],
+html.light [class*="bg-[#0c1a3b]"],
+html.light [class*="bg-[#081228]"],
+html.light [class*="bg-[#040813]"],
+html.light [class*="bg-[#070e1c]"],
+html.light [class*="bg-[#061026]"],
+html.light [class*="bg-[#081122]"],
+html.light [class*="bg-[#030918]"],
+html.light [class*="bg-[#040711]"],
+html.light [class*="bg-[#030712]"] {
+  background-color: #f8fafc !important;
+  background-image: none !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Status Badges, Chips & Tinted Icon Boxes in Light Mode */
+html.light [class*="bg-blue-950"],
+html.light [class*="bg-blue-900/"],
+html.light [class*="bg-blue-600/10"],
+html.light [class*="bg-blue-600/20"],
+html.light [class*="bg-blue-600/30"] {
+  background-color: #eff6ff !important;
+  border-color: #93c5fd !important;
+}
+
+html.light [class*="bg-purple-950"],
+html.light [class*="bg-purple-900/"],
+html.light [class*="bg-purple-600/10"],
+html.light [class*="bg-purple-600/20"],
+html.light [class*="bg-purple-600/30"] {
+  background-color: #faf5ff !important;
+  border-color: #d8b4fe !important;
+}
+
+html.light [class*="bg-emerald-950"],
+html.light [class*="bg-emerald-900/"],
+html.light [class*="bg-emerald-600/10"],
+html.light [class*="bg-emerald-600/20"],
+html.light [class*="bg-emerald-600/30"] {
+  background-color: #ecfdf5 !important;
+  border-color: #86efac !important;
+}
+
+html.light [class*="bg-red-950"],
+html.light [class*="bg-red-900/"],
+html.light [class*="bg-red-600/10"],
+html.light [class*="bg-red-600/20"],
+html.light [class*="bg-red-600/30"] {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+}
+
+html.light [class*="bg-amber-950"],
+html.light [class*="bg-amber-900/"],
+html.light [class*="bg-amber-600/10"],
+html.light [class*="bg-amber-600/20"],
+html.light [class*="bg-amber-600/30"] {
+  background-color: #fffbeb !important;
+  border-color: #fcd34d !important;
+}
+
+html.light [class*="bg-cyan-950"],
+html.light [class*="bg-cyan-900/"],
+html.light [class*="bg-cyan-600/10"],
+html.light [class*="bg-cyan-600/20"],
+html.light [class*="bg-cyan-600/30"] {
+  background-color: #ecfeff !important;
+  border-color: #67e8f9 !important;
+}
+
+/* HIGH-CONTRAST VIBRANT TYPOGRAPHY (LIGHT MODE) */
+html.light [class*="text-slate-100"],
+html.light [class*="text-slate-200"],
+html.light [class*="text-white"]:not([class*="bg-blue-6"]):not([class*="bg-blue-5"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not(button.bg-blue-600):not(button.bg-emerald-600):not(button.bg-red-600):not(button.bg-purple-600) {
+  color: #0f172a !important;
+}
+
+html.light [class*="text-slate-300"] {
+  color: #1e293b !important;
+}
+
+html.light [class*="text-slate-400"] {
+  color: #334155 !important;
+  font-weight: 500 !important;
+}
+
+html.light [class*="text-slate-500"] {
+  color: #475569 !important;
+}
+
+html.light [class*="text-slate-600"] {
+  color: #64748b !important;
+}
+
+/* High-Contrast Saturated Color Accents */
+html.light [class*="text-cyan-200"],
+html.light [class*="text-cyan-300"],
+html.light [class*="text-cyan-400"] {
+  color: #0284c7 !important;
+}
+
+html.light [class*="text-purple-200"],
+html.light [class*="text-purple-300"],
+html.light [class*="text-purple-400"],
+html.light [class*="text-purple-300/80"] {
+  color: #7e22ce !important;
+}
+
+html.light [class*="text-emerald-200"],
+html.light [class*="text-emerald-300"],
+html.light [class*="text-emerald-400"] {
+  color: #047857 !important;
+}
+
+html.light [class*="text-red-200"],
+html.light [class*="text-red-300"],
+html.light [class*="text-red-400"],
+html.light [class*="text-rose-400"] {
+  color: #b91c1c !important;
+}
+
+html.light [class*="text-amber-200"],
+html.light [class*="text-amber-300"],
+html.light [class*="text-amber-400"] {
+  color: #b45309 !important;
+}
+
+html.light [class*="text-blue-200"],
+html.light [class*="text-blue-300"],
+html.light [class*="text-blue-400"] {
+  color: #1d4ed8 !important;
+}
+
+/* Preserve crisp White Text on Solid Buttons & Active Badges */
+html.light [class*="bg-blue-600"],
+html.light [class*="bg-blue-600"] *,
+html.light [class*="bg-emerald-600"],
+html.light [class*="bg-emerald-600"] *,
+html.light [class*="bg-red-600"],
+html.light [class*="bg-red-600"] *,
+html.light [class*="bg-purple-600"],
+html.light [class*="bg-purple-600"] *,
+html.light [class*="bg-indigo-600"],
+html.light [class*="bg-indigo-600"] *,
+html.light button.bg-blue-600,
+html.light button.bg-emerald-600,
+html.light button.bg-red-600 {
+  color: #ffffff !important;
+}
+
+/* Defined Borders in Light Mode */
+html.light [class*="border-slate-800"],
+html.light [class*="border-slate-700"],
+html.light [class*="border-slate-900"],
+html.light [class*="border-[#111e33]"],
+html.light [class*="border-[#14233c]"],
+html.light [class*="border-[#162744]"],
+html.light [class*="border-[#1e293b]"],
+html.light [class*="divide-slate-800"] > * + * {
+  border-color: #cbd5e1 !important;
+}
+
+html.light [class*="border-blue-500/"],
+html.light [class*="border-blue-400/"] {
+  border-color: #93c5fd !important;
+}
+
+html.light [class*="border-purple-500/"],
+html.light [class*="border-purple-400/"],
+html.light [class*="border-purple-900/"] {
+  border-color: #d8b4fe !important;
+}
+
+html.light [class*="border-emerald-500/"],
+html.light [class*="border-emerald-400/"] {
+  border-color: #86efac !important;
+}
+
+html.light [class*="border-red-500/"],
+html.light [class*="border-red-400/"],
+html.light [class*="border-red-600/"],
+html.light [class*="border-red-900/"] {
+  border-color: #fca5a5 !important;
+}
+
+html.light [class*="border-amber-500/"],
+html.light [class*="border-amber-400/"] {
+  border-color: #fcd34d !important;
+}
+
+html.light [class*="border-cyan-500/"],
+html.light [class*="border-cyan-400/"] {
+  border-color: #67e8f9 !important;
+}
+
+/* Cyber Cards in Light Theme */
+html.light .cyber-card {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.08), 0 1px 3px 0 rgba(15, 23, 42, 0.04) !important;
+  backdrop-filter: none !important;
+}
+
+html.light .cyber-card:hover {
+  border-color: #0284c7 !important;
+  box-shadow: 0 16px 32px -4px rgba(15, 23, 42, 0.16), 0 0 15px rgba(2, 132, 199, 0.2) !important;
+}
+
+/* Sparklines & Graph Lines in Light Mode */
+html.light svg.stroke-cyan-400,
+html.light svg.stroke-purple-400,
+html.light svg.stroke-red-400,
+html.light svg.stroke-emerald-400 {
+  opacity: 1 !important;
+  stroke-width: 2.2px !important;
+}
+html.light svg.stroke-cyan-400 { stroke: #0284c7 !important; }
+html.light svg.stroke-purple-400 { stroke: #7e22ce !important; }
+html.light svg.stroke-red-400 { stroke: #dc2626 !important; }
+html.light svg.stroke-emerald-400 { stroke: #059669 !important; }
+
+/* Interactive Form Inputs & Search Bars (Light Mode) */
+html.light input:not([type="checkbox"]):not([type="radio"]),
+html.light textarea,
+html.light select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #cbd5e1 !important;
+  font-weight: 500 !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #64748b !important;
+  font-weight: 400 !important;
+}
+
+html.light input:hover,
+html.light textarea:hover,
+html.light select:hover {
+  border-color: #3b82f6 !important;
+}
+
+html.light input:focus,
+html.light textarea:focus,
+html.light select:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+}
+
+/* Leaflet Map in Light Mode */
+html.light .leaflet-container {
+  background: #e2e8f0 !important;
+}
+
+html.light .leaflet-tile {
+  filter: none !important;
+}
+
+html.light .leaflet-tile-pane {
+  opacity: 1 !important;
+}
+
+html.light .leaflet-control-zoom {
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.light .leaflet-control-zoom a {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html.light .leaflet-control-zoom a:hover {
+  background-color: #f1f5f9 !important;
+  color: #0284c7 !important;
+}
+
+html.light .leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #475569 !important;
+}
+
+html.light .leaflet-control-attribution a {
+  color: #0284c7 !important;
+}
+
+html.light .cyber-leaflet-popup .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+html.light .cyber-leaflet-popup .leaflet-popup-tip {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+html.light .cyber-leaflet-popup .leaflet-popup-close-button {
+  color: #64748b !important;
+}
+
+html.light .cyber-leaflet-popup .leaflet-popup-close-button:hover {
+  color: #dc2626 !important;
+}
+
+/* Light Mode Scrollbars */
+html.light ::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-left: 1px solid #e2e8f0 !important;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #93c5fd 0%, #60a5fa 100%) !important;
+  border-radius: 6px !important;
+  border: 2px solid #f1f5f9 !important;
+  box-shadow: none !important;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%) !important;
+}
+
+html.light .sidebar-scroll::-webkit-scrollbar-track {
+  background: #f8fafc !important;
+}
+
+html.light .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #93c5fd !important;
+}
+
+html.light .custom-scrollbar {
+  scrollbar-color: #60a5fa #f1f5f9 !important;
+}
+
+html.light .custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+}
+
+html.light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #93c5fd !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+html.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6 !important;
+}
+
+html.light .custom-scrollbar-x::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+}
+
+html.light .custom-scrollbar-x::-webkit-scrollbar-thumb {
+  background: #93c5fd !important;
+}
+
+html.light .custody-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-left: 1px solid #e2e8f0 !important;
+}
+
+html.light .custody-scrollbar::-webkit-scrollbar-thumb {
+  background: #60a5fa !important;
+  border: 2px solid #f1f5f9 !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   COURT DOSSIER CANVAS & PRINT OVERRIDES
+   ========================================================================== */
 .dossier-court-page {
   background-color: #ffffff !important;
   color: #0f172a !important;
@@ -351,7 +1035,6 @@
   color: #0f172a !important;
 }
 
-/* Court Document Print Styles */
 @media print {
   body {
     background-color: #ffffff !important;
@@ -367,18 +1050,3 @@
     margin: 15mm;
   }
 }
-
-@keyframes moneyFlowDash {
-  0% {
-    stroke-dashoffset: 24;
-  }
-  100% {
-    stroke-dashoffset: 0;
-  }
-}
-
-.flow-dash-anim {
-  animation: moneyFlowDash 1.2s linear infinite;
-}
-
-

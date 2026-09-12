@@ -9,6 +9,7 @@ import { AnalysisModal } from './components/Modals/AnalysisModal';
 import { CaseProvider } from './context/CaseContext';
 import { AuthProvider } from './context/AuthContext';
 import { DbProvider, useDbContext } from './context/DbContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { useAuditLog } from './hooks/useAuditLog';
 import { logOfficerAction } from './services/activityLogger';
 
@@ -551,13 +552,15 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <DbProvider>
-      <AuthProvider>
-        <CaseProvider>
-          <AppContent />
-        </CaseProvider>
-      </AuthProvider>
-    </DbProvider>
+    <ThemeProvider>
+      <DbProvider>
+        <AuthProvider>
+          <CaseProvider>
+            <AppContent />
+          </CaseProvider>
+        </AuthProvider>
+      </DbProvider>
+    </ThemeProvider>
   );
 };
 
