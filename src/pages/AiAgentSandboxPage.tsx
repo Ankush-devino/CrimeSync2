@@ -26,7 +26,6 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { api } from '../services/api';
-import { CaseSelector } from '../components/CaseSelector';
 import { type LawCase, getCaseById, ALL_CASES } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 
@@ -47,7 +46,7 @@ interface AgentCard {
 }
 
 export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelectAction }) => {
-  const { selectedCaseId, setSelectedCaseId, cases } = useCaseContext();
+  const { selectedCaseId, cases } = useCaseContext();
   const [caseContext, setCaseContext] = useState<any>(null);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -224,7 +223,7 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
           </div>
           <div>
             <h1 className="text-base font-bold text-white flex items-center gap-2">
-              Autonomous AI Agent Sandbox
+              Autonomous AI Sandbox
               <span className="px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/40 text-[10px] font-semibold text-purple-400">
                 Multi-Agent Orchestrator
               </span>
@@ -235,11 +234,6 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
           </div>
         </div>
 
-        {/* Case Target Selector */}
-        <CaseSelector
-          selectedCaseId={selectedCaseId}
-          onSelectCase={(id) => setSelectedCaseId(id)}
-        />
       </div>
 
       {/* ─── Selected Case Metrics Strip ─────────────────────────────── */}

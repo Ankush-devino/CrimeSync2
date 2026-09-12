@@ -171,7 +171,7 @@ export const BlastRadiusSimulator: React.FC<BlastRadiusSimulatorProps> = ({ onSe
             </span>
             <span className="text-xs text-slate-400 font-mono">Internal Threat & Breach Traversal</span>
           </div>
-          <h1 className="text-xl font-bold text-white tracking-wide mt-1">Data Breach Blast Radius</h1>
+          <h1 className="text-xl font-bold text-white tracking-wide mt-1">Data Breach Impact Zone</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

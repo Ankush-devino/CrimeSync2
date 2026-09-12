@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   FolderKanban,
-  Search,
   Plus,
   Shield,
   MapPin,
@@ -57,7 +56,6 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
     loading,
     detailsLoading,
     toastMessage,
-    setSelectedCaseId,
     fetchCases,
     fetchCaseDetails,
     updateCaseStatus,
@@ -69,9 +67,6 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
     showToast,
   } = useCaseContext();
 
-  // Search & Category filter for the Right Rail
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // Main Active Tab in Case Dossier Workbench
   const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'suspects' | 'diary'>('overview');
@@ -106,21 +101,6 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
   // Copied hash state
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
-  // Filtered cases for Right Rail
-  const filteredCases = useMemo(() => {
-    return cases.filter((c) => {
-      const matchSearch =
-        !searchQuery ||
-        c.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.fir_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.jurisdiction_city?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchCategory =
-        selectedCategory === 'ALL' || c.crime_category === selectedCategory;
-
-      return matchSearch && matchCategory;
-    });
-  }, [cases, searchQuery, selectedCategory]);
 
   // Handle Note Submission
   const handleAddNote = async (e: React.FormEvent) => {
@@ -277,13 +257,20 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
           <div className="w-9 h-9 rounded-lg bg-blue-600/30 border border-blue-400/60 flex items-center justify-center text-blue-300 shadow-[0_0_12px_rgba(37,99,235,0.4)]">
             <FolderKanban className="w-5 h-5" />
           </div>
-          <div>
+          <div className="flex items-center gap-3">
             <h1 className="text-base font-extrabold text-white tracking-wide flex items-center gap-2">
-              CASE INVESTIGATIONS WORKBENCH
+              CASES WORKBENCH
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-600/30 text-blue-200 border border-blue-400/50 font-mono font-bold">
                 {cases.length} Active FIRs
               </span>
             </h1>
+            {/* Active Case Badge */}
+            {selectedCase && (
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#08132e] border border-blue-500/40 text-xs font-mono">
+                <span className="text-slate-400 font-sans">Active:</span>
+                <span className="font-bold text-cyan-300">{selectedCase.fir_number}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -355,9 +342,9 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
         </div>
       )}
 
-      {/* ─── MAIN WORKSPACE (LEFT: CASE DOSSIER, RIGHT: ACTIVE CASES RAIL) ── */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden mt-1.5">
-        {/* ─── LEFT / CENTER: MAIN CASE DOSSIER WORKBENCH (EXPANDED) ───── */}
+      {/* ─── MAIN WORKSPACE (EXPANDED FULL-WIDTH CASE DOSSIER) ── */}
+      <div className="flex-1 flex flex-col overflow-hidden mt-1.5">
+        {/* ─── MAIN CASE DOSSIER WORKBENCH (FULL WIDTH) ───── */}
         <main className="flex-1 flex flex-col overflow-y-auto bg-[#020716] min-w-0">
           {detailsLoading && !selectedCase ? (
             <div className="flex-1 flex items-center justify-center p-8 text-slate-100 text-sm gap-2">
@@ -366,7 +353,7 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
             </div>
           ) : !selectedCase ? (
             <div className="flex-1 flex items-center justify-center p-8 text-slate-200 text-sm">
-              Select a case from the right panel to begin investigation.
+              Select an active investigation from the top bar to view case details.
             </div>
           ) : (
             <div className="flex-1 flex flex-col">
@@ -1007,120 +994,7 @@ export const InvestigationsPage: React.FC<InvestigationsPageProps> = ({
           )}
         </main>
 
-        {/* ─── RIGHT: ACTIVE CASES REGISTRY / SELECTOR RAIL ────────────── */}
-        <aside className="w-full md:w-72 lg:w-80 border-l border-slate-700 bg-[#030818] flex flex-col flex-shrink-0 overflow-y-auto">
-          {/* Header */}
-          <div className="p-3 px-3.5 border-b border-slate-700 bg-[#061026] flex items-center justify-between">
-            <span className="text-xs font-extrabold text-white uppercase tracking-wider">
-              FIR CASES REGISTRY • {filteredCases.length}
-            </span>
-            <span className="text-xs text-blue-200 font-mono bg-blue-950 px-2 py-0.5 rounded border border-blue-500 font-bold">
-              Neon DB
-            </span>
-          </div>
 
-          {/* Search & Category Filter Chips */}
-          <div className="p-2.5 border-b border-slate-700 bg-[#050c1e] space-y-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-300" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter FIR #, title, city..."
-                className="w-full bg-[#08132e] border border-slate-600 rounded-lg pl-8 pr-2.5 py-1.5 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {['ALL', 'FINANCIAL_FRAUD', 'CYBER_ATTACK', 'ORGANIZED_SYNDICATE'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
-                    selectedCategory === cat
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-200 hover:text-white bg-[#08132e] border border-slate-700'
-                  }`}
-                >
-                  {cat === 'ALL'
-                    ? 'All'
-                    : cat === 'FINANCIAL_FRAUD'
-                    ? 'Financial'
-                    : cat === 'CYBER_ATTACK'
-                    ? 'Cyber'
-                    : 'Syndicate'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Cases List */}
-          <div className="divide-y divide-slate-700/80 flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="p-8 text-center text-sm text-slate-200 space-y-2">
-                <RefreshCw className="w-5 h-5 animate-spin text-blue-400 mx-auto" />
-                <p>Loading cases from database...</p>
-              </div>
-            ) : filteredCases.length === 0 ? (
-              <div className="p-8 text-center text-sm text-slate-200">
-                <p>No matching cases found.</p>
-              </div>
-            ) : (
-              filteredCases.map((c) => {
-                const isSelected = c.id === selectedCaseId;
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedCaseId(c.id)}
-                    className={`w-full text-left p-3 px-3.5 transition-all flex flex-col gap-1 ${
-                      isSelected
-                        ? 'bg-blue-950 border-r-4 border-blue-400 shadow-inner'
-                        : 'hover:bg-slate-900/90 bg-[#030818] border-r-4 border-transparent'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-extrabold text-blue-300">
-                        {c.fir_number}
-                      </span>
-                      <span
-                        className={`text-[10px] font-extrabold px-2 py-0.5 rounded uppercase ${
-                          c.priority === 'CRITICAL'
-                            ? 'bg-red-950 text-red-200 border border-red-600'
-                            : 'bg-amber-950 text-amber-200 border border-amber-600'
-                        }`}
-                      >
-                        {c.priority}
-                      </span>
-                    </div>
-
-                    <div className="text-xs sm:text-sm font-bold text-white line-clamp-1">
-                      {c.title}
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-slate-200">
-                      <span className="flex items-center gap-1 font-medium text-slate-300">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        {c.jurisdiction_city}
-                      </span>
-                      <span
-                        className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                          c.status === 'CLOSED'
-                            ? 'bg-emerald-950 text-emerald-200 border border-emerald-700'
-                            : c.status === 'UNDER_REVIEW'
-                            ? 'bg-purple-950 text-purple-200 border border-purple-700'
-                            : 'bg-blue-950 text-blue-200 border border-blue-700'
-                        }`}
-                      >
-                        {c.status}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </aside>
       </div>
 
       {/* ─── MODALS ────────────────────────────────────────────────────── */}

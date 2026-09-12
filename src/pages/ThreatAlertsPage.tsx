@@ -656,7 +656,7 @@ export const ThreatAlertsPage: React.FC<ThreatAlertsPageProps> = () => {
             <div>
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-black text-white tracking-tight">
-                  Threat Alerts & Cyber Defense Operations
+                  Live Alerts & Cyber Defense Operations
                 </h1>
                 <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-300">
                   <Radio className="w-3 h-3 text-emerald-400 animate-ping" /> Live SOC Active

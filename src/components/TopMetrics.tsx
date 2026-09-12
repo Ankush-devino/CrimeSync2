@@ -206,7 +206,7 @@ export const TopMetrics: React.FC<TopMetricsProps> = ({ onNavigateTab, onSelectM
               <path d="M0 14 Q 15 2, 35 12 T 60 4" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
             <span className="text-[9px] font-mono font-bold text-cyan-300 mt-0.5">
-              Knowledge Graph
+              Network Graph
             </span>
           </div>
         </div>

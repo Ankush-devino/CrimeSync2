@@ -118,7 +118,7 @@ export const EvidenceIntegrity: React.FC<EvidenceIntegrityProps> = ({ onNavigate
           Court-Admissible BSA Electronic Seal
         </span>
         <span className="text-emerald-400 font-bold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform text-[11px]">
-          <span>Evidence DNA</span>
+          <span>Digital Fingerprint</span>
           <ArrowRight className="w-3 h-3" />
         </span>
       </div>

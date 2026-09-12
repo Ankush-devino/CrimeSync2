@@ -116,9 +116,13 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
   onNavigateTab
 }) => {
   const { currentUser, enforceAdaptiveAction, isAdaptiveRestricted } = useAuth();
-  const { cases, selectedCaseId, setSelectedCaseId, selectedCase, showToast } = useCaseContext();
+  const { cases, selectedCaseId, selectedCase, showToast } = useCaseContext();
   const [custodyItems, setCustodyItems] = useState<CustodyItem[]>([]);
   const [selectedFilterExhibit, setSelectedFilterExhibit] = useState<string>('ALL');
+
+  useEffect(() => {
+    setSelectedFilterExhibit('ALL');
+  }, [selectedCaseId]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [stats, setStats] = useState<CustodyStats>({
@@ -544,7 +548,7 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
               <Layers className="w-5 h-5" />
             </div>
             <h1 className="text-2xl font-black tracking-wider text-white flex items-center gap-2">
-              CHAIN OF CUSTODY
+              CUSTODY LOG
             </h1>
             <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-500/40">
               <Cpu className="w-3 h-3 text-cyan-400" />
@@ -603,25 +607,16 @@ export const ChainOfCustodyPage: React.FC<ChainOfCustodyPageProps> = ({
           <div className="flex items-center gap-2.5">
             <Briefcase className="w-4 h-4 text-cyan-400 flex-shrink-0" />
             <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-              Investigation Case:
+              Active Case:
             </span>
-            <select
-              value={selectedCaseId}
-              onChange={(e) => {
-                setSelectedCaseId(e.target.value);
-                setSelectedFilterExhibit('ALL');
-              }}
-              className="bg-[#091224] border border-cyan-500/50 hover:border-cyan-400 focus:border-cyan-400 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-cyan-200 focus:outline-none cursor-pointer shadow-inner min-w-[280px]"
-            >
-              <option value="ALL" className="bg-[#081224] text-cyan-300 font-bold">
-                ALL CASES • Global Consolidated Audit Ledger
-              </option>
-              {cases.map((c) => (
-                <option key={c.id} value={c.id} className="bg-[#081224] text-white">
-                  {c.id} • {c.fir_number || c.id} • {c.title?.slice(0, 32)}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 bg-[#091224] border border-cyan-500/40 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-cyan-200 shadow-inner">
+              <span className="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 text-[10px] border border-cyan-800/40">
+                {selectedCase?.fir_number || selectedCaseId}
+              </span>
+              <span className="text-slate-200 truncate max-w-[280px]">
+                {selectedCase ? selectedCase.title : (selectedCaseId === 'ALL' ? 'ALL CASES • Global Consolidated Ledger' : selectedCaseId)}
+              </span>
+            </div>
           </div>
 
           {/* Exhibit Filter within Case */}

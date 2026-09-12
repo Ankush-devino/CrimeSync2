@@ -32,67 +32,67 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
     subtitle: 'National Cyber-Intelligence & Security Operations Center (SOC)',
   },
   'investigations': {
-    title: 'INVESTIGATIONS / CASE REGISTRY',
+    title: 'CASES / CASE REGISTRY',
     subtitle: 'Track, analyze and manage statutory criminal investigations',
   },
   'ai-copilot': {
-    title: 'AI NEURAL COPILOT',
+    title: 'AI ASSISTANT',
     subtitle: 'Autonomous forensic reasoning and modus operandi hypothesis generation',
   },
   'knowledge-graph': {
-    title: 'KNOWLEDGE GRAPH ENGINE',
+    title: 'NETWORK GRAPH ENGINE',
     subtitle: 'Multi-hop syndicate entity traversal and centrality mapping',
   },
   'time-machine': {
-    title: '4D CRIME TIME MACHINE',
+    title: 'TIMELINE RECONSTRUCTION',
     subtitle: 'Forensic temporal replay with synchronized CDR tower handoffs and CCTV',
   },
   'geo-intelligence': {
-    title: 'GEO INTELLIGENCE (GIS)',
+    title: 'GEO MAP (GIS)',
     subtitle: 'Satellite tracking, cell tower triangulation, and threat density',
   },
   'financial-intelligence': {
-    title: 'FINANCIAL INTELLIGENCE',
+    title: 'MONEY TRAIL INTELLIGENCE',
     subtitle: 'Hawala smurfing, crypto wallet analysis, and mule network mapping',
   },
   'identity-security': {
-    title: 'IDENTITY DOPPELGÄNGER',
+    title: 'IDENTITY SHIELD',
     subtitle: 'Session trust scoring, behavioral biometrics and honeypots',
   },
   'attack-graph': {
-    title: 'ATTACK GRAPH & LATERAL MOVEMENT',
+    title: 'ATTACK MAP & LATERAL MOVEMENT',
     subtitle: 'MITRE ATT&CK intrusion kill-chain and breach simulation',
   },
   'deception-network': {
-    title: 'DECEPTION NETWORK (HONEYPOTS)',
+    title: 'HONEYPOT DEFENSE NETWORK',
     subtitle: 'Canary tokens, ghost database tripwires and steganography',
   },
   'blast-radius': {
-    title: 'THREAT BLAST RADIUS SIMULATOR',
+    title: 'IMPACT ZONE SIMULATOR',
     subtitle: 'Hop-0 breach propagation and circuit breaker isolation',
   },
   'ai-sandbox': {
-    title: 'AI AGENT SANDBOX (GVISOR)',
+    title: 'AI SANDBOX (GVISOR)',
     subtitle: 'Containerized autonomous red-team and eBPF kernel monitoring',
   },
   'threat-alerts': {
-    title: 'LIVE SOC THREAT ALERTS',
+    title: 'LIVE ALERTS (SOC FEED)',
     subtitle: 'Real-time SIEM event stream, anomaly detection and tripwires',
   },
   'evidence-dna': {
-    title: 'EVIDENCE DNA VAULT',
+    title: 'DIGITAL FINGERPRINT VAULT',
     subtitle: 'Section 65B BSA 2023 cryptographic hashing and Merkle root sealing',
   },
   'chain-of-custody': {
-    title: 'CHAIN OF CUSTODY',
+    title: 'CUSTODY LOG',
     subtitle: 'Immutable electronic evidence transfer ledger',
   },
   'reports': {
-    title: 'REPORTS & COURT DOSSIERS',
+    title: 'REPORTS & LEGAL DOSSIERS',
     subtitle: 'Section 65B Bharatiya Sakshya Adhiniyam 2023 legal dossiers',
   },
   'audit-trail': {
-    title: 'IMMUTABLE AUDIT TRAIL',
+    title: 'ACTIVITY LOG (AUDIT TRAIL)',
     subtitle: 'Tamper-proof system activity log and officer access records',
   },
 };

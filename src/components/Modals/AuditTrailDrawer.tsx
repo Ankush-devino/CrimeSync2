@@ -52,7 +52,7 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
       id: 'log-2',
       timestamp: new Date(Date.now() - 300000).toISOString(),
       action: 'Sealed Merkle Evidence Root',
-      module: 'Evidence DNA',
+      module: 'Digital Fingerprint',
       caseId: 'CASE-2026-002',
       status: 'Success',
       category: 'EVIDENCE',
@@ -61,8 +61,8 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
     {
       id: 'log-3',
       timestamp: new Date(Date.now() - 900000).toISOString(),
-      action: 'Queried Neo4j Knowledge Graph',
-      module: 'Knowledge Graph',
+      action: 'Queried Neo4j Network Graph',
+      module: 'Network Graph',
       caseId: 'CASE-2026-001',
       status: 'Success',
       category: 'GRAPH',
@@ -92,7 +92,7 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-black text-white tracking-wider uppercase font-mono">
-                  IMMUTABLE OFFICER AUDIT TRAIL
+                  IMMUTABLE OFFICER ACTIVITY LOG
                 </h3>
                 <span className="text-[9px] font-mono font-bold bg-emerald-950 text-emerald-300 px-2 py-0.2 rounded border border-emerald-500/40">
                   LEDGER ACTIVE
@@ -189,7 +189,7 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
               }}
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md"
             >
-              Open Full Audit Page
+              Open Full Activity Log
             </button>
           ) : (
             <span className="text-[10px] text-slate-400 font-mono">

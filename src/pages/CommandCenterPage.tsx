@@ -41,28 +41,28 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
         />
       </section>
 
-      {/* ─── HERO ROW: LIVE CRIMINAL NETWORK (CENTERPIECE) + AI & SOC FEED ──── */}
+      {/* ─── HERO ROW: LIVE NETWORK GRAPH (CENTERPIECE) + AI & SOC FEED ──── */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
         
-        {/* SECTION 3: LIVE CRIMINAL NETWORK (HERO WIDGET - 8 COLS) */}
+        {/* SECTION 3: LIVE NETWORK GRAPH (HERO WIDGET - 8 COLS) */}
         <div className="lg:col-span-8 min-h-[480px] xl:min-h-[520px] flex flex-col">
           <CriminalNetworkGraph
             onSelectNode={onSelectNode}
             onExploreGraph={() => {
               if (onNavigateTab) onNavigateTab('knowledge-graph');
-              else onSelectAction('Full Interactive Knowledge Graph Engine');
+              else onSelectAction('Full Interactive Network Graph Engine');
             }}
           />
         </div>
 
-        {/* RIGHT COLUMN: AI INSIGHT (PURPLE) & LIVE THREAT ALERTS (SOC FEED) (4 COLS) */}
+        {/* RIGHT COLUMN: AI ASSISTANT INSIGHTS (PURPLE) & LIVE ALERTS (SOC FEED) (4 COLS) */}
         <div className="lg:col-span-4 flex flex-col gap-3.5">
-          {/* SECTION 4: AI INVESTIGATION INSIGHT */}
+          {/* SECTION 4: AI ASSISTANT INSIGHTS */}
           <div className="flex-1 min-h-[250px]">
             <AiInsight onViewAnalysis={onOpenAnalysis} />
           </div>
 
-          {/* SECTION 7: LIVE THREAT ALERTS (SOCKET.IO SOC FEED) */}
+          {/* SECTION 7: LIVE ALERTS (SOCKET.IO SOC FEED) */}
           <div className="flex-1 min-h-[250px]">
             <PriorityAlerts
               onSelectAlert={onSelectAlert}
@@ -79,12 +79,12 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
       {/* ─── SECONDARY TACTICAL OPERATIONS ROW (4 EQUAL COLS) ────────────────── */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-stretch">
         
-        {/* SECTION 5: NATIONAL THREAT HEATMAP (MINI GIS) */}
+        {/* SECTION 5: NATIONAL GEO MAP */}
         <div className="min-h-[280px]">
           <ThreatHeatmap onNavigateTab={onNavigateTab} />
         </div>
 
-        {/* SECTION 6: CRIME TIME MACHINE PREVIEW */}
+        {/* SECTION 6: CRIME TIMELINE PREVIEW */}
         <div className="min-h-[280px]">
           <CrimeTimeMachine 
             onNavigateTab={onNavigateTab}
@@ -95,24 +95,24 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
           />
         </div>
 
-        {/* SECTION 8: CYBER DEFENSE SUMMARY (IDENTITY DOPPELGÄNGER LINK) */}
+        {/* SECTION 8: CYBER DEFENSE SUMMARY (IDENTITY SHIELD LINK) */}
         <div className="min-h-[280px]">
           <CyberDefenseSummary
             onNavigateTab={onNavigateTab}
             onOpenDefense={() => {
               if (onNavigateTab) onNavigateTab('identity-security');
-              else onSelectAction('Identity Doppelgänger Threat Center');
+              else onSelectAction('Identity Shield Threat Center');
             }}
           />
         </div>
 
-        {/* SECTION 9: BLOCKCHAIN EVIDENCE INTEGRITY */}
+        {/* SECTION 9: BLOCKCHAIN DIGITAL FINGERPRINT INTEGRITY */}
         <div className="min-h-[280px]">
           <EvidenceIntegrity
             onNavigateTab={onNavigateTab}
             onOpenVault={() => {
               if (onNavigateTab) onNavigateTab('evidence-dna');
-              else onSelectAction('Cryptographic Evidence DNA Vault');
+              else onSelectAction('Cryptographic Digital Fingerprint Vault');
             }}
           />
         </div>

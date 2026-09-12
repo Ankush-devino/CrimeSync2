@@ -70,7 +70,7 @@ export const CrimeTimeMachine: React.FC<CrimeTimeMachineProps> = ({ onNavigateTa
             </div>
             <div>
               <span className="text-xs font-black text-white tracking-wider uppercase font-mono">
-                CRIME TIME MACHINE
+                CRIME TIMELINE
               </span>
               <span className="text-[9px] text-slate-400 block">4D Temporal Forensic Sequence</span>
             </div>

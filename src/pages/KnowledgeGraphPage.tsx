@@ -30,7 +30,6 @@ import {
   Lock,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 import { useAuth } from '../context/AuthContext';
@@ -142,7 +141,7 @@ function computeCleanLayout(
 }
 
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelectAction }) => {
-  const { selectedCaseId, selectedCase, setSelectedCaseId } = useCaseContext();
+  const { selectedCaseId, selectedCase } = useCaseContext();
   const { currentUser, permissions } = useAuth();
   const [nodes, setNodes] = useState<RenderNode[]>([]);
   const [rawNodes, setRawNodes] = useState<Array<{ id: string; label: string; category: string; avatar?: string; properties: any }>>([]);
@@ -338,9 +337,9 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
           </div>
           <div>
             <h1 className="text-base font-bold text-white flex items-center gap-2">
-              Syndicate Knowledge Graph & Link Discovery
+              Syndicate Network Graph & Link Discovery
               <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-[10px] font-semibold text-emerald-400">
-                Knowledge Graph Engine Active
+                Network Graph Engine Active
               </span>
             </h1>
             <p className="text-xs text-slate-400">
@@ -373,12 +372,6 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
               <span>Add Node (Restricted)</span>
             </button>
           )}
-
-          <CaseSelector
-            selectedCaseId={selectedCaseId}
-            onSelectCase={(id) => setSelectedCaseId(id)}
-            allowAll={true}
-          />
 
           <button
             onClick={loadGraphData}

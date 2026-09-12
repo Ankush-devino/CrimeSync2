@@ -149,7 +149,7 @@ export const AuditTrailPage: React.FC<AuditTrailPageProps> = ({
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-wider text-white flex items-center gap-2 font-mono">
-                AUDIT TRAIL
+                ACTIVITY LOG
               </h1>
               <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
                 Live forensic activity log of <span className="text-cyan-300 font-bold">{currentUser.name}</span>

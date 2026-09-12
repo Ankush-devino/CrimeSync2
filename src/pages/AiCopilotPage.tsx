@@ -26,7 +26,6 @@ import {
   Search
 } from 'lucide-react';
 import { api } from '../services/api';
-import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 import { logOfficerAction } from '../services/activityLogger';
@@ -46,7 +45,7 @@ interface ChatMessage {
 }
 
 export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) => {
-  const { selectedCaseId, setSelectedCaseId, cases } = useCaseContext();
+  const { selectedCaseId, cases } = useCaseContext();
   const [inputQuery, setInputQuery] = useState('');
   const [liveContext, setLiveContext] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,25 +101,28 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleCaseChange = (caseId: string) => {
-    setSelectedCaseId(caseId);
-    const chosen = getCaseById(caseId) || ALL_CASES[0];
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `switch-${Date.now()}`,
-        sender: 'copilot',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `Switched active context to **${chosen.title}** (${chosen.fir_number}).\n\nJurisdiction: **${chosen.jurisdiction_city}** | Priority: **${chosen.priority}**.\nLead Suspect: **${chosen.lead_suspect || 'Suspect Network'}** (${chosen.lead_suspect_role || 'Primary Suspect'}).\n\nAsk me anything about suspects, financial transactions, or evidence in this case.`,
-        recommendations: [
-          `Who is the primary kingpin in ${chosen.title}?`,
-          `Show high-risk bank transfers for ${chosen.title}`,
-          `Inspect forensic evidence exhibits`,
-        ],
-        confidenceScore: 0.99,
-      },
-    ]);
-  };
+  const prevCaseIdRef = useRef(selectedCaseId);
+  useEffect(() => {
+    if (prevCaseIdRef.current !== selectedCaseId) {
+      prevCaseIdRef.current = selectedCaseId;
+      const chosen = getCaseById(selectedCaseId) || ALL_CASES[0];
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `switch-${Date.now()}`,
+          sender: 'copilot',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: `Switched active context to **${chosen.title}** (${chosen.fir_number}).\n\nJurisdiction: **${chosen.jurisdiction_city}** | Priority: **${chosen.priority}**.\nLead Suspect: **${chosen.lead_suspect || 'Suspect Network'}** (${chosen.lead_suspect_role || 'Primary Suspect'}).\n\nAsk me anything about suspects, financial transactions, or evidence in this case.`,
+          recommendations: [
+            `Who is the primary kingpin in ${chosen.title}?`,
+            `Show high-risk bank transfers for ${chosen.title}`,
+            `Inspect forensic evidence exhibits`,
+          ],
+          confidenceScore: 0.99,
+        },
+      ]);
+    }
+  }, [selectedCaseId]);
 
   const handleSendMessage = async (queryText?: string) => {
     const query = queryText || inputQuery;
@@ -192,7 +194,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
           </div>
           <div>
             <h1 className="text-base font-bold text-white flex items-center gap-2">
-              AI Investigation Copilot
+              AI Assistant
               <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 PostgreSQL & Neo4j Connected
@@ -204,13 +206,8 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
           </div>
         </div>
 
-        {/* Case Switcher Dropdown */}
-        <div className="flex items-center gap-2">
-          <CaseSelector
-            selectedCaseId={selectedCaseId}
-            onSelectCase={handleCaseChange}
-          />
 
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setMessages([messages[0]])}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 transition-colors"
@@ -231,7 +228,7 @@ export const AiCopilotPage: React.FC<AiCopilotPageProps> = ({ onSelectAction }) 
             </div>
             <div>
               <span className="font-semibold text-white">How this works for officers: </span>
-              Select any of the 9 cases from the dropdown above. You can type any question or click a recommended prompt pill below to instantly query suspects, bank accounts, and evidence logs.
+              The active investigation is synced dynamically from the top bar. You can type any question or click a recommended prompt pill below to instantly query suspects, bank accounts, and evidence logs.
             </div>
           </div>
           <button

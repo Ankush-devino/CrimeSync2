@@ -297,7 +297,7 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-wider uppercase font-mono">
-              Identity Doppelgänger
+              Identity Shield
             </h1>
             <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-blue-950/80 text-blue-300 border border-blue-500/40 uppercase tracking-widest">
               ADAPTIVE ACCOUNT PROTECTION

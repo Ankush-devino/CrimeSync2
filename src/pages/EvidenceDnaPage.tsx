@@ -158,7 +158,7 @@ export interface BiometricEvidenceItem {
 }
 
 export const EvidenceDnaPage: React.FC<EvidenceDnaPageProps> = ({ onSelectAction }) => {
-  const { cases, selectedCaseId, selectedCase, setSelectedCaseId, showToast } = useCaseContext();
+  const { cases, selectedCaseId, selectedCase, showToast } = useCaseContext();
   const { currentUser } = useAuth();
   const { logEvent } = useAuditLog();
 
@@ -1024,7 +1024,7 @@ export const EvidenceDnaPage: React.FC<EvidenceDnaPageProps> = ({ onSelectAction
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl md:text-2xl font-black text-white tracking-wider uppercase font-mono">
-                    BIOLOGICAL EVIDENCE & BLOCKCHAIN VAULT
+                    DIGITAL FINGERPRINT & EVIDENCE VAULT
                   </h1>
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
@@ -1041,21 +1041,6 @@ export const EvidenceDnaPage: React.FC<EvidenceDnaPageProps> = ({ onSelectAction
 
           {/* Action Buttons & Case Selector */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Case Quick Dropdown */}
-            <div className="relative">
-              <select
-                value={selectedCaseId}
-                onChange={(e) => setSelectedCaseId(e.target.value)}
-                className="bg-[#0b162c] border border-blue-500/40 text-xs font-bold text-cyan-300 rounded-xl px-3 py-2 pr-8 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-400 shadow-md"
-              >
-                {cases.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-[#070e1c] text-slate-200">
-                    {c.fir_number || c.id} • {c.title?.slice(0, 32)}...
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
 
             {/* Ingest Biological Evidence Button */}
             <button

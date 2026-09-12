@@ -35,7 +35,6 @@ import {
   X
 } from 'lucide-react';
 import { api } from '../services/api';
-import { CaseSelector } from '../components/CaseSelector';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 
@@ -61,7 +60,7 @@ export interface TimelineEvent {
 }
 
 export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction }) => {
-  const { selectedCaseId, setSelectedCaseId } = useCaseContext();
+  const { selectedCaseId } = useCaseContext();
   const [selectedRangePreset, setSelectedRangePreset] = useState<'24H' | '7D' | '15D' | '30D' | 'ALL'>('15D');
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,6 +74,12 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 1x, 2x, 4x
   const [selectedModalEvent, setSelectedModalEvent] = useState<TimelineEvent | null>(null);
   const [copiedHash, setCopiedHash] = useState(false);
+
+  // Reset player when active case changes from top bar
+  useEffect(() => {
+    setIsPlaying(false);
+    setActiveEventIndex(0);
+  }, [selectedCaseId]);
 
   // ─── Add Timeline Event Modal State ────────────────────────────────────────
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
@@ -433,7 +438,7 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
           </div>
           <div>
             <h1 className="text-base font-bold text-white flex items-center gap-2">
-              Crime Time Machine & Chronological Reconstruction
+              Timeline & Chronological Reconstruction
               <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-[10px] font-semibold text-emerald-400">
                 Multi-Modal Evidence Feed
               </span>
@@ -455,16 +460,6 @@ export const TimeMachinePage: React.FC<TimeMachinePageProps> = ({ onSelectAction
             <span>Add Timeline Event</span>
           </button>
 
-          {/* Case Dropdown */}
-          <CaseSelector
-            selectedCaseId={selectedCaseId}
-            onSelectCase={(id) => {
-              setSelectedCaseId(id);
-              setIsPlaying(false);
-              setActiveEventIndex(0);
-            }}
-            allowAll={true}
-          />
 
           {/* Export CSV */}
           <button

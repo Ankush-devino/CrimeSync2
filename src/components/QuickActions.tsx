@@ -65,7 +65,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ onActionClick, onNav
     },
     {
       id: 'view_audit_trail',
-      label: 'View Audit Trail',
+      label: 'View Activity Log',
       sub: 'Officer Action History',
       icon: ClipboardCheck,
       color: 'text-purple-400',

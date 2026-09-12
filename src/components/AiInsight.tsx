@@ -47,7 +47,7 @@ export const AiInsight: React.FC<AiInsightProps> = ({ onViewAnalysis }) => {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-black text-white tracking-wider uppercase font-mono">
-                  AI INVESTIGATION INSIGHT
+                  AI ASSISTANT INSIGHTS
                 </span>
                 <Sparkles className="w-3 h-3 text-purple-400 animate-pulse" />
               </div>
@@ -118,7 +118,7 @@ export const AiInsight: React.FC<AiInsightProps> = ({ onViewAnalysis }) => {
           onClick={onViewAnalysis}
           className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-[0_0_16px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2 group"
         >
-          <span>Open Full Analysis (AI Copilot)</span>
+          <span>Open Full Analysis (AI Assistant)</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>

@@ -419,7 +419,7 @@ export const ForensicDossierPreview: React.FC<ForensicDossierPreviewProps> = ({
               <div className="border-b-2 border-slate-900 pb-1.5 flex items-center justify-between" style={{ borderColor: '#0f172a' }}>
                 <h3 className="text-xs sm:text-sm font-black tracking-wide uppercase font-mono flex items-center gap-2" style={{ color: '#000000' }}>
                   <span className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-slate-900 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold" style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>4.0</span>
-                  <span style={{ color: '#000000', fontWeight: 900 }}>CRIMINAL SYNDICATE KNOWLEDGE GRAPH & CENTRALITY</span>
+                  <span style={{ color: '#000000', fontWeight: 900 }}>CRIMINAL SYNDICATE NETWORK GRAPH & CENTRALITY</span>
                 </h3>
               </div>
               <div className="p-3.5 bg-slate-50 border border-slate-300 rounded space-y-2.5 shadow-sm" style={{ backgroundColor: '#f8fafc', borderColor: '#cbd5e1', color: '#0f172a' }}>

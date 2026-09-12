@@ -49,7 +49,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
   onSelectAction,
   onNavigateTab,
 }) => {
-  const { selectedCaseId, selectedCase, cases, setSelectedCaseId } = useCaseContext();
+  const { selectedCaseId, selectedCase, cases } = useCaseContext();
   const { currentUser, permissions, enforceAdaptiveAction, isAdaptiveRestricted, trustScore } = useAuth();
 
   // Master dossiers repository state scoped to authorized cases
@@ -192,7 +192,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black tracking-wider text-white uppercase font-mono">
-                  REPORTS & DOSSIERS
+                  REPORTS
                 </h1>
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-[10px] font-mono font-bold text-emerald-400">
                   <ShieldCheck className="w-3 h-3" />

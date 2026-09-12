@@ -203,7 +203,7 @@ export const PriorityAlerts: React.FC<PriorityAlertsProps> = ({ onSelectAlert, o
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black text-white tracking-wider uppercase font-mono">
-                LIVE THREAT ALERTS (SOCKET.IO)
+                LIVE ALERTS (SOCKET.IO)
               </span>
               <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
             </div>

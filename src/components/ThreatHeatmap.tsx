@@ -314,7 +314,7 @@ export const ThreatHeatmap: React.FC<ThreatHeatmapProps> = ({ onNavigateTab }) =
             </div>
             <div>
               <span className="text-xs font-black text-white tracking-wider uppercase font-mono">
-                NATIONAL THREAT HEATMAP (GIS)
+                NATIONAL GEO MAP
               </span>
               <span className="text-[9px] text-slate-400 block">Live Case Coordinates & Hotspot Density</span>
             </div>
@@ -383,7 +383,7 @@ export const ThreatHeatmap: React.FC<ThreatHeatmapProps> = ({ onNavigateTab }) =
         <button
           className="text-cyan-400 font-bold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform text-[11px]"
         >
-          <span>Full GIS</span>
+          <span>Full Geo Map</span>
           <ArrowRight className="w-3 h-3" />
         </button>
       </div>

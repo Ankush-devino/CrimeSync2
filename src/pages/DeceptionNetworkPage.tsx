@@ -383,7 +383,7 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
               <Target className="w-4 h-4" />
             </div>
             <h1 className="text-base font-extrabold text-white tracking-wider uppercase flex items-center gap-2">
-              DECEPTION NETWORK
+              HONEYPOT
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-400 font-bold">
                 GRID STATUS: ARMED & ACTIVE
               </span>

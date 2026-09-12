@@ -45,7 +45,7 @@ export const CyberDefenseSummary: React.FC<CyberDefenseSummaryProps> = ({ onNavi
               <span className="text-xs font-black text-white tracking-wider uppercase font-mono">
                 CYBER DEFENSE SUMMARY
               </span>
-              <span className="text-[9px] text-slate-400 block">Identity Doppelgänger & Zero-Trust</span>
+              <span className="text-[9px] text-slate-400 block">Identity Shield & Zero-Trust</span>
             </div>
           </div>
 
@@ -141,7 +141,7 @@ export const CyberDefenseSummary: React.FC<CyberDefenseSummaryProps> = ({ onNavi
           Adaptive Permission Engine
         </span>
         <span className="text-blue-400 font-bold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform text-[11px]">
-          <span>Open Doppelgänger</span>
+          <span>Open Identity Shield</span>
           <ArrowRight className="w-3 h-3" />
         </span>
       </div>

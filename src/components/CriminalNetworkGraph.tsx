@@ -158,7 +158,7 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-black text-white tracking-wider uppercase font-mono">
-                LIVE CRIMINAL NETWORK
+                LIVE NETWORK GRAPH
               </span>
               <span className="text-[9px] font-mono font-bold bg-cyan-950/90 text-cyan-300 px-2 py-0.2 rounded-full border border-cyan-500/40 animate-pulse">
                 {caseIntel.nodes.length} Nodes • {caseIntel.edges.length} Links
@@ -462,7 +462,7 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
                 onClick={onExploreGraph}
                 className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition-all text-center flex items-center justify-center gap-1 shadow-md"
               >
-                <span>Traverse in Knowledge Graph</span>
+                <span>Traverse in Network Graph</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
             </div>

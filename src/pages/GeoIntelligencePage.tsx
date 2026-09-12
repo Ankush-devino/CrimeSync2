@@ -67,7 +67,7 @@ interface GeoIntelligencePageProps {
 export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
   onSelectAction,
 }) => {
-  const { selectedCaseId, selectedCase, cases, setSelectedCaseId } = useCaseContext();
+  const { selectedCaseId, selectedCase, cases } = useCaseContext();
 
   // State for data
   const [markers, setMarkers] = useState<GeoMarkerItem[]>([]);
@@ -518,7 +518,7 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold tracking-wider text-white">
-                NATIONAL GEOSPATIAL INTELLIGENCE & GIS
+                NATIONAL GEO MAP & GIS
               </h1>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950/80 border border-cyan-500/60 text-cyan-300">
                 OPENSTREETMAP • LEAFLET
@@ -532,32 +532,11 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
 
         {/* Header Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Interactive Case Selector */}
-          <div className="relative flex items-center">
-            <div className="absolute left-2.5 pointer-events-none text-amber-400">
-              <Shield className="w-3.5 h-3.5" />
-            </div>
-            <select
-              value={selectedCaseId}
-              onChange={(e) => setSelectedCaseId(e.target.value)}
-              className="pl-8 pr-8 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] hover:border-amber-500/60 focus:border-amber-500 text-xs font-semibold text-amber-300 font-mono focus:outline-none transition-all cursor-pointer appearance-none shadow-sm"
-              title="Select Active Investigation Case"
-            >
-              {cases && cases.length > 0 ? (
-                cases.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-[#091122] text-slate-200 font-sans">
-                    {c.id} — {c.title || c.name || 'Investigation'}
-                  </option>
-                ))
-              ) : (
-                <option value={selectedCaseId} className="bg-[#091122] text-slate-200">
-                  {selectedCaseId}
-                </option>
-              )}
-            </select>
-            <div className="absolute right-2.5 pointer-events-none text-slate-400">
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
+          {/* Active Case Badge (Synced Dynamically from Top Bar) */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0c162b] border border-[#1e335a] text-xs font-semibold text-amber-300 font-mono shadow-sm">
+            <Shield className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+            <span className="text-slate-400 font-sans text-[11px]">Active:</span>
+            <span>{selectedCase?.fir_number || selectedCaseId}</span>
           </div>
 
           {/* City / Jurisdiction Selector */}

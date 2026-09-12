@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <FolderKanban className="w-3.5 h-3.5 text-blue-400" />
-            <span>Investigations</span>
+            <span>Cases</span>
           </button>
           <button
             onClick={() => setActiveTab('ai-copilot')}
@@ -93,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <div className="flex items-center gap-2.5">
               <Bot className="w-3.5 h-3.5 text-cyan-400" />
-              <span>AI Copilot</span>
+              <span>AI Assistant</span>
             </div>
             <span className="text-[8px] font-bold px-1.5 py-0.2 bg-cyan-900/80 text-cyan-300 rounded border border-cyan-500/40">AI</span>
           </button>
@@ -106,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <Network className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Knowledge Graph</span>
+            <span>Network Graph</span>
           </button>
           <button
             onClick={() => setActiveTab('time-machine')}
@@ -118,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <div className="flex items-center gap-2.5">
               <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>Time Machine</span>
+              <span>Timeline</span>
             </div>
             <span className="text-[8px] font-bold px-1 py-0.2 bg-amber-950/80 text-amber-300 rounded border border-amber-500/40">4D</span>
           </button>
@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <MapPin className="w-3.5 h-3.5 text-rose-400" />
-            <span>Geo Intelligence</span>
+            <span>Geo Map</span>
           </button>
           <button
             onClick={() => setActiveTab('financial-intelligence')}
@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <div className="flex items-center gap-2.5">
               <CircleDollarSign className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Financial Intel</span>
+              <span>Money Trail</span>
             </div>
             <span className="text-[8px] font-bold px-1 py-0.2 bg-emerald-950/80 text-emerald-300 rounded border border-emerald-500/40">₹</span>
           </button>
@@ -164,7 +164,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <UserCheck className="w-3.5 h-3.5 text-sky-400" />
-            <span>Identity Doppelgänger</span>
+            <span>Identity Shield</span>
           </button>
           <button
             onClick={() => setActiveTab('attack-graph')}
@@ -175,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-purple-400" />
-            <span>Attack Graph</span>
+            <span>Attack Map</span>
           </button>
           <button
             onClick={() => setActiveTab('deception-network')}
@@ -187,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <div className="flex items-center gap-2.5">
               <Target className="w-3.5 h-3.5 text-amber-400" />
-              <span>Deception Network</span>
+              <span>Honeypot</span>
             </div>
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
           </button>
@@ -201,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <div className="flex items-center gap-2.5">
               <Sun className="w-3.5 h-3.5 text-red-400" />
-              <span>Blast Radius</span>
+              <span>Impact Zone</span>
             </div>
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           </button>
@@ -215,7 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <div className="flex items-center gap-2.5">
               <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-              <span>AI Agent Sandbox</span>
+              <span>AI Sandbox</span>
             </div>
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           </button>
@@ -229,7 +229,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <div className="flex items-center gap-2.5">
               <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
-              <span>Threat Alerts</span>
+              <span>Live Alerts</span>
             </div>
             <span className="px-1.5 py-0.2 bg-red-600 text-white text-[9px] font-bold rounded-full animate-pulse shadow-[0_0_8px_#ef4444]">
               8
@@ -240,7 +240,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         {/* BLOCKCHAIN VAULT Section */}
         <div className="space-y-0.5">
           <div className="px-2.5 py-0.5 text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-            <span>BLOCKCHAIN VAULT</span>
+            <span>BLOCKCHAIN</span>
             <span className="text-[8px] font-mono text-emerald-400">LEDGER</span>
           </div>
           <button
@@ -252,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <Box className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Evidence</span>
+            <span>Digital Fingerprint</span>
           </button>
           <button
             onClick={() => setActiveTab('chain-of-custody')}
@@ -263,14 +263,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Chain of Custody</span>
+            <span>Custody Log</span>
           </button>
         </div>
 
         {/* TOOLS & COMPLIANCE Section */}
         <div className="space-y-0.5">
           <div className="px-2.5 py-0.5 text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-            <span>TOOLS & DOSSIERS</span>
+            <span>REPORTS & COMPLIANCE</span>
             <span className="text-[8px] font-mono text-purple-400">PDF</span>
           </div>
           <button
@@ -283,7 +283,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           >
             <div className="flex items-center gap-2.5">
               <FileText className="w-3.5 h-3.5 text-blue-400" />
-              <span>Reports & Dossiers</span>
+              <span>Reports</span>
             </div>
             <span className="text-[8px] font-bold px-1 py-0.2 bg-blue-950/80 text-blue-300 rounded border border-blue-500/40">65B</span>
           </button>
@@ -296,7 +296,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
             }`}
           >
             <ClipboardCheck className="w-3.5 h-3.5 text-slate-400" />
-            <span>Audit Trail</span>
+            <span>Activity Log</span>
           </button>
         </div>
       </div>
