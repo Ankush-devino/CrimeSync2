@@ -40,6 +40,38 @@ export interface DynamicGraphNode {
   rawLog: DbAuditLog;
 }
 
+export const TAB_LABELS: Record<string, { title: string; category: string; iconType: DynamicGraphNode['iconType']; module: string }> = {
+  'evidence-dna': { title: 'Digital Fingerprint', category: 'BLOCKCHAIN', iconType: 'evidence', module: 'Digital Fingerprint' },
+  'ai-sandbox': { title: 'AI Sandbox', category: 'AI_LAB', iconType: 'case', module: 'AI Sandbox' },
+  'deception-network': { title: 'Honeypot Decoy', category: 'TRIPWIRE', iconType: 'honey', module: 'Deception Network' },
+  'blast-radius': { title: 'Impact Zone', category: 'SOC_BLAST', iconType: 'containment', module: 'Blast Radius' },
+  'threat-alerts': { title: 'Live Alerts', category: 'SOC_ALERTS', iconType: 'containment', module: 'Threat Alerts' },
+  'attack-graph': { title: 'Attack Map', category: 'KILL_CHAIN', iconType: 'case', module: 'Attack Graph' },
+  'identity-security': { title: 'Identity Shield', category: 'IDENTITY', iconType: 'login', module: 'Identity Security' },
+  'command-center': { title: 'Live Overview', category: 'HQ_COMMAND', iconType: 'case', module: 'Command Center' },
+  'investigations': { title: 'Case Dossiers', category: 'RECON', iconType: 'case', module: 'Investigations' },
+  'ai-copilot': { title: 'AI Assistant', category: 'COPILOT', iconType: 'case', module: 'AI Copilot' },
+  'knowledge-graph': { title: 'Network Graph', category: 'GRAPH', iconType: 'case', module: 'Knowledge Graph' },
+  'time-machine': { title: '4D Timeline', category: 'TIMELINE', iconType: 'case', module: 'Time Machine' },
+  'geo-intelligence': { title: 'Geo Map', category: 'GEO_INTEL', iconType: 'case', module: 'Geo Intelligence' },
+  'financial-intelligence': { title: 'Money Trail', category: 'FIN_INTEL', iconType: 'case', module: 'Financial Intelligence' },
+  'chain-of-custody': { title: 'Custody Log', category: 'LEDGER', iconType: 'evidence', module: 'Chain of Custody' },
+  'reports': { title: 'Court Reports', category: 'REPORT', iconType: 'export', module: 'Reports' },
+  'audit-trail': { title: 'Activity Audit', category: 'AUDIT', iconType: 'case', module: 'Audit Trail' },
+};
+
+export const getTabLabel = (tabId?: string, fallbackModule?: string): string => {
+  if (tabId && TAB_LABELS[tabId]) return TAB_LABELS[tabId].title;
+  if (fallbackModule) {
+    const match = Object.values(TAB_LABELS).find(
+      (t) => t.module.toLowerCase() === fallbackModule.toLowerCase() || t.title.toLowerCase() === fallbackModule.toLowerCase()
+    );
+    if (match) return match.title;
+    return fallbackModule;
+  }
+  return tabId || 'Navigation';
+};
+
 export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction }) => {
   const {
     auditLogs,
@@ -72,6 +104,18 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
         iconType = 'login';
         title = 'Session Ingress';
         category = 'INGRESS';
+      } else if (log.action === 'TAB_SWITCH') {
+        const tabKey = log.payload?.tabId || log.targetId || '';
+        const tabInfo = TAB_LABELS[tabKey];
+        if (tabInfo) {
+          title = tabInfo.title;
+          category = tabInfo.category;
+          iconType = tabInfo.iconType;
+        } else {
+          title = getTabLabel(tabKey, log.payload?.tabName || log.module);
+          category = 'NAVIGATION';
+          iconType = 'case';
+        }
       } else if (log.action === 'CASE_OPEN') {
         iconType = 'case';
         title = `Accessed ${log.targetId || 'Case'}`;
@@ -96,6 +140,13 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
         category = 'CONTAINMENT';
       }
 
+      let summaryText = log.payload?.title || log.payload?.details || log.action;
+      if (log.action === 'TAB_SWITCH') {
+        const tabKey = log.payload?.tabId || log.targetId || '';
+        const label = getTabLabel(tabKey, log.payload?.tabName || log.module);
+        summaryText = `Navigated to ${label}`;
+      }
+
       nodes.push({
         id: log.id,
         stepNumber: stepCount++,
@@ -106,7 +157,7 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
         timestamp: log.displayTime,
         timeOffset: log.timeOffset,
         iconType,
-        summary: log.payload?.title || log.payload?.details || log.action,
+        summary: summaryText,
         rawLog: log,
       });
     });
@@ -187,12 +238,15 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
   const filteredLogs = useMemo(() => {
     if (!searchFilter.trim()) return auditLogs;
     const q = searchFilter.toLowerCase();
-    return auditLogs.filter(
-      (l) =>
+    return auditLogs.filter((l) => {
+      const tabLabel = l.action === 'TAB_SWITCH' ? getTabLabel(l.payload?.tabId, l.payload?.tabName || l.module) : '';
+      return (
         l.action.toLowerCase().includes(q) ||
         l.module.toLowerCase().includes(q) ||
-        l.userName.toLowerCase().includes(q)
-    );
+        l.userName.toLowerCase().includes(q) ||
+        tabLabel.toLowerCase().includes(q)
+      );
+    });
   }, [auditLogs, searchFilter]);
 
   return (
@@ -441,7 +495,11 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                 <div className="p-3 rounded-xl bg-[#02050e] border border-cyan-500/30 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] text-slate-400 block uppercase">ACTION TYPE</span>
-                    <strong className="text-white text-sm">`{activeSelectedNode.rawLog.action}`</strong>
+                    <strong className="text-white text-sm">
+                      {activeSelectedNode.rawLog.action === 'TAB_SWITCH'
+                        ? `[TAB] ${getTabLabel(activeSelectedNode.rawLog.payload?.tabId, activeSelectedNode.rawLog.payload?.tabName || activeSelectedNode.rawLog.module)}`
+                        : `\`${activeSelectedNode.rawLog.action}\``}
+                    </strong>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
                     activeSelectedNode.severity === 'CONTAINED'
@@ -466,8 +524,12 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
 
                   <div className="p-2.5 rounded-lg bg-[#040915] border border-slate-800">
                     <span className="text-slate-500 text-[9px] uppercase block">Module / Category</span>
-                    <span className="text-amber-300 font-bold truncate block">{activeSelectedNode.rawLog.module}</span>
-                    <span className="text-slate-400 text-[9.5px]">({activeSelectedNode.rawLog.category})</span>
+                    <span className="text-amber-300 font-bold truncate block">
+                      {activeSelectedNode.rawLog.action === 'TAB_SWITCH'
+                        ? getTabLabel(activeSelectedNode.rawLog.payload?.tabId, activeSelectedNode.rawLog.payload?.tabName || activeSelectedNode.rawLog.module)
+                        : activeSelectedNode.rawLog.module}
+                    </span>
+                    <span className="text-slate-400 text-[9.5px]">({activeSelectedNode.category})</span>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-[#040915] border border-slate-800">
@@ -547,6 +609,10 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                   const isWarn = log.severity === 'SUSPICIOUS';
                   const isContain = log.severity === 'CONTAINED';
                   const isSelected = activeSelectedNode?.id === log.id;
+                  const isTabSwitch = log.action === 'TAB_SWITCH';
+                  const tabLabel = isTabSwitch
+                    ? getTabLabel(log.payload?.tabId, log.payload?.tabName || log.module)
+                    : null;
 
                   return (
                     <div
@@ -568,11 +634,15 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                         <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">
                           {log.displayTime}
                         </span>
-                        <span className="px-1.5 py-0.2 rounded bg-[#02050e] border border-slate-700 text-cyan-300 font-bold text-[10px]">
-                          {log.action}
+                        <span className={`px-1.5 py-0.2 rounded border font-bold text-[10px] ${
+                          isTabSwitch
+                            ? 'bg-indigo-950/80 border-indigo-500/40 text-indigo-300'
+                            : 'bg-[#02050e] border-slate-700 text-cyan-300'
+                        }`}>
+                          {isTabSwitch ? tabLabel : log.action}
                         </span>
                         <span className="text-slate-300 text-[11px] truncate">
-                          {log.module}
+                          {isTabSwitch ? `Navigated to ${tabLabel}` : log.module}
                         </span>
                       </div>
 

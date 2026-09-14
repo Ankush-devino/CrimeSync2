@@ -192,7 +192,6 @@ const AppContent: React.FC = () => {
 
   const handleNavigateTab = (tab: string) => {
     setActiveTab(tab);
-    logEvent('TAB_SWITCH', { tabId: tab }, { module: 'Navigation', category: 'NAVIGATION', details: `Officer navigated to ${tab}` });
     const moduleActions: Record<string, { action: string; module: string; details: string; category: any }> = {
       'command-center': {
         action: 'Supervised Central Command Center',
@@ -274,7 +273,7 @@ const AppContent: React.FC = () => {
       },
       'evidence-dna': {
         action: 'Verified Evidence DNA & Blockchain Hash',
-        module: 'Evidence DNA',
+        module: 'Digital Fingerprint',
         details: 'Computed SHA-256 digital fingerprint match for seized hard drive NAND image EV-1246',
         category: 'EVIDENCE'
       },
@@ -289,10 +288,25 @@ const AppContent: React.FC = () => {
         module: 'Reports & Dossiers',
         details: 'Exported signed court-ready electronic evidence compliance package',
         category: 'REPORT'
+      },
+      'audit-trail': {
+        action: 'Inspected Immutable Audit Ledger',
+        module: 'Audit Trail',
+        details: 'Reviewed cryptographic hash-chained audit trails and security session history',
+        category: 'CASES'
       }
     };
 
     const actionItem = moduleActions[tab];
+    logEvent(
+      'TAB_SWITCH',
+      { tabId: tab, tabName: actionItem?.module || tab },
+      {
+        module: actionItem?.module || 'Navigation',
+        category: 'NAVIGATION',
+        details: actionItem ? actionItem.details : `Officer navigated to ${tab}`
+      }
+    );
     if (actionItem && tab !== 'audit-trail') {
       logOfficerAction({
         action: actionItem.action,

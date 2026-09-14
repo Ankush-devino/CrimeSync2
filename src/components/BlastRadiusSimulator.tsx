@@ -222,7 +222,7 @@ export const BlastRadiusSimulator: React.FC<BlastRadiusSimulatorProps> = ({ onSe
   // Simulation State Machine & Typed Timer Ref
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [currentSimStep, setCurrentSimStep] = useState<number>(3); // 0 = Epicenter, 1 = Case Files, 2 = Officers, 3 = Info/Doxxed
-  const simulationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const simulationTimerRef = useRef<any>(null);
 
   // Security Playbook Action Confirmation Modal State
   const [isActionModalOpen, setIsActionModalOpen] = useState<boolean>(false);

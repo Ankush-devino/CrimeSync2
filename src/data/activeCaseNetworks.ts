@@ -1131,7 +1131,7 @@ export function getActiveCaseIntelligence(caseObj: any): CaseNetworkData {
   const category = caseObj.crime_category || (caseObj.isCompromised ? 'DECEPTIVE_FIR' : 'CYBER_ATTACK');
 
   // Compute seed from case ID string
-  const seedNum = (id + fir + title).split('').reduce((acc, char, idx) => acc + char.charCodeAt(0) * (idx + 1) * 31, 1013);
+  const seedNum = (id + fir + title).split('').reduce((acc: number, char: string, idx: number) => acc + char.charCodeAt(0) * (idx + 1) * 31, 1013);
   const rand = seededRandom(seedNum);
 
   // Dynamic peripheral nodes with unique polar layout coordinates
@@ -1154,7 +1154,7 @@ export function getActiveCaseIntelligence(caseObj: any): CaseNetworkData {
     details: { role: caseObj.lead_suspect_role || 'Prime Operative', location: city, notes: `Central entity linked to ${fir}` },
   });
 
-  const categoryPool = ['Phones', 'Accounts', 'Locations', 'Vehicles', 'Organisations', 'People'];
+  const categoryPool: NetworkNode['category'][] = ['Phones', 'Accounts', 'Locations', 'Vehicles', 'Organisations', 'People'];
   const baseRadius = 32 + rand() * 6; // 32% to 38% radius
 
   for (let i = 0; i < nodeCount; i++) {
