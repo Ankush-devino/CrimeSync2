@@ -459,7 +459,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
       </div>
 
       {/* ─── Main Two-Column Layout ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden" style={{ contain: 'layout' }}>
         
         {/* Left Column (8 Cols): Interactive SVG Graph Canvas */}
         <div className="lg:col-span-8 flex flex-col h-full bg-[#070e1c] border border-slate-800 rounded-xl overflow-hidden relative shadow-lg">
@@ -491,8 +491,12 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
             </div>
           ) : (
             <div
-              className="relative w-full h-full overflow-hidden flex items-center justify-center cursor-grab select-none"
-              style={{ transform: `scale(${zoomLevel})`, transition: 'transform 0.2s ease-out' }}
+              className="relative w-full h-full overflow-hidden cursor-grab select-none"
+              style={{
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: 'center center',
+                transition: 'transform 0.2s ease-out',
+              }}
             >
               {/* SVG Edges Layer */}
               <svg className="absolute inset-0 w-full h-full pointer-events-none">
@@ -535,27 +539,33 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
               {filteredNodes.map((node) => {
                 const isSelected = selectedNode?.id === node.id;
                 return (
+                  /* Outer wrapper: PURELY positional — inline style only, zero classes */
                   <div
                     key={node.id}
-                    onClick={() => setSelectedNode(node)}
                     style={{
+                      position: 'absolute',
                       left: `${node.x}%`,
                       top: `${node.y}%`,
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: isSelected ? 30 : 10,
                     }}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 z-10 cursor-pointer p-2.5 rounded-xl border-2 flex flex-col items-center text-center shadow-lg transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_16px_rgba(168,85,247,0.6)] ${
-                      node.bgClass
-                    } ${isSelected ? 'ring-4 ring-purple-400 z-30 shadow-[0_0_20px_rgba(168,85,247,0.8)]' : ''}`}
                   >
-                    <div className="pointer-events-none select-none flex flex-col items-center text-center w-full">
-                      <div className="font-bold text-xs truncate max-w-[130px]">{node.name}</div>
-                      {node.sublabel && (
-                        <div className="text-[10px] opacity-90 truncate max-w-[130px]">{node.sublabel}</div>
-                      )}
-                      {node.sublabel2 && (
-                        <div className="text-[9px] font-mono bg-black/40 px-1.5 py-0.5 rounded-full mt-1">
-                          {node.sublabel2}
-                        </div>
-                      )}
+                    {/* Inner: all visual styles, no positioning */}
+                    <div
+                      onClick={() => setSelectedNode(node)}
+                      className={`cursor-pointer p-2.5 rounded-xl border-2 flex flex-col items-center text-center shadow-lg ${node.bgClass} ${node.borderColor} ${isSelected ? 'ring-4 ring-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.8)]' : ''}`}
+                    >
+                      <div className="pointer-events-none select-none flex flex-col items-center text-center w-full">
+                        <div className="font-bold text-xs truncate max-w-[130px]">{node.name}</div>
+                        {node.sublabel && (
+                          <div className="text-[10px] opacity-90 truncate max-w-[130px]">{node.sublabel}</div>
+                        )}
+                        {node.sublabel2 && (
+                          <div className="text-[9px] font-mono bg-black/40 px-1.5 py-0.5 rounded-full mt-1">
+                            {node.sublabel2}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -573,21 +583,23 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
           </div>
         </div>
 
-        {/* Right Column (4 Cols): Selected Entity Profile & Actions */}
+        {/* Right Column (4 Cols): Selected Entity Profile & Actions — always rendered to prevent graph layout shift */}
         <div className="lg:col-span-4 flex flex-col gap-3 h-full overflow-y-auto pr-1">
-          {selectedNode ? (
-            <>
-              {/* Profile Card */}
-              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Entity Profile Inspector
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 border border-purple-600/40 text-purple-300">
-                    {selectedNode.category}
-                  </span>
-                </div>
+          {/* Profile Card — always present, content switches based on selection */}
+          <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Entity Profile Inspector
+              </span>
+              {selectedNode && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 border border-purple-600/40 text-purple-300">
+                  {selectedNode.category}
+                </span>
+              )}
+            </div>
 
+            {selectedNode ? (
+              <>
                 <h3 className="text-base font-bold text-white mb-1">{selectedNode.name}</h3>
                 <p className="text-xs text-slate-400 mb-3">{selectedNode.sublabel || 'Active Entity'}</p>
 
@@ -602,45 +614,49 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
                     </div>
                   ))}
                 </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-8 text-slate-500">
+                <Network className="w-10 h-10 text-slate-700 mb-2" />
+                <p className="text-xs">Click any node on the graph canvas to inspect full properties and links.</p>
               </div>
+            )}
+          </div>
 
-              {/* Connected Relationships in Graph */}
-              <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Direct Graph Connections
-                </span>
-                <div className="space-y-1.5">
-                  {edges
-                    .filter((e) => e.source === selectedNode.id || e.target === selectedNode.id)
-                    .map((edge, idx) => {
-                      const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
-                      const otherNode = nodes.find((n) => n.id === otherId);
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => otherNode && setSelectedNode(otherNode)}
-                          className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800/80 border border-slate-800 flex items-center justify-between text-xs cursor-pointer transition-colors"
-                        >
-                          <div>
-                            <span className="text-slate-400 text-[10px] block font-mono">{edge.relationship}</span>
-                            <span className="font-bold text-white">{otherNode?.name || otherId}</span>
-                          </div>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+          {/* Connected Relationships — always rendered */}
+          <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+              Direct Graph Connections
+            </span>
+            {selectedNode ? (
+              <div className="space-y-1.5">
+                {edges
+                  .filter((e) => e.source === selectedNode.id || e.target === selectedNode.id)
+                  .map((edge, idx) => {
+                    const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
+                    const otherNode = nodes.find((n) => n.id === otherId);
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => otherNode && setSelectedNode(otherNode)}
+                        className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800/80 border border-slate-800 flex items-center justify-between text-xs cursor-pointer transition-colors"
+                      >
+                        <div>
+                          <span className="text-slate-400 text-[10px] block font-mono">{edge.relationship}</span>
+                          <span className="font-bold text-white">{otherNode?.name || otherId}</span>
                         </div>
-                      );
-                    })}
-                  {edges.filter((e) => e.source === selectedNode.id || e.target === selectedNode.id).length === 0 && (
-                    <p className="text-xs text-slate-500 italic">No direct connections recorded.</p>
-                  )}
-                </div>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                      </div>
+                    );
+                  })}
+                {edges.filter((e) => e.source === selectedNode.id || e.target === selectedNode.id).length === 0 && (
+                  <p className="text-xs text-slate-500 italic">No direct connections recorded.</p>
+                )}
               </div>
-            </>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
-              <Network className="w-10 h-10 text-slate-700 mb-2" />
-              <p className="text-xs">Click any node on the graph canvas to inspect full properties and links.</p>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-slate-600 italic">No entity selected.</p>
+            )}
+          </div>
         </div>
       </div>
 

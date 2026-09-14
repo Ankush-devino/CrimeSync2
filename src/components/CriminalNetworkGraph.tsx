@@ -318,73 +318,79 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
             const isSelected = activeModalNode?.id === node.id;
 
             return (
+              /* Outer wrapper: PURELY positional — inline style only, zero classes */
               <div
                 key={node.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveModalNode(node);
-                  onSelectNode(node as any);
-                }}
-                onMouseEnter={() => setHoveredNode(node.id)}
-                onMouseLeave={() => setHoveredNode(null)}
                 style={{
+                  position: 'absolute',
                   left: `${node.x}%`,
                   top: `${node.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: isSelected ? 30 : 10,
                 }}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 graph-interactive-node cursor-pointer z-10 transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_14px_rgba(6,182,212,0.4)] ${
-                  isSelected ? 'z-30' : ''
-                }`}
               >
-                {/* Center Target Node (Mastermind) */}
-                {isCenter ? (
-                  <div className="flex flex-col items-center group pointer-events-none select-none">
-                    <div className="relative">
-                      {/* Pulse Ring */}
-                      <div className="absolute -inset-2.5 rounded-full bg-red-600/30 animate-ping opacity-75 pointer-events-none" />
-                      
-                      <div className={`w-14 h-14 rounded-full border-2 ${getRiskBorderColor('HIGH', true)} overflow-hidden bg-[#0a1226] relative`}>
-                        {node.avatar ? (
-                          <img src={node.avatar} alt={node.label} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-red-950 text-red-300">
-                            <User className="w-7 h-7" />
-                          </div>
-                        )}
-                        <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-[#040a18] shadow-[0_0_8px_#ef4444]" />
+                {/* Inner: all interaction + visual styles, no positioning */}
+                <div
+                  className="graph-interactive-node cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveModalNode(node);
+                    onSelectNode(node as any);
+                  }}
+                  onMouseEnter={() => setHoveredNode(node.id)}
+                  onMouseLeave={() => setHoveredNode(null)}
+                >
+                  {/* Center Target Node (Mastermind) */}
+                  {isCenter ? (
+                    <div className="flex flex-col items-center group pointer-events-none select-none">
+                      <div className="relative">
+                        {/* Pulse Ring */}
+                        <div className="absolute -inset-2.5 rounded-full bg-red-600/30 animate-ping opacity-75 pointer-events-none" />
+                        
+                        <div className={`w-14 h-14 rounded-full border-2 ${getRiskBorderColor('HIGH', true)} overflow-hidden bg-[#0a1226] relative`}>
+                          {node.avatar ? (
+                            <img src={node.avatar} alt={node.label} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-red-950 text-red-300">
+                              <User className="w-7 h-7" />
+                            </div>
+                          )}
+                          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-[#040a18] shadow-[0_0_8px_#ef4444]" />
+                        </div>
+                      </div>
+
+                      <div className="mt-1 px-2.5 py-0.5 rounded-full bg-red-950/90 border border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.5)] flex flex-col items-center text-center">
+                        <span className="text-[11px] font-black text-white tracking-wide whitespace-nowrap">
+                          {node.label}
+                        </span>
+                        <span className="text-[9px] font-mono text-red-300 font-bold">
+                          {node.sublabel || 'MASTERMIND'}
+                        </span>
                       </div>
                     </div>
+                  ) : (
+                    /* Connected Entity Nodes */
+                    <div className="flex flex-col items-center group pointer-events-none select-none">
+                      <div className={`w-9 h-9 rounded-xl border ${getRiskBorderColor(node.risk)} flex items-center justify-center bg-[#07132a] shadow-lg relative group-hover:border-cyan-400 transition-colors`}>
+                        {getNodeIcon(node.category)}
+                        <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${
+                          node.risk === 'HIGH' ? 'bg-red-500 shadow-[0_0_6px_#ef4444]' : 'bg-emerald-500'
+                        }`} />
+                      </div>
 
-                    <div className="mt-1 px-2.5 py-0.5 rounded-full bg-red-950/90 border border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.5)] flex flex-col items-center text-center">
-                      <span className="text-[11px] font-black text-white tracking-wide whitespace-nowrap">
-                        {node.label}
-                      </span>
-                      <span className="text-[9px] font-mono text-red-300 font-bold">
-                        {node.sublabel || 'MASTERMIND'}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  /* Connected Entity Nodes */
-                  <div className="flex flex-col items-center group pointer-events-none select-none">
-                    <div className={`w-9 h-9 rounded-xl border ${getRiskBorderColor(node.risk)} flex items-center justify-center bg-[#07132a] shadow-lg relative group-hover:border-cyan-400 transition-colors`}>
-                      {getNodeIcon(node.category)}
-                      <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${
-                        node.risk === 'HIGH' ? 'bg-red-500 shadow-[0_0_6px_#ef4444]' : 'bg-emerald-500'
-                      }`} />
-                    </div>
-
-                    <div className="mt-1 px-2 py-0.5 rounded-md bg-[#050e20]/90 border border-slate-800 shadow-md flex flex-col items-center text-center max-w-[120px]">
-                      <span className="text-[11px] font-bold text-white tracking-wide truncate max-w-[110px]">
-                        {node.label}
-                      </span>
-                      {node.sublabel && (
-                        <span className="text-[9px] font-mono text-slate-400 truncate max-w-[110px]">
-                          {node.sublabel}
+                      <div className="mt-1 px-2 py-0.5 rounded-md bg-[#050e20]/90 border border-slate-800 shadow-md flex flex-col items-center text-center max-w-[120px]">
+                        <span className="text-[11px] font-bold text-white tracking-wide truncate max-w-[110px]">
+                          {node.label}
                         </span>
-                      )}
+                        {node.sublabel && (
+                          <span className="text-[9px] font-mono text-slate-400 truncate max-w-[110px]">
+                            {node.sublabel}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })}
