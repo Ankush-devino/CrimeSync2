@@ -78,17 +78,45 @@ const CATEGORY_STYLES: Record<string, { bg: string; border: string }> = {
   Company: { bg: 'bg-pink-600 text-white', border: 'border-pink-400 shadow-[0_0_12px_rgba(236,72,153,0.4)]' },
   Location: { bg: 'bg-cyan-600 text-white', border: 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]' },
   Locations: { bg: 'bg-cyan-600 text-white', border: 'border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]' },
+  Digital: { bg: 'bg-indigo-600 text-white', border: 'border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.4)]' },
+  CyberEntity: { bg: 'bg-indigo-600 text-white', border: 'border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.4)]' },
+  Victim: { bg: 'bg-amber-600 text-white', border: 'border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]' },
+  Victims: { bg: 'bg-amber-600 text-white', border: 'border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]' },
   Evidence: { bg: 'bg-indigo-600 text-white', border: 'border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.4)]' },
   Case: { bg: 'bg-purple-600 text-white', border: 'border-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.4)]' },
 };
 
 function computeCleanLayout(
-  nodes: Array<{ id: string; label: string; category: string; avatar?: string; properties: any }>,
+  nodes: Array<{ id: string; label: string; category: string; avatar?: string; x?: number; y?: number; properties: any }>,
   edges: Array<{ source: string; target: string; relationship: string; properties: any }>
 ): { renderNodes: RenderNode[]; renderEdges: RenderEdge[] } {
+  // 1. If nodes already have predefined coordinates (from activeCaseNetworks)
+  const hasPredefinedCoords = nodes.length > 0 && nodes.every((n) => typeof n.x === 'number' && typeof n.y === 'number');
+
+  if (hasPredefinedCoords) {
+    const renderNodes: RenderNode[] = nodes.map((node) => {
+      const style = CATEGORY_STYLES[node.category] || CATEGORY_STYLES.Suspect;
+      return {
+        id: node.id,
+        name: node.label,
+        category: node.category,
+        avatar: node.avatar || node.properties?.avatar,
+        x: node.x!,
+        y: node.y!,
+        sublabel: node.properties?.role || node.properties?.account_number || node.properties?.phone_number || node.properties?.vehicleNumber || node.category,
+        sublabel2: node.properties?.risk_level ? `Risk: ${node.properties.risk_level}` : '',
+        bgClass: style.bg,
+        borderColor: style.border,
+        properties: node.properties || {},
+      };
+    });
+    return { renderNodes, renderEdges: edges };
+  }
+
+  // 2. Otherwise compute balanced orbital layout for dynamically added/fetched nodes
   const sortedNodes = [...nodes].sort((a, b) => {
-    if (a.properties?.role === 'center' || a.id.includes('tariq') || a.id.includes('kunwar') || a.id.includes('vikram') || a.id.includes('irfan') || a.id.includes('harsh')) return -1;
-    if (b.properties?.role === 'center' || b.id.includes('tariq') || b.id.includes('kunwar') || b.id.includes('vikram') || b.id.includes('irfan') || b.id.includes('harsh')) return 1;
+    if (a.properties?.role === 'center' || a.id.includes('vikram') || a.id.includes('rohit') || a.id.includes('tariq') || a.id.includes('kunwar') || a.id.includes('irfan') || a.id.includes('harsh')) return -1;
+    if (b.properties?.role === 'center' || b.id.includes('vikram') || b.id.includes('rohit') || b.id.includes('tariq') || b.id.includes('kunwar') || b.id.includes('irfan') || b.id.includes('harsh')) return 1;
     return 0;
   });
 
@@ -97,7 +125,7 @@ function computeCleanLayout(
 
   const renderNodes: RenderNode[] = [];
 
-  // 1. Center node (Mastermind)
+  // Center node (Mastermind)
   const centerStyle = CATEGORY_STYLES[centerNode.category] || CATEGORY_STYLES.Suspect;
   renderNodes.push({
     id: centerNode.id,
@@ -113,7 +141,7 @@ function computeCleanLayout(
     properties: centerNode.properties || {},
   });
 
-  // 2. Circular distribution for all connected nodes
+  // Circular distribution for all connected nodes
   const total = orbitingNodes.length;
   const radiusX = Math.min(38, 28 + total * 1.2);
   const radiusY = Math.min(36, 26 + total * 1.1);
@@ -201,27 +229,50 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
       let rawLoadedEdges: any[] = [];
 
       try {
-        const res = await api.knowledgeGraph.getFullGraph(100, selectedCaseId);
-        if (res && res.nodes && res.nodes.length > 0) {
-          rawLoadedNodes = res.nodes;
-          rawLoadedEdges = res.edges || [];
+        if (selectedCaseId && selectedCaseId !== 'ALL') {
+          const res = await api.knowledgeGraph.getFullGraph(100, selectedCaseId);
+          if (
+            res &&
+            res.nodes &&
+            res.nodes.length > 0 &&
+            res.nodes.every(
+              (n: any) =>
+                !n.properties?.case_id ||
+                n.properties.case_id === selectedCaseId ||
+                n.properties.caseId === selectedCaseId
+            )
+          ) {
+            rawLoadedNodes = res.nodes.map((n: any) => {
+              const matchedIntelNode = caseIntel.nodes.find(
+                (cn) => cn.id === n.id || n.id.includes(cn.id) || cn.id.includes(n.id)
+              );
+              return {
+                ...n,
+                x: matchedIntelNode?.x,
+                y: matchedIntelNode?.y,
+              };
+            });
+            rawLoadedEdges = res.edges || [];
+          }
         }
       } catch (e) {
         // Fallback
       }
 
-      if (rawLoadedNodes.length === 0) {
+      if (rawLoadedNodes.length === 0 && caseIntel && caseIntel.nodes && caseIntel.nodes.length > 0) {
         rawLoadedNodes = caseIntel.nodes.map((n) => ({
           id: n.id,
           label: n.label,
           category: n.category,
-          avatar: n.avatar,
+          avatar: (n as any).avatar,
+          x: n.x,
+          y: n.y,
           properties: {
             role: n.sublabel || n.details?.role || n.category,
             risk_level: n.risk,
             riskScore: n.riskScore,
             phone: n.details?.phone,
-            vehicleNumber: n.details?.vehicleNumber,
+            vehicleNumber: (n.details as any)?.vehicleNumber,
             location: n.details?.location,
             notes: n.details?.notes,
             case_id: selectedCaseId,

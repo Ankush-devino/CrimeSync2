@@ -277,6 +277,10 @@ export const GeoIntelligencePage: React.FC<GeoIntelligencePageProps> = ({
       setSelectedCity('ALL');
       return;
     }
+    if (selectedCaseId === 'CASE-2026-010') {
+      setSelectedCity('Jaipur');
+      return;
+    }
     const jur = (selectedCase?.jurisdiction_city || '').toLowerCase();
     if (jur.includes('kolkata') || selectedCaseId === 'CASE-2026-004') {
       setSelectedCity('Kolkata');

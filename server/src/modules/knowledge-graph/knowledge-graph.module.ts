@@ -28,36 +28,35 @@ export class KnowledgeGraphService {
 
     const session = neo4jDriver.session();
     try {
-      let cypher = `MATCH (s)-[r]->(t)
-         RETURN s, r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r) as r_id
-         LIMIT $limit`;
-
       const params: any = { limit: neo4j.int(limit) };
+      let result: any;
 
       if (caseId && caseId !== "ALL") {
-        cypher = `
-          MATCH (c:Case {id: $caseId})
-          OPTIONAL MATCH (s:Suspect)-[r1:IMPLICATED_IN]->(c)
-          OPTIONAL MATCH (s)-[r2]->(t)
-          RETURN s, r2 as r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r2) as r_id
-          LIMIT $limit
-        `;
-        params.caseId = caseId;
-      }
-
-      let result = await session.run(cypher, params);
-
-      // If specific case returned 0 (e.g. initial setup), return case with its direct nodes
-      if (result.records.length === 0 && caseId && caseId !== "ALL") {
-        result = await session.run(
-          `MATCH (s:Suspect)-[r:IMPLICATED_IN]->(c:Case {id: $caseId})
-           RETURN s, r, c as t, elementId(s) as s_id, elementId(c) as t_id, elementId(r) as r_id`,
-          { caseId }
+        // Query specific case nodes & relationships
+        const resultCase = await session.run(
+          `MATCH (s)
+           WHERE s.caseId = $caseId OR s.case_id = $caseId
+           OPTIONAL MATCH (s)-[r]->(t)
+           WHERE t.caseId = $caseId OR t.case_id = $caseId
+           RETURN s, r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r) as r_id
+           LIMIT $limit`,
+          { caseId, limit: neo4j.int(limit) }
         );
-      }
 
-      // Fallback to all nodes if still empty
-      if (result.records.length === 0) {
+        if (resultCase.records.length > 0) {
+          result = resultCase;
+        } else {
+          // Check for legacy IMPLICATED_IN structure
+          const resultImplicated = await session.run(
+            `MATCH (s:Suspect)-[r:IMPLICATED_IN]->(c:Case {id: $caseId})
+             OPTIONAL MATCH (s)-[r2]->(t)
+             RETURN s, r2 as r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r2) as r_id
+             LIMIT $limit`,
+            { caseId, limit: neo4j.int(limit) }
+          );
+          result = resultImplicated;
+        }
+      } else {
         result = await session.run(
           `MATCH (s)-[r]->(t)
            RETURN s, r, t, elementId(s) as s_id, elementId(t) as t_id, elementId(r) as r_id
@@ -79,10 +78,20 @@ export class KnowledgeGraphService {
         const sKey = sNode.properties.id || sNode.properties.account_number || sNode.properties.phone_number || sNode.properties.ip || record.get("s_id");
         const tKey = tNode.properties.id || tNode.properties.account_number || tNode.properties.phone_number || tNode.properties.ip || record.get("t_id");
 
+        const getLabel = (nodeProps: any, fallback: string) => {
+          if (nodeProps.name) return nodeProps.name;
+          if (nodeProps.title) return nodeProps.title;
+          if (nodeProps.holder && nodeProps.bank) return `${nodeProps.bank} (${nodeProps.holder})`;
+          if (nodeProps.holder) return nodeProps.holder;
+          if (nodeProps.accountNumber) return `A/C ${nodeProps.accountNumber}`;
+          if (nodeProps.phone_number) return nodeProps.phone_number;
+          return fallback;
+        };
+
         if (!nodesMap.has(sKey)) {
           nodesMap.set(sKey, {
             id: sKey,
-            label: sNode.properties.name || sNode.properties.title || sKey,
+            label: getLabel(sNode.properties, sKey),
             category: sNode.labels[0] || "Entity",
             properties: sNode.properties,
           });
@@ -91,7 +100,7 @@ export class KnowledgeGraphService {
         if (!nodesMap.has(tKey)) {
           nodesMap.set(tKey, {
             id: tKey,
-            label: tNode.properties.name || tNode.properties.title || tKey,
+            label: getLabel(tNode.properties, tKey),
             category: tNode.labels[0] || "Entity",
             properties: tNode.properties,
           });
