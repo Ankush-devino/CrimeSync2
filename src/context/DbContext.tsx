@@ -57,9 +57,9 @@ export interface DbAuditLog {
   timeOffset: string; // relative offset
   userId: string;
   userName: string;
-  action: 'CASE_OPEN' | 'EVIDENCE_VIEW' | 'FILE_DOWNLOAD' | 'REPORT_EXPORT' | 'BLOCKCHAIN_WRITE' | 'AI_QUERY' | 'TAB_SWITCH' | 'SECURITY_CONTAINMENT' | 'LOGIN';
+  action: 'CASE_OPEN' | 'EVIDENCE_VIEW' | 'FILE_DOWNLOAD' | 'REPORT_EXPORT' | 'BLOCKCHAIN_WRITE' | 'AI_QUERY' | 'TAB_SWITCH' | 'SECURITY_CONTAINMENT' | 'LOGIN' | 'GRAPH_INSPECT' | 'FINANCIAL_AUDIT' | (string & {});
   module: string;
-  category: 'EVIDENCE' | 'CASES' | 'REPORT' | 'SECURITY' | 'BLOCKCHAIN' | 'AI' | 'AUTH' | 'NAVIGATION';
+  category: 'EVIDENCE' | 'CASES' | 'REPORT' | 'SECURITY' | 'BLOCKCHAIN' | 'AI' | 'AUTH' | 'NAVIGATION' | 'GRAPH' | 'FINANCIAL' | (string & {});
   targetId?: string;
   payload: Record<string, any>;
   ipAddress: string;

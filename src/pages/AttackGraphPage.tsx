@@ -72,6 +72,85 @@ export const getTabLabel = (tabId?: string, fallbackModule?: string): string => 
   return tabId || 'Navigation';
 };
 
+export const formatLogActionTitle = (log: DbAuditLog): string => {
+  if (log.action === 'TAB_SWITCH') {
+    return getTabLabel(log.payload?.tabId, log.payload?.tabName || log.module);
+  }
+  if (log.action === 'AI_QUERY') {
+    if (log.payload?.agentName) return log.payload.agentName;
+    if (log.payload?.title) return log.payload.title;
+    return 'AI Sandbox Query';
+  }
+  if (log.action === 'GRAPH_INSPECT') {
+    if (log.payload?.label) return `${log.payload.label}`;
+    return 'Network Node Inspect';
+  }
+  if (log.action === 'CASE_OPEN') {
+    if (log.payload?.firNumber) return `Case #${log.payload.firNumber}`;
+    if (log.payload?.caseTitle) return `${log.payload.caseTitle}`;
+    return `Accessed ${log.targetId || 'Case Dossier'}`;
+  }
+  if (log.action === 'EVIDENCE_VIEW') {
+    if (log.targetId === 'EV-9999' || log.payload?.isHoneyDecoy) {
+      return 'Honey Decoy EV9999';
+    }
+    if (log.payload?.title) return log.payload.title;
+    if (log.payload?.label) return `${log.payload.label}`;
+    return `Viewed ${log.targetId || 'Exhibit'}`;
+  }
+  if (log.action === 'LOGIN') {
+    return 'Session Ingress';
+  }
+  if (log.action === 'REPORT_EXPORT' || log.action === 'FILE_DOWNLOAD') {
+    return log.severity === 'CONTAINED' ? 'Export Intercepted' : 'Export Dossier';
+  }
+  if (log.action === 'SECURITY_CONTAINMENT' || log.severity === 'CONTAINED') {
+    return 'Autonomous Lock';
+  }
+  if (log.action === 'BLOCKCHAIN_WRITE') {
+    return 'Blockchain Hash Sign';
+  }
+  if (log.action === 'FINANCIAL_AUDIT') {
+    return log.payload?.title || 'Hawala Ledger Audit';
+  }
+  return log.payload?.title || log.module || log.action;
+};
+
+export const formatLogActionSummary = (log: DbAuditLog): string => {
+  if (log.payload?.details) {
+    return log.payload.details;
+  }
+  if (log.action === 'TAB_SWITCH') {
+    const tabName = getTabLabel(log.payload?.tabId, log.payload?.tabName || log.module);
+    return `Officer navigated to ${tabName} interface`;
+  }
+  if (log.action === 'AI_QUERY') {
+    const name = log.payload?.agentName || 'AI Agent';
+    const caseRef = log.payload?.firNumber ? ` on Case #${log.payload.firNumber}` : '';
+    return `Executed ${name}${caseRef}: Scanned financial ledger & flagged anomalies`;
+  }
+  if (log.action === 'GRAPH_INSPECT') {
+    const label = log.payload?.label || 'entity';
+    const cat = log.payload?.category ? ` (${log.payload.category})` : '';
+    return `Inspected ${label}${cat} and explored syndicate network graph links`;
+  }
+  if (log.action === 'CASE_OPEN') {
+    const fir = log.payload?.firNumber || log.targetId || 'Active Case';
+    const count = log.payload?.nodeCount ? ` (${log.payload.nodeCount} entities)` : '';
+    return `Audited Case #${fir}${count} dossier, evidence manifest & suspect links`;
+  }
+  if (log.action === 'EVIDENCE_VIEW') {
+    if (log.targetId === 'EV-9999' || log.payload?.isHoneyDecoy) {
+      return '🚨 Unauthorized access to classified Swiss Hawala decoy EV-9999 sprung honey tripwire';
+    }
+    return `Verified SHA-256 digital fingerprint & blockchain integrity for ${log.targetId || 'Exhibit'}`;
+  }
+  if (log.payload?.title) {
+    return log.payload.title;
+  }
+  return log.action;
+};
+
 export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction }) => {
   const {
     auditLogs,
@@ -97,55 +176,43 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
 
     sortedLogs.forEach((log) => {
       let iconType: DynamicGraphNode['iconType'] = 'evidence';
-      let title: string = log.action;
+      let title: string = formatLogActionTitle(log);
       let category: string = log.category;
 
       if (log.action === 'LOGIN') {
         iconType = 'login';
-        title = 'Session Ingress';
         category = 'INGRESS';
       } else if (log.action === 'TAB_SWITCH') {
         const tabKey = log.payload?.tabId || log.targetId || '';
         const tabInfo = TAB_LABELS[tabKey];
-        if (tabInfo) {
-          title = tabInfo.title;
-          category = tabInfo.category;
-          iconType = tabInfo.iconType;
-        } else {
-          title = getTabLabel(tabKey, log.payload?.tabName || log.module);
-          category = 'NAVIGATION';
-          iconType = 'case';
-        }
+        category = tabInfo?.category || 'NAVIGATION';
+        iconType = tabInfo?.iconType || 'case';
+      } else if (log.action === 'AI_QUERY') {
+        iconType = 'case';
+        category = 'AI_LAB';
+      } else if (log.action === 'GRAPH_INSPECT') {
+        iconType = 'case';
+        category = 'GRAPH';
       } else if (log.action === 'CASE_OPEN') {
         iconType = 'case';
-        title = `Accessed ${log.targetId || 'Case'}`;
         category = 'RECON';
       } else if (log.action === 'EVIDENCE_VIEW') {
         if (log.targetId === 'EV-9999' || log.payload?.isHoneyDecoy) {
           iconType = 'honey';
-          title = 'Honey Decoy EV9999';
           category = 'TRIPWIRE';
         } else {
           iconType = 'evidence';
-          title = `Viewed ${log.targetId || 'Exhibit'}`;
           category = 'EVIDENCE';
         }
       } else if (log.action === 'REPORT_EXPORT' || log.action === 'FILE_DOWNLOAD') {
         iconType = 'export';
-        title = log.severity === 'CONTAINED' ? 'Export Intercepted' : 'Export Attempt';
         category = 'EXFILTRATION';
       } else if (log.action === 'SECURITY_CONTAINMENT' || log.severity === 'CONTAINED') {
         iconType = 'containment';
-        title = 'Autonomous Lock';
         category = 'CONTAINMENT';
       }
 
-      let summaryText = log.payload?.title || log.payload?.details || log.action;
-      if (log.action === 'TAB_SWITCH') {
-        const tabKey = log.payload?.tabId || log.targetId || '';
-        const label = getTabLabel(tabKey, log.payload?.tabName || log.module);
-        summaryText = `Navigated to ${label}`;
-      }
+      const summaryText = formatLogActionSummary(log);
 
       nodes.push({
         id: log.id,
@@ -239,12 +306,14 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
     if (!searchFilter.trim()) return auditLogs;
     const q = searchFilter.toLowerCase();
     return auditLogs.filter((l) => {
-      const tabLabel = l.action === 'TAB_SWITCH' ? getTabLabel(l.payload?.tabId, l.payload?.tabName || l.module) : '';
+      const title = formatLogActionTitle(l).toLowerCase();
+      const summary = formatLogActionSummary(l).toLowerCase();
       return (
         l.action.toLowerCase().includes(q) ||
         l.module.toLowerCase().includes(q) ||
         l.userName.toLowerCase().includes(q) ||
-        tabLabel.toLowerCase().includes(q)
+        title.includes(q) ||
+        summary.includes(q)
       );
     });
   }, [auditLogs, searchFilter]);
@@ -496,9 +565,7 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                   <div>
                     <span className="text-[10px] text-slate-400 block uppercase">ACTION TYPE</span>
                     <strong className="text-white text-sm">
-                      {activeSelectedNode.rawLog.action === 'TAB_SWITCH'
-                        ? `[TAB] ${getTabLabel(activeSelectedNode.rawLog.payload?.tabId, activeSelectedNode.rawLog.payload?.tabName || activeSelectedNode.rawLog.module)}`
-                        : `\`${activeSelectedNode.rawLog.action}\``}
+                      {formatLogActionTitle(activeSelectedNode.rawLog)}
                     </strong>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
@@ -512,6 +579,16 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                   }`}>
                     {activeSelectedNode.rawLog.verdict}
                   </span>
+                </div>
+
+                {/* Prominent Activity Summary Card */}
+                <div className="p-3 rounded-xl bg-[#040a1b] border border-blue-500/30">
+                  <span className="text-cyan-400 text-[9px] uppercase block font-bold tracking-wider mb-1">
+                    🎯 User Activity Description
+                  </span>
+                  <p className="text-slate-100 text-xs font-sans leading-relaxed">
+                    {activeSelectedNode.summary}
+                  </p>
                 </div>
 
                 {/* Details Grid */}
@@ -609,10 +686,8 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                   const isWarn = log.severity === 'SUSPICIOUS';
                   const isContain = log.severity === 'CONTAINED';
                   const isSelected = activeSelectedNode?.id === log.id;
-                  const isTabSwitch = log.action === 'TAB_SWITCH';
-                  const tabLabel = isTabSwitch
-                    ? getTabLabel(log.payload?.tabId, log.payload?.tabName || log.module)
-                    : null;
+                  const actionTitle = formatLogActionTitle(log);
+                  const actionSummary = formatLogActionSummary(log);
 
                   return (
                     <div
@@ -630,19 +705,23 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                           : 'bg-[#030916] border-slate-800 hover:border-slate-700'
                       }`}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">
                           {log.displayTime}
                         </span>
-                        <span className={`px-1.5 py-0.2 rounded border font-bold text-[10px] ${
-                          isTabSwitch
+                        <span className={`px-1.5 py-0.2 rounded border font-bold text-[10px] whitespace-nowrap ${
+                          log.action === 'TAB_SWITCH'
                             ? 'bg-indigo-950/80 border-indigo-500/40 text-indigo-300'
+                            : log.action === 'AI_QUERY'
+                            ? 'bg-cyan-950/80 border-cyan-500/40 text-cyan-300'
+                            : log.action === 'GRAPH_INSPECT'
+                            ? 'bg-purple-950/80 border-purple-500/40 text-purple-300'
                             : 'bg-[#02050e] border-slate-700 text-cyan-300'
                         }`}>
-                          {isTabSwitch ? tabLabel : log.action}
+                          {actionTitle}
                         </span>
-                        <span className="text-slate-300 text-[11px] truncate">
-                          {isTabSwitch ? `Navigated to ${tabLabel}` : log.module}
+                        <span className="text-slate-300 text-[11px] truncate font-sans" title={actionSummary}>
+                          {actionSummary}
                         </span>
                       </div>
 

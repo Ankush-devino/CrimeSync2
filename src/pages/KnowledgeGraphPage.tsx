@@ -34,6 +34,7 @@ import { api } from '../services/api';
 import { ALL_CASES, getCaseById, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 import { useAuth } from '../context/AuthContext';
+import { useAuditLog } from '../hooks/useAuditLog';
 import { getActiveCaseIntelligence } from '../data/activeCaseNetworks';
 
 interface KnowledgeGraphPageProps {
@@ -144,6 +145,7 @@ function computeCleanLayout(
 export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelectAction }) => {
   const { selectedCaseId, selectedCase } = useCaseContext();
   const { currentUser, permissions } = useAuth();
+  const { logEvent } = useAuditLog();
   const [nodes, setNodes] = useState<RenderNode[]>([]);
   const [rawNodes, setRawNodes] = useState<Array<{ id: string; label: string; category: string; avatar?: string; properties: any }>>([]);
   const [edges, setEdges] = useState<RenderEdge[]>([]);
@@ -166,6 +168,29 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const activeCase: LawCase = getCaseById(selectedCaseId);
+
+  const handleSelectNode = (node: RenderNode) => {
+    setSelectedNode(node);
+    logEvent(
+      'GRAPH_INSPECT',
+      {
+        nodeId: node.id,
+        label: node.name,
+        category: node.category,
+        sublabel: node.sublabel,
+        caseId: selectedCaseId,
+        title: node.name,
+      },
+      {
+        module: 'Knowledge Graph',
+        category: 'GRAPH',
+        details: `Inspected ${node.category} entity "${node.name}" (${node.sublabel || node.category}) in Knowledge Graph`,
+      }
+    );
+    if (onSelectAction) {
+      onSelectAction(`Knowledge Graph: Inspected ${node.name} (${node.category})`);
+    }
+  };
 
   const loadGraphData = useCallback(async () => {
     try {
@@ -217,12 +242,28 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
       setNodes(layout.renderNodes);
       setEdges(layout.renderEdges);
       setSelectedNode(layout.renderNodes[0] || null);
+
+      logEvent(
+        'CASE_OPEN',
+        {
+          caseId: selectedCaseId,
+          firNumber: selectedCase?.fir_number || activeCase?.fir_number,
+          caseTitle: activeCase?.title || 'Case Network',
+          nodeCount: rawLoadedNodes.length,
+          title: `Case Network: ${activeCase?.title || selectedCaseId}`,
+        },
+        {
+          module: 'Knowledge Graph',
+          category: 'CASES',
+          details: `Explored network graph for Case #${activeCase?.fir_number || selectedCaseId} (${rawLoadedNodes.length} connected entities & suspects)`,
+        }
+      );
     } catch (err) {
       console.warn('Live graph load error:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCaseId, selectedCase]);
+  }, [selectedCaseId, selectedCase, activeCase?.title, activeCase?.fir_number, logEvent]);
 
   useEffect(() => {
     loadGraphData();
@@ -552,7 +593,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
                   >
                     {/* Inner: all visual styles, no positioning */}
                     <div
-                      onClick={() => setSelectedNode(node)}
+                      onClick={() => handleSelectNode(node)}
                       className={`cursor-pointer p-2.5 rounded-xl border-2 flex flex-col items-center text-center shadow-lg ${node.bgClass} ${node.borderColor} ${isSelected ? 'ring-4 ring-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.8)]' : ''}`}
                     >
                       <div className="pointer-events-none select-none flex flex-col items-center text-center w-full">

@@ -28,6 +28,7 @@ import {
 import { api } from '../services/api';
 import { type LawCase, getCaseById, ALL_CASES } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 interface AiAgentSandboxPageProps {
   onSelectAction?: (action: string) => void;
@@ -46,6 +47,7 @@ interface AgentCard {
 }
 
 export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelectAction }) => {
+  const { logEvent } = useAuditLog();
   const { selectedCaseId, cases } = useCaseContext();
   const [caseContext, setCaseContext] = useState<any>(null);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
@@ -151,6 +153,27 @@ export const AiAgentSandboxPage: React.FC<AiAgentSandboxPageProps> = ({ onSelect
   const handleRunAgent = async (agent: AgentCard) => {
     setActiveAgentId(agent.id);
     setIsRunning(true);
+
+    logEvent(
+      'AI_QUERY',
+      {
+        agentId: agent.id,
+        agentName: agent.name,
+        category: agent.category,
+        caseId: selectedCaseId,
+        firNumber: activeCase.fir_number,
+        title: agent.name,
+      },
+      {
+        module: 'AI Sandbox',
+        category: 'AI',
+        details: `Ran ${agent.name} on Case #${activeCase.fir_number}: Scanned financial ledger & flagged Hawala loops`,
+      }
+    );
+
+    if (onSelectAction) {
+      onSelectAction(`AI Sandbox: Executed ${agent.name} (${agent.category})`);
+    }
 
     try {
       const res = await api.ai.executeAgentAction(agent.id, agent.id, selectedCaseId, selectedCaseId);
