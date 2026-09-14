@@ -800,7 +800,7 @@ export const FinancialIntelligencePage: React.FC<FinancialIntelligencePageProps>
                         onMouseEnter={() => setHoveredNode(node.id)}
                         onMouseLeave={() => setHoveredNode(null)}
                         style={{ left: `${node.x}px`, top: `${node.y}px` }}
-                        className={`absolute z-10 w-[210px] p-3 rounded-xl border-2 cursor-pointer transition-colors duration-150 hover:brightness-120 hover:drop-shadow-[0_0_18px_rgba(59,130,246,0.4)] ${nodeColor} ${
+                        className={`graph-interactive-node absolute z-10 w-[210px] p-3 rounded-xl border-2 cursor-pointer transition-colors duration-150 hover:brightness-120 hover:drop-shadow-[0_0_18px_rgba(59,130,246,0.4)] ${nodeColor} ${
                           isSelected ? 'ring-2 ring-white shadow-2xl z-30' : ''
                         }`}
                       >

@@ -82,8 +82,8 @@ export const ThreatAlert: React.FC<ThreatAlertProps> = ({
                   Select Threat Case ({compromisedCases.length})
                 </option>
                 {compromisedCases.map((c: AnalysisResult) => (
-                  <option key={c.id} value={c.id} className="bg-slate-900 text-slate-200 py-1">
-                    [{c.firNumber || c.id}] {c.suspectName} ({c.confidenceScore || 99}% Risk)
+                  <option key={c.id} value={c.id} className="bg-red-600 text-white font-bold py-1.5">
+                    🚨 [{c.firNumber || c.id}] {c.suspectName} ({c.confidenceScore || 99}% Risk)
                   </option>
                 ))}
               </>

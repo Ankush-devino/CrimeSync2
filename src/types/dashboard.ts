@@ -69,7 +69,10 @@ export type DecoyType =
   | 'stego_media' 
   | 'iam_credential';
 
-export type DecoyStatus = 'ARMED' | 'TRIPPED' | 'ENGAGED' | 'ISOLATED' | 'MAINTENANCE';
+export type { AccessLog, CompromisedFile } from './fir';
+import type { AccessLog, CompromisedFile } from './fir';
+
+export type DecoyAccessLog = AccessLog;
 
 export interface DeceptionAsset {
   id: string;
@@ -82,9 +85,12 @@ export interface DeceptionAsset {
   targetFolder: string;
   accessCount: number;
   lastTriggered?: string;
+  accessedBy?: string;
+  accessTimestamp?: string;
+  accessLogs?: DecoyAccessLog[];
   stegoWatermarkId?: string;
   fingerprintHash: string;
-  fakePayloadPreview: string;
+  fakePayloadPreview?: string;
   radarX: number; // percentage in radar coordinate system
   radarY: number; // percentage in radar coordinate system
   sensitivity: 'Low' | 'Standard' | 'Ultra-High';

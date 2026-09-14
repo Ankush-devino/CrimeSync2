@@ -337,22 +337,20 @@ select {
 /* Button & Action Hover Lift & Ambient Glow */
 button:hover:not(:disabled),
 [role="button"]:hover:not(:disabled),
-a.cursor-pointer:hover,
-.cursor-pointer:hover:not(.no-hover):not(tbody tr) {
+a.cursor-pointer:hover {
   transform: translateY(-2px);
 }
 
 /* Active Press State */
 button:active:not(:disabled),
 [role="button"]:active:not(:disabled),
-.cursor-pointer:active:not(.no-hover) {
+a.cursor-pointer:active {
   transform: translateY(0px) scale(0.96) !important;
 }
 
 /* 2. Interactive SVG Icons inside buttons/cards */
 button:hover:not(:disabled) svg,
 [role="button"]:hover:not(:disabled) svg,
-.group:hover .group-hover\:scale-110,
 .cyber-card:hover .card-icon {
   transform: scale(1.1);
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -378,8 +376,6 @@ aside button:hover svg {
 
 /* 4. Interactive Cards, Widgets & Metric Tiles */
 .cyber-card.cursor-pointer:hover,
-[class*="rounded-2xl"].cursor-pointer:hover,
-[class*="rounded-xl"].cursor-pointer:hover,
 .interactive-card:hover {
   transform: translateY(-4px) scale(1.008) !important;
   box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.45), 0 0 20px rgba(56, 189, 248, 0.25) !important;
@@ -426,30 +422,47 @@ select:focus {
 }
 
 /* 7. Interactive Badges, Pills & Status Tags */
-.badge-interactive,
-[class*="rounded-full"].cursor-pointer {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
-              box-shadow 0.2s ease,
+.badge-interactive {
+  transition: box-shadow 0.2s ease,
               filter 0.2s ease !important;
 }
 
-.badge-interactive:hover,
-[class*="rounded-full"].cursor-pointer:hover {
-  transform: scale(1.08) translateY(-1px) !important;
+.badge-interactive:hover {
   filter: brightness(1.15) !important;
 }
 
-/* 8. Graph Interactive Nodes Hover Pulse & Scale */
-.graph-interactive-node {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
-              filter 0.25s ease !important;
+/* 8. Graph Interactive Nodes Hover Feedback (ZERO Scale / Physics Shift) */
+.graph-interactive-node,
+.graph-node,
+[data-graph-node] {
+  transition: filter 0.15s ease !important;
   cursor: pointer !important;
 }
 
-.graph-interactive-node:hover {
-  transform: scale(1.22) !important;
-  filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.8)) !important;
+.graph-interactive-node:hover,
+.graph-node:hover,
+[data-graph-node]:hover,
+svg .cursor-pointer:hover,
+.nodes-layer circle.cursor-pointer:hover {
+  transform: none !important;
+  filter: brightness(1.25) drop-shadow(0 0 12px rgba(0, 240, 255, 0.7)) !important;
   z-index: 50 !important;
+}
+
+/* Strict Global Graph Node Protection - Absolute Zero Hover Physics Conflicts */
+svg *,
+.graph-node,
+.graph-interactive-node,
+[data-graph-node],
+.nodes-layer * {
+  transform-box: view-box;
+}
+
+svg *:hover,
+.graph-node:hover,
+.graph-interactive-node:hover,
+[data-graph-node]:hover {
+  transform: none !important;
 }
 
 /* ==========================================================================

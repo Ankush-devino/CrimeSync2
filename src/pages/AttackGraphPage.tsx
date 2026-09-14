@@ -470,7 +470,7 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                   <div
                     key={node.id}
                     onClick={() => setSelectedNodeId(node.id)}
-                    className={`relative z-10 flex flex-col items-center cursor-pointer w-24 sm:w-32 transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_16px_rgba(6,182,212,0.5)] ${
+                    className={`graph-interactive-node relative z-10 flex flex-col items-center cursor-pointer w-24 sm:w-32 transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_16px_rgba(6,182,212,0.5)] ${
                       !isVisible ? 'pointer-events-none' : ''
                     }`}
                   >

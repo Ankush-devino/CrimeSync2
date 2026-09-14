@@ -40,7 +40,7 @@ import {
 } from '../data/mockData';
 import { printCourtDossier } from '../utils/courtDossierPrinter';
 import { buildDossierForCase } from '../services/dossierService';
-import { ALL_CASES } from '../constants/cases';
+import { ALL_CASES, type LawCase } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 import { CaseSelector } from '../components/CaseSelector';
 import type {
@@ -49,6 +49,8 @@ import type {
   DecoyType,
   DecoyStatus,
   Severity,
+  CompromisedFile,
+  AccessLog,
 } from '../types/dashboard';
 
 // Registry of case-tailored deception assets & incidents
@@ -66,6 +68,12 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: '/vault/evidence/scada_telemetry/mumbai_grid/',
         accessCount: 5,
         lastTriggered: '11:14 PM (Today)',
+        accessedBy: 'SI-7740 (SI Vikramaditya Reddy)',
+        accessTimestamp: '2026-09-14 23:14:02 IST',
+        accessLogs: [
+          { user: 'SI Vikramaditya Reddy (SI-7740)', timestamp: '2026-09-14 23:14:02 IST', role: 'Investigative Officer', ip: '115.242.18.94', action: 'OFF_GRID_FILE_DOWNLOAD' },
+          { user: 'SI Vikramaditya Reddy (SI-7740)', timestamp: '2026-09-14 23:12:15 IST', role: 'Investigative Officer', ip: '115.242.18.94', action: 'AUTH_KEY_REQUEST' },
+        ],
         stegoWatermarkId: 'STG-TARIQ-4491-Z',
         fingerprintHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
         fakePayloadPreview: 'FABRICATED: Contains fake Modbus TCP/502 register addresses and dummy Kalwa grid substation breaker IDs.',
@@ -85,6 +93,12 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: 'db.crimesync.internal/scada_dispatch/staging',
         accessCount: 14,
         lastTriggered: '11:22 PM (Today)',
+        accessedBy: 'EXT-ADVERSARY-99 (194.26.29.112)',
+        accessTimestamp: '2026-09-14 23:22:18 IST',
+        accessLogs: [
+          { user: 'EXT-ADVERSARY-99 (194.26.29.112)', timestamp: '2026-09-14 23:22:18 IST', role: 'External APT Actor', ip: '194.26.29.112', action: 'SQLI_TELEMETRY_DUMP' },
+          { user: 'EXT-ADVERSARY-99 (194.26.29.112)', timestamp: '2026-09-14 23:21:04 IST', role: 'External APT Actor', ip: '194.26.29.112', action: 'MODBUS_PORT_PROBE' },
+        ],
         fingerprintHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
         fakePayloadPreview: 'GHOST SCHEMA: 8 simulated transformer load feeds with decoy telemetry commands matching CVE-2026-8812.',
         radarX: 68,
@@ -102,6 +116,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '15 Aug 2026',
         targetFolder: '.aws/credentials on Tariq Workstation',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         fingerprintHash: '7b91d90a980998f4803b91a7889ff0189d98e8432a9010049281a8c9098711ef',
         fakePayloadPreview: 'CANARY TOKEN: AKIA99POWERGRID2026. Trips AWS CloudWatch Canary immediately upon STS GetCallerIdentity.',
         radarX: 78,
@@ -120,6 +137,11 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: '/intelligence/telecom_dumps/mumbai_bkc/',
         accessCount: 3,
         lastTriggered: '10:55 PM (Today)',
+        accessedBy: 'SI-4091 (Inspector Priya Kulkarni)',
+        accessTimestamp: '2026-09-14 22:55:10 IST',
+        accessLogs: [
+          { user: 'Inspector Priya Kulkarni (SI-4091)', timestamp: '2026-09-14 22:55:10 IST', role: 'Cyber Intelligence Inspector', ip: '10.240.4.18', action: 'DIRECT_CDR_DOWNLOAD' },
+        ],
         stegoWatermarkId: 'STG-MUM-9912-Q',
         fingerprintHash: '1a90c298018ef902b4890c91823abce809182470129a01f98109340982481023',
         fakePayloadPreview: 'SPOOFED CDR: 42 fake burner calls mapped to honey BTS towers in Bandra-Kurla Complex with geo-beacon webhooks.',
@@ -138,6 +160,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '20 Aug 2026',
         targetFolder: 'API Gateway / SCADA Mesh',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         fingerprintHash: '8910492810a9c8012894b91029381029c0192840192834019283401928340192',
         fakePayloadPreview: 'SYNTHETIC PACKETS: Emits simulated DNP3/Modbus packet streams to detect unauthorized network sniffers.',
         radarX: 52,
@@ -155,6 +180,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '27 Aug 2026',
         targetFolder: '/evidence/cctv_vault/mumbai_grid/',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         stegoWatermarkId: 'STG-CCTV-002-MUM',
         fingerprintHash: '9840192834019283401928340192834019283401928340192834019283401928',
         fakePayloadPreview: 'STEGANOGRAPHIC VIDEO: High-bitrate 1080p surveillance video with embedded zero-width steganographic officer watermarks.',
@@ -226,6 +254,12 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: '/vault/evidence/confidential/delhi-syndicate/',
         accessCount: 6,
         lastTriggered: '10:21 PM (Today)',
+        accessedBy: 'ACP-23 (ACP Rajeshwar Sharma)',
+        accessTimestamp: '2026-09-14 22:21:45 IST',
+        accessLogs: [
+          { user: 'ACP Rajeshwar Sharma (ACP-23)', timestamp: '2026-09-14 22:21:45 IST', role: 'Supervisory Officer', ip: '10.240.8.21', action: 'LOCAL_EXPORT' },
+          { user: 'ACP Rajeshwar Sharma (ACP-23)', timestamp: '2026-09-14 22:19:10 IST', role: 'Supervisory Officer', ip: '10.240.8.21', action: 'DIRECT_FILE_OPEN' },
+        ],
         stegoWatermarkId: 'STG-ACP23-9981-Z',
         fingerprintHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
         fakePayloadPreview: 'FABRICATED: Contains fake swiss banking swift routes and dummy safehouse coordinates in Connaught Place.',
@@ -245,6 +279,11 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: 'db.crimesync.internal/banking_lake/staging',
         accessCount: 12,
         lastTriggered: '10:36 PM (Today)',
+        accessedBy: 'EXT-ADVERSARY-99 (194.26.29.112)',
+        accessTimestamp: '2026-09-14 22:36:12 IST',
+        accessLogs: [
+          { user: 'EXT-ADVERSARY-99 (194.26.29.112)', timestamp: '2026-09-14 22:36:12 IST', role: 'External APT Actor', ip: '194.26.29.112', action: 'SQL_ENUMERATION' },
+        ],
         fingerprintHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
         fakePayloadPreview: 'GHOST SCHEMA: 14 fake bank accounts containing decoy INR balances tied to synthetic PAN numbers.',
         radarX: 72,
@@ -262,6 +301,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '15 Aug 2026',
         targetFolder: '.aws/credentials on Investigator Workstations',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         fingerprintHash: '7b91d90a980998f4803b91a7889ff0189d98e8432a9010049281a8c9098711ef',
         fakePayloadPreview: 'CANARY TOKEN: AKIA99HONEYCRIME2026. Trips AWS CloudWatch Canary immediately upon STS GetCallerIdentity.',
         radarX: 82,
@@ -280,6 +322,11 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: '/intelligence/telecom_dumps/south_delhi/',
         accessCount: 2,
         lastTriggered: '10:28 PM (Today)',
+        accessedBy: 'SI-17 (SI Aman Khan)',
+        accessTimestamp: '2026-09-14 22:28:04 IST',
+        accessLogs: [
+          { user: 'SI Aman Khan (SI-17)', timestamp: '2026-09-14 22:28:04 IST', role: 'Investigative Sub-Inspector', ip: '10.240.6.14', action: 'FILE_STREAM_READ' },
+        ],
         stegoWatermarkId: 'STG-INS17-4402-Q',
         fingerprintHash: '1a90c298018ef902b4890c91823abce809182470129a01f98109340982481023',
         fakePayloadPreview: 'SPOOFED CDR: 35 fake burner calls mapped to honey BTS towers in Chandni Chowk with geo-beacon webhooks.',
@@ -298,6 +345,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '20 Aug 2026',
         targetFolder: 'API Gateway / Internal Routing Mesh',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         fingerprintHash: '8910492810a9c8012894b91029381029c0192840192834019283401928340192',
         fakePayloadPreview: 'SYNTHETIC AUDIO: Generates simulated VOIP raw pings to identify unauthorized packet sniffing within HQ LAN.',
         radarX: 48,
@@ -315,6 +365,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '27 Aug 2026',
         targetFolder: '/evidence/cctv_vault/karol_bagh/',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         stegoWatermarkId: 'STG-CCTV-8819-B',
         fingerprintHash: '9840192834019283401928340192834019283401928340192834019283401928',
         fakePayloadPreview: 'STEGANOGRAPHIC VIDEO: High-bitrate 1080p surveillance video with embedded zero-width steganographic officer watermarks.',
@@ -363,6 +416,11 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: '/vault/evidence/deceptive_firs/chennai_cyber/',
         accessCount: 8,
         lastTriggered: '09:44 PM (Today)',
+        accessedBy: 'SYS-AUTOBOT (Automated Ingestion Script #CHE-99)',
+        accessTimestamp: '2026-09-14 21:44:19 IST',
+        accessLogs: [
+          { user: 'Automated Bot #CHE-99 (SYS-AUTOBOT)', timestamp: '2026-09-14 21:44:19 IST', role: 'Scraper Bot', ip: '185.220.101.5', action: 'API_INJECTION_ATTEMPT' },
+        ],
         stegoWatermarkId: 'STG-PHANTOM-0947-X',
         fingerprintHash: '9a01f82710381029384710293847102938471029384710293847102938471029',
         fakePayloadPreview: 'FABRICATED: Synthetic biometric IRIS hash and forged Connaught Place FIR narrative generated via AI hallucination.',
@@ -382,6 +440,11 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: 'db.crimesync.internal/uidai_cache/staging',
         accessCount: 9,
         lastTriggered: '09:50 PM (Today)',
+        accessedBy: 'EXT-PROBE-88 (185.220.101.5 Tor)',
+        accessTimestamp: '2026-09-14 21:50:33 IST',
+        accessLogs: [
+          { user: 'EXT-PROBE-88 (185.220.101.5 Tor)', timestamp: '2026-09-14 21:50:33 IST', role: 'Anonymous Prober', ip: '185.220.101.5', action: 'DATABASE_QUERY' },
+        ],
         fingerprintHash: '8b91a7889ff0189d98e8432a9010049281a8c9098711ef4f53cda18c2baa0c03',
         fakePayloadPreview: 'GHOST SCHEMA: Decoy Aadhaar terminal scan logs showing Mumbai BKC terminal vs Delhi timestamp conflict.',
         radarX: 66,
@@ -399,6 +462,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '27 Aug 2026',
         targetFolder: '.aws/credentials on CCTNS Gateway Node',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         fingerprintHash: '1a90c298018ef902b4890c91823abce809182470129a01f98109340982481023',
         fakePayloadPreview: 'CANARY TOKEN: AKIA99JUDICIAL2026. Alerts judicial compliance cell upon unauthorized PUT to Section 65B manifest.',
         radarX: 80,
@@ -417,6 +483,11 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         targetFolder: '/intelligence/telecom_dumps/chennai_hyderabad/',
         accessCount: 4,
         lastTriggered: '09:30 PM (Today)',
+        accessedBy: 'SI-9941 (SI Satyakiran)',
+        accessTimestamp: '2026-09-14 21:30:12 IST',
+        accessLogs: [
+          { user: 'SI Satyakiran (SI-9941)', timestamp: '2026-09-14 21:30:12 IST', role: 'Investigative Officer', ip: '10.240.9.11', action: 'DIRECT_CDR_DOWNLOAD' },
+        ],
         stegoWatermarkId: 'STG-CHE-0947-P',
         fingerprintHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
         fakePayloadPreview: 'SPOOFED CDR: 52 simulated cell tower handoffs along Chennai-Hyderabad corridor with kinematic speed violations.',
@@ -435,6 +506,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '28 Aug 2026',
         targetFolder: 'API Gateway / Doppelgänger Ingestion Mesh',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         fingerprintHash: '7b91d90a980998f4803b91a7889ff0189d98e8432a9010049281a8c9098711ef',
         fakePayloadPreview: 'SYNTHETIC INGESTION: Detects automated bot injections of hallucinated FIR narratives into live database.',
         radarX: 50,
@@ -452,6 +526,9 @@ const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incide
         deploymentDate: '28 Aug 2026',
         targetFolder: '/evidence/cctv_vault/biometric_audit/',
         accessCount: 0,
+        accessedBy: 'None (Armed & Pristine)',
+        accessTimestamp: 'N/A',
+        accessLogs: [],
         stegoWatermarkId: 'STG-CCTV-0947-BKC',
         fingerprintHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
         fakePayloadPreview: 'STEGANOGRAPHIC VIDEO: High-bitrate CCTV footage of suspect Vikramaditya Sen at Mumbai terminal with biometric watermark.',
@@ -520,6 +597,12 @@ function getCaseDeceptionAssetsAndIncidents(caseId: string, caseObj?: any): { as
       targetFolder: `/vault/evidence/confidential/${caseId.toLowerCase()}/`,
       accessCount: 4,
       lastTriggered: '10:45 PM (Today)',
+      accessedBy: `EXT-ADVERSARY-99 (Unregistered IP)`,
+      accessTimestamp: '2026-09-14 22:45:10 IST',
+      accessLogs: [
+        { user: 'EXT-ADVERSARY-99 (Unregistered IP)', timestamp: '2026-09-14 22:45:10 IST', role: 'External Actor', ip: '115.242.18.94', action: 'DIRECT_DOSSIER_READ' },
+        { user: 'OFFICER-PROBE (#9941)', timestamp: '2026-09-14 22:40:02 IST', role: 'Terminal Operator', ip: '10.240.8.214', action: 'METADATA_PROBE' },
+      ],
       stegoWatermarkId: `STG-${cleanSuspect.slice(0, 8)}-9912-Z`,
       fingerprintHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
       fakePayloadPreview: `FABRICATED: Contains synthetic ledger accounts and dummy safehouse coordinates for ${suspect} in ${city}.`,
@@ -539,6 +622,11 @@ function getCaseDeceptionAssetsAndIncidents(caseId: string, caseObj?: any): { as
       targetFolder: `db.crimesync.internal/${caseId.toLowerCase()}/staging`,
       accessCount: 11,
       lastTriggered: '10:52 PM (Today)',
+      accessedBy: `OFFICER-PROBE (#9941 ${city})`,
+      accessTimestamp: '2026-09-14 22:52:40 IST',
+      accessLogs: [
+        { user: `OFFICER-PROBE (#9941 ${city})`, timestamp: '2026-09-14 22:52:40 IST', role: 'Station Terminal', ip: '10.240.8.214', action: 'SQL_BULK_DUMP' },
+      ],
       fingerprintHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
       fakePayloadPreview: `GHOST SCHEMA: 12 fake transactions linked to ${suspect} with decoy balances to attract unauthorized queries.`,
       radarX: 68,
@@ -556,6 +644,9 @@ function getCaseDeceptionAssetsAndIncidents(caseId: string, caseObj?: any): { as
       deploymentDate: '15 Aug 2026',
       targetFolder: `.aws/credentials on Investigator Workstations`,
       accessCount: 0,
+      accessedBy: 'None (Armed & Pristine)',
+      accessTimestamp: 'N/A',
+      accessLogs: [],
       fingerprintHash: '7b91d90a980998f4803b91a7889ff0189d98e8432a9010049281a8c9098711ef',
       fakePayloadPreview: `CANARY TOKEN: AKIA99${cleanSuspect.slice(0, 6)}2026. Trips CloudWatch Canary immediately upon STS GetCallerIdentity.`,
       radarX: 78,
@@ -574,6 +665,11 @@ function getCaseDeceptionAssetsAndIncidents(caseId: string, caseObj?: any): { as
       targetFolder: `/intelligence/telecom_dumps/${city.toLowerCase().replace(/[^a-z0-9]/g, '_')}/`,
       accessCount: 2,
       lastTriggered: '10:18 PM (Today)',
+      accessedBy: `SI-4091 (Inspector Priya Kulkarni)`,
+      accessTimestamp: '2026-09-14 22:18:22 IST',
+      accessLogs: [
+        { user: 'Inspector Priya Kulkarni (SI-4091)', timestamp: '2026-09-14 22:18:22 IST', role: 'Investigative Officer', ip: '10.240.4.18', action: 'DIRECT_FILE_DOWNLOAD' },
+      ],
       stegoWatermarkId: `STG-CDR-${caseId.slice(-4)}`,
       fingerprintHash: '1a90c298018ef902b4890c91823abce809182470129a01f98109340982481023',
       fakePayloadPreview: `SPOOFED CDR: 48 simulated burner calls and tower pings across ${city} with embedded tracking webhooks.`,
@@ -592,6 +688,9 @@ function getCaseDeceptionAssetsAndIncidents(caseId: string, caseObj?: any): { as
       deploymentDate: '20 Aug 2026',
       targetFolder: 'API Gateway / Internal Routing Mesh',
       accessCount: 0,
+      accessedBy: 'None (Armed & Pristine)',
+      accessTimestamp: 'N/A',
+      accessLogs: [],
       fingerprintHash: '8910492810a9c8012894b91029381029c0192840192834019283401928340192',
       fakePayloadPreview: 'SYNTHETIC STREAM: Generates realistic mock telemetry packets to trap packet sniffers and crawler bots.',
       radarX: 52,
@@ -609,6 +708,9 @@ function getCaseDeceptionAssetsAndIncidents(caseId: string, caseObj?: any): { as
       deploymentDate: '27 Aug 2026',
       targetFolder: `/evidence/cctv_vault/${city.toLowerCase().replace(/[^a-z0-9]/g, '_')}/`,
       accessCount: 0,
+      accessedBy: 'None (Armed & Pristine)',
+      accessTimestamp: 'N/A',
+      accessLogs: [],
       stegoWatermarkId: `STG-CCTV-${caseId.slice(-4)}`,
       fingerprintHash: '9840192834019283401928340192834019283401928340192834019283401928',
       fakePayloadPreview: `STEGANOGRAPHIC VIDEO: 1080p footage with embedded zero-width watermarks identifying any unauthenticated exfiltration.`,
@@ -726,10 +828,63 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
   const [newDecoySensitivity, setNewDecoySensitivity] = useState<'Low' | 'Standard' | 'Ultra-High'>('Ultra-High');
   const [newDecoyPolicy, setNewDecoyPolicy] = useState('Auto-silent memory dump + IP trace');
 
+  // Active Law Case & Compromise Status
+  const activeLawCase: LawCase | undefined = useMemo(() => {
+    return ALL_CASES.find((c) => c.id === (selectedCase?.id || selectedCaseId)) || (selectedCase as LawCase);
+  }, [selectedCase, selectedCaseId]);
+
+  const isCaseCompromised = Boolean(activeLawCase?.isCompromised);
+  const compromisedFilesList: CompromisedFile[] = useMemo(() => {
+    if (!isCaseCompromised || !activeLawCase?.compromisedFiles) return [];
+    return activeLawCase.compromisedFiles;
+  }, [activeLawCase, isCaseCompromised]);
+
+  const [selectedFileId, setSelectedFileId] = useState<string>('');
+
+  React.useEffect(() => {
+    if (compromisedFilesList.length > 0) {
+      setSelectedFileId(compromisedFilesList[0].id);
+    } else {
+      setSelectedFileId('');
+    }
+  }, [compromisedFilesList, activeCaseKey]);
+
+  // Active Selected Compromised File
+  const selectedFile: CompromisedFile | null = useMemo(() => {
+    return compromisedFilesList.find((f) => f.id === selectedFileId) || compromisedFilesList[0] || null;
+  }, [compromisedFilesList, selectedFileId]);
+
+  // Dynamic Compromised File Nodes for Radar Grid
+  const displayedCompromisedFiles = useMemo(() => {
+    if (!isCaseCompromised || compromisedFilesList.length === 0) return [];
+    return compromisedFilesList.filter((file) => {
+      const isTripped = file.accessLogs && file.accessLogs.length > 0;
+      if (radarFilter === 'TRIPPED' && !isTripped) return false;
+      if (radarFilter === 'ARMED' && isTripped) return false;
+      return true;
+    });
+  }, [isCaseCompromised, compromisedFilesList, radarFilter]);
+
+  // Dynamic Legacy Radar Nodes
+  const radarNodes = useMemo(() => {
+    if (!selectedCase?.id && !selectedCaseId) {
+      return [];
+    }
+    const currentCaseId = selectedCase?.id || selectedCaseId;
+
+    return assets.filter((asset) => {
+      if (asset.caseId !== currentCaseId) return false;
+      const isTripped = asset.status === 'TRIPPED';
+      if (radarFilter === 'TRIPPED' && !isTripped) return false;
+      if (radarFilter === 'ARMED' && isTripped) return false;
+      return true;
+    });
+  }, [assets, selectedCaseId, selectedCase, radarFilter]);
+
   // Active Selected Asset
   const selectedAsset = useMemo(() => {
-    return assets.find((a) => a.id === selectedAssetId) || assets[0];
-  }, [assets, selectedAssetId]);
+    return radarNodes.find((a) => a.id === selectedAssetId) || radarNodes[0] || null;
+  }, [radarNodes, selectedAssetId]);
 
   // Filtered Incidents
   const filteredIncidents = useMemo(() => {
@@ -773,12 +928,15 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
       Math.floor(Math.random() * 4)
     ];
     const targetAsset = assets[Math.floor(Math.random() * assets.length)];
+    if (!targetAsset) return;
     const incidentRef = `TRIP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const breachTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' (Just Now)';
+    const exactIsoTimestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
     const newIncident: TripwireIncident = {
       id: `inc-${Date.now()}`,
       incidentRef,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' (Just Now)',
+      timestamp: breachTimestamp,
       decoyId: targetAsset.id,
       decoyName: targetAsset.name,
       decoyType: targetAsset.type,
@@ -799,9 +957,28 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
       containmentNotes: 'Simulated breach tripwire successfully registered across sensor nodes.',
     };
 
-    // Update asset status to TRIPPED
+    const newAccessLog: DecoyAccessLog = {
+      user: randomBadge,
+      timestamp: exactIsoTimestamp,
+      role: 'Investigative Personnel',
+      ip: '10.240.8.214',
+      action: 'UNAUTHORIZED_ACCESS',
+    };
+
+    // Update asset status to TRIPPED and prepend access log
     setAssets((prev) =>
-      prev.map((a) => (a.id === targetAsset.id ? { ...a, status: 'TRIPPED', accessCount: a.accessCount + 1 } : a))
+      prev.map((a) =>
+        a.id === targetAsset.id
+          ? {
+              ...a,
+              status: 'TRIPPED',
+              accessCount: a.accessCount + 1,
+              accessedBy: randomBadge,
+              accessTimestamp: exactIsoTimestamp,
+              accessLogs: [newAccessLog, ...(a.accessLogs || [])],
+            }
+          : a
+      )
     );
 
     // Insert incident at top
@@ -844,11 +1021,14 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
           : newDecoyType === 'stego_media'
           ? 'Steganographic Video Trap'
           : 'Canary Token',
-      caseId: newDecoyCase.trim() || 'RC-2026-0417',
+      caseId: newDecoyCase.trim() || activeCaseKey,
       status: 'ARMED',
       deploymentDate: 'Just Now',
       targetFolder: newDecoyFolder.trim() || '/vault/evidence/confidential/',
       accessCount: 0,
+      accessedBy: 'None (Armed & Pristine)',
+      accessTimestamp: 'N/A',
+      accessLogs: [],
       fingerprintHash: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
       fakePayloadPreview: newDecoyPayload.trim() || 'SYNTHETIC PAYLOAD: Auto-generated decoy telemetry payload.',
       radarX: Math.floor(20 + Math.random() * 60),
@@ -885,23 +1065,25 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
     }, 600);
   };
 
-  // Helper for Type Icons
-  const renderTypeIcon = (type: DecoyType, className = 'w-4 h-4') => {
-    switch (type) {
-      case 'honey_document':
-        return <FileText className={`${className} text-amber-400`} />;
-      case 'ghost_database':
-        return <Database className={`${className} text-cyan-400`} />;
-      case 'iam_credential':
-        return <Key className={`${className} text-purple-400`} />;
-      case 'fake_endpoint':
-        return <Globe className={`${className} text-blue-400`} />;
-      case 'stego_media':
-        return <Video className={`${className} text-pink-400`} />;
-      case 'canary_token':
-      default:
-        return <Target className={`${className} text-emerald-400`} />;
+  // Helper for Type Icons (supporting DecoyType and raw string labels)
+  const renderTypeIcon = (type: DecoyType | string, className = 'w-4 h-4') => {
+    const t = String(type).toLowerCase();
+    if (t.includes('database') || t.includes('sql') || t === 'ghost_database') {
+      return <Database className={`${className} text-cyan-400`} />;
     }
+    if (t.includes('video') || t.includes('media') || t.includes('mp4') || t === 'stego_media') {
+      return <Video className={`${className} text-pink-400`} />;
+    }
+    if (t.includes('credential') || t.includes('key') || t.includes('token') || t === 'iam_credential') {
+      return <Key className={`${className} text-purple-400`} />;
+    }
+    if (t.includes('endpoint') || t.includes('api') || t.includes('pcap') || t === 'fake_endpoint') {
+      return <Globe className={`${className} text-blue-400`} />;
+    }
+    if (t.includes('doc') || t.includes('pdf') || t.includes('xlsx') || t.includes('spreadsheet') || t.includes('biometric') || t === 'honey_document') {
+      return <FileText className={`${className} text-amber-400`} />;
+    }
+    return <Target className={`${className} text-emerald-400`} />;
   };
 
   // Helper for Status Badges
@@ -1280,7 +1462,7 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
                         radarFilter === 'ALL' ? 'bg-amber-600 text-white' : 'bg-[#081224] text-slate-400'
                       }`}
                     >
-                      All ({assets.length})
+                      All ({isCaseCompromised ? compromisedFilesList.length : 0})
                     </button>
                     <button
                       onClick={() => setRadarFilter('TRIPPED')}
@@ -1288,7 +1470,7 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
                         radarFilter === 'TRIPPED' ? 'bg-red-600 text-white' : 'bg-[#081224] text-slate-400'
                       }`}
                     >
-                      Tripped ({assets.filter((a) => a.status === 'TRIPPED').length})
+                      Breached ({isCaseCompromised ? compromisedFilesList.filter((f) => f.accessLogs && f.accessLogs.length > 0).length : 0})
                     </button>
                     <button
                       onClick={() => setRadarFilter('ARMED')}
@@ -1296,7 +1478,7 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
                         radarFilter === 'ARMED' ? 'bg-emerald-600 text-white' : 'bg-[#081224] text-slate-400'
                       }`}
                     >
-                      Armed ({assets.filter((a) => a.status === 'ARMED').length})
+                      Nominal ({isCaseCompromised ? compromisedFilesList.filter((f) => !f.accessLogs || f.accessLogs.length === 0).length : 0})
                     </button>
                   </div>
 
@@ -1351,60 +1533,67 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
                     </div>
                   </div>
 
-                  {/* Plotted Decoy Nodes on Radar */}
-                  <div
-                    className="absolute inset-0 pointer-events-auto transition-transform duration-300"
-                    style={{ transform: `scale(${radarZoom})`, transformOrigin: 'center center' }}
-                  >
-                    {assets.map((asset) => {
-                      const isSelected = asset.id === selectedAssetId;
-                      const isTripped = asset.status === 'TRIPPED';
-                      const isEngaged = asset.status === 'ENGAGED';
+                  {/* Safe State Overlay vs Plotted Compromised Nodes */}
+                  {!isCaseCompromised || displayedCompromisedFiles.length === 0 ? (
+                    <div className="absolute inset-0 flex items-center justify-center text-emerald-500 font-mono tracking-widest text-2xl font-bold bg-emerald-900/10 backdrop-blur-sm z-30 select-none">
+                      SAFE: NO DATA BREACHED
+                    </div>
+                  ) : (
+                    <div
+                      className="absolute inset-0 pointer-events-auto transition-transform duration-300"
+                      style={{ transform: `scale(${radarZoom})`, transformOrigin: 'center center' }}
+                    >
+                      {displayedCompromisedFiles.map((file) => {
+                        const isSelected = file.id === (selectedFile?.id || displayedCompromisedFiles[0]?.id);
+                        const hasLogs = file.accessLogs && file.accessLogs.length > 0;
 
-                      if (radarFilter === 'TRIPPED' && !isTripped) return null;
-                      if (radarFilter === 'ARMED' && isTripped) return null;
-
-                      return (
-                        <div
-                          key={asset.id}
-                          onClick={() => setSelectedAssetId(asset.id)}
-                          style={{
-                            left: `${asset.radarX}%`,
-                            top: `${asset.radarY}%`,
-                          }}
-                          className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer flex flex-col items-center group z-20 transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_14px_rgba(245,158,11,0.5)] ${
-                            isSelected ? 'z-30' : ''
-                          }`}
-                        >
-                          <div className="pointer-events-none select-none flex flex-col items-center">
-                            {/* Animated Ping Ring for Tripped Nodes */}
-                            {isTripped && (
-                              <span className="absolute -inset-2 rounded-full bg-red-500/50 animate-ping pointer-events-none" />
-                            )}
-
-                            {/* Node Icon Box */}
+                        return (
+                          /* Tier 1: Purely positional wrapper — zero transform scale or dimensions mutation */
+                          <div
+                            key={file.id}
+                            style={{
+                              position: 'absolute',
+                              left: `${file.radarX || 50}%`,
+                              top: `${file.radarY || 50}%`,
+                              transform: 'translate(-50%, -50%)',
+                              zIndex: isSelected ? 30 : 20,
+                            }}
+                          >
+                            {/* Tier 2: Static interactive hitbox with strictly constant dimensions */}
                             <div
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center border shadow-lg transition-all ${
-                                isTripped
-                                  ? 'bg-red-950 border-red-500 text-red-300 shadow-[0_0_12px_#ef4444]'
-                                  : isEngaged
-                                  ? 'bg-amber-950 border-amber-500 text-amber-300 shadow-[0_0_10px_#f59e0b]'
-                                  : 'bg-[#081224] border-cyan-500/60 text-cyan-300 shadow-[0_0_8px_rgba(0,240,255,0.3)]'
-                              } ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''}`}
+                              onClick={() => setSelectedFileId(file.id)}
+                              className="graph-interactive-node cursor-pointer flex flex-col items-center group relative select-none"
                             >
-                              {renderTypeIcon(asset.type, 'w-3.5 h-3.5')}
-                            </div>
+                              {/* Tier 3: Inner visual elements with pointer-events-none and non-dimensional hover filters */}
+                              <div className="pointer-events-none flex flex-col items-center transition-all duration-150 group-hover:brightness-125 group-hover:drop-shadow-[0_0_14px_rgba(245,158,11,0.6)]">
+                                {/* Animated Ping Ring for Tripped / Breached Nodes */}
+                                {hasLogs && (
+                                  <span className="absolute -inset-2 rounded-full bg-red-500/50 animate-ping pointer-events-none" />
+                                )}
 
-                            {/* Label Pill */}
-                            <div className="mt-1 px-1.5 py-0.5 rounded bg-[#050b18]/95 border border-[#162744] text-[9px] font-bold text-slate-200 whitespace-nowrap shadow-md pointer-events-none group-hover:border-amber-400">
-                              {asset.name}
-                              {isTripped && <span className="ml-1 text-red-400 font-mono">(HIT: {asset.accessCount})</span>}
+                                {/* Node Icon Box */}
+                                <div
+                                  className={`w-7 h-7 rounded-lg flex items-center justify-center border shadow-lg transition-all ${
+                                    hasLogs
+                                      ? 'bg-red-950 border-red-500 text-red-300 shadow-[0_0_12px_#ef4444]'
+                                      : 'bg-[#081224] border-cyan-500/60 text-cyan-300 shadow-[0_0_8px_rgba(0,240,255,0.3)]'
+                                  } ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''}`}
+                                >
+                                  {renderTypeIcon(file.fileType, 'w-3.5 h-3.5')}
+                                </div>
+
+                                {/* Label Pill */}
+                                <div className="mt-1 px-1.5 py-0.5 rounded bg-[#050b18]/95 border border-[#162744] text-[9px] font-bold text-slate-200 whitespace-nowrap shadow-md pointer-events-none group-hover:border-amber-400">
+                                  {file.fileName}
+                                  {hasLogs && <span className="ml-1 text-red-400 font-mono">({file.accessLogs.length} LOGS)</span>}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom Radar Legend */}
@@ -1412,15 +1601,15 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444] animate-ping" />
-                      <span>Tripped Alarm</span>
+                      <span>Compromised File</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
-                      <span>Engaged Bait</span>
+                      <span>Engaged Trap</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#00f0ff]" />
-                      <span>Armed & Silent</span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
+                      <span>Nominal / Shielded</span>
                     </div>
                   </div>
                   <span className="font-mono text-slate-500">Scan Frequency: 2.4 GHz Pulse</span>
@@ -1428,136 +1617,168 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
               </div>
             </div>
 
-            {/* Right 4 cols: Selected Decoy Telemetry & Fast Actions */}
+            {/* Right 4 cols: Compromised Files Metadata & Telemetry */}
             <div className="lg:col-span-4 flex flex-col gap-3 h-full overflow-y-auto pr-0.5">
-              {/* Card 1: Selected Asset Telemetry */}
-              <div className="p-3.5 rounded-xl bg-[#050b18] border border-[#111e33] shadow-xl">
-                <div className="flex items-center justify-between pb-2 border-b border-[#111e33]">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    {renderTypeIcon(selectedAsset.type, 'w-4 h-4')}
-                    DECOY SENSOR TELEMETRY
-                  </span>
-                  {renderStatusBadge(selectedAsset.status)}
-                </div>
-
-                <div className="mt-2.5">
-                  <h3 className="text-sm font-bold text-slate-100 font-mono break-all">{selectedAsset.name}</h3>
-                  <span className="text-[10px] text-amber-400 font-medium">{selectedAsset.categoryLabel}</span>
-                </div>
-
-                {/* Metadata list */}
-                <div className="mt-3 space-y-2 text-xs border-t border-[#111e33]/80 pt-2 text-[11px]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Target Folder / URI</span>
-                    <span className="font-mono text-slate-200 truncate max-w-[170px]" title={selectedAsset.targetFolder}>
-                      {selectedAsset.targetFolder}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Linked Case</span>
-                    <span className="font-mono font-bold text-cyan-400">{selectedAsset.caseId}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Unauthorized Hits</span>
-                    <span className="font-mono font-bold text-red-400">{selectedAsset.accessCount} accesses</span>
-                  </div>
-                  {selectedAsset.lastTriggered && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Last Triggered</span>
-                      <span className="font-mono text-amber-300">{selectedAsset.lastTriggered}</span>
+              {isCaseCompromised && selectedFile ? (
+                <>
+                  {/* Card 1: Selected File Metadata & Access Logs */}
+                  <div className="p-3.5 rounded-xl bg-[#050b18] border border-[#111e33] shadow-xl">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#111e33]">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4 text-red-400" />
+                        COMPROMISED FILES METADATA
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-red-950/80 border border-red-500/40 text-red-300 text-[9.5px] font-mono font-bold">
+                        BREACHED ({selectedFile.accessLogs?.length || 0} HITS)
+                      </span>
                     </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Sensitivity Level</span>
-                    <span className="px-1.5 py-0.2 rounded bg-amber-950/70 border border-amber-500/40 text-amber-300 text-[9px] font-bold">
-                      {selectedAsset.sensitivity}
-                    </span>
-                  </div>
-                  {selectedAsset.stegoWatermarkId && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Stego Seal ID</span>
-                      <span className="font-mono text-[10px] text-pink-400">{selectedAsset.stegoWatermarkId}</span>
-                    </div>
-                  )}
-                </div>
 
-                {/* Fake Payload Content Preview */}
-                <div className="mt-3 p-2 rounded-lg bg-[#030610] border border-[#111e33]">
-                  <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                    Bait Payload Specification:
-                  </span>
-                  <p className="text-[10px] font-mono text-slate-300 leading-relaxed bg-[#02040a] p-1.5 rounded border border-slate-900">
-                    {selectedAsset.fakePayloadPreview}
+                    <div className="mt-2.5">
+                      <h3 className="text-sm font-bold text-slate-100 font-mono break-all">{selectedFile.fileName}</h3>
+                      <span className="text-[10px] text-amber-400 font-medium">{selectedFile.fileType}</span>
+                    </div>
+
+                    {/* Metadata list */}
+                    <div className="mt-3 space-y-2 text-xs border-t border-[#111e33]/80 pt-2 text-[11px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Target Folder / URI</span>
+                        <span className="font-mono text-slate-200 truncate max-w-[170px]" title={selectedFile.targetFolder || '/vault/evidence/'}>
+                          {selectedFile.targetFolder || '/vault/evidence/'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Linked Case</span>
+                        <span className="font-mono font-bold text-cyan-400">{activeLawCase?.fir_number || activeLawCase?.id}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Unauthorized Hits</span>
+                        <span className="font-mono font-bold text-red-400">{selectedFile.accessLogs?.length || 0} accesses</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">File Size</span>
+                        <span className="font-mono text-slate-300 text-[10px]">{selectedFile.fileSize || '32.4 MB'}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Sensitivity Level</span>
+                        <span className="px-1.5 py-0.2 rounded bg-amber-950/70 border border-amber-500/40 text-amber-300 text-[9px] font-bold">
+                          {selectedFile.sensitivity || 'Ultra-High'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Access Logs / Telemetry List */}
+                    <div className="mt-3 p-2.5 rounded-lg bg-[#030610] border border-red-500/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[9.5px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Activity className="w-3 h-3 text-red-400" />
+                          Unauthorized Access Logs ({selectedFile.accessLogs?.length || 0})
+                        </span>
+                        <span className="text-[9px] font-mono text-slate-500">Forensic Audit</span>
+                      </div>
+
+                      {selectedFile.accessLogs && selectedFile.accessLogs.length > 0 ? (
+                        <div className="space-y-1 max-h-[180px] overflow-y-auto pr-0.5">
+                          {selectedFile.accessLogs.map((log, idx) => (
+                            <div key={idx} className="flex justify-between border-b border-red-500/20 py-2 items-center text-xs">
+                              <div className="flex flex-col min-w-0 pr-2">
+                                <span className="text-white font-semibold font-mono truncate">{log.user}</span>
+                                <span className="text-gray-400 font-mono text-[10px]">{log.timestamp}</span>
+                              </div>
+                              <div className="flex flex-col items-end shrink-0">
+                                <span className="text-red-400 font-mono font-bold text-[11px] uppercase">{log.action}</span>
+                                {log.ip && <span className="text-slate-500 font-mono text-[9px]">{log.ip}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-emerald-400 font-mono text-xs py-2 text-center">
+                          No unauthorized access recorded (Pristine)
+                        </p>
+                      )}
+                    </div>
+
+                    {/* SHA-256 Proof */}
+                    {selectedFile.sha256Proof && (
+                      <div className="mt-2.5 flex items-center justify-between p-1.5 rounded bg-[#030610] border border-[#111e33] text-[9px]">
+                        <span className="text-slate-400 font-mono">SHA-256:</span>
+                        <span className="font-mono text-slate-300 truncate max-w-[180px]">{selectedFile.sha256Proof}</span>
+                        <button
+                          onClick={() => handleCopy(selectedFile.sha256Proof!)}
+                          className="p-1 rounded text-slate-400 hover:text-white"
+                          title="Copy Fingerprint Hash"
+                        >
+                          {copiedHash === selectedFile.sha256Proof ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Quick Actions on Selected Decoy */}
+                    <div className="mt-3 pt-2.5 border-t border-[#111e33] flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (onSelectAction) onSelectAction(`Quarantine Triggered on ${selectedFile.fileName}`);
+                        }}
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-[#081224] hover:bg-[#0e1d38] border border-[#162744] text-[10.5px] font-medium text-slate-200 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Lock className="w-3 h-3 text-amber-400" />
+                        <span>Quarantine File</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (onSelectAction) onSelectAction(`Regenerating Watermarks on ${selectedFile.fileName}`);
+                        }}
+                        className="py-1.5 px-2.5 rounded-lg bg-[#081224] hover:bg-[#0e1d38] border border-[#162744] text-[10.5px] font-medium text-slate-200 transition-colors flex items-center justify-center gap-1.5"
+                        title="Regenerate Zero-Width Watermark"
+                      >
+                        <RefreshCw className="w-3 h-3 text-cyan-400" />
+                        <span>Reseal</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Deception Containment Policy Rule */}
+                  <div className="p-3.5 rounded-xl bg-[#050b18] border border-[#111e33] shadow-xl">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#111e33]">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <Shield className="w-3.5 h-3.5 text-blue-400" />
+                        AUTOMATED ENTRAPMENT POLICY
+                      </span>
+                    </div>
+                    <div className="mt-2 space-y-2 text-[10.5px]">
+                      <div className="p-2 rounded bg-[#030610] border border-[#14233c] text-slate-300">
+                        <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wider block mb-0.5">Active Rule:</span>
+                        Auto-silent memory dump + IP trace + Telegram exfil beacon kill
+                      </div>
+                      <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                        <span>DLP Interception:</span>
+                        <span className="text-emerald-400 font-semibold font-mono">ENABLED (Strict)</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                        <span>Court Chain-of-Custody:</span>
+                        <span className="text-emerald-400 font-semibold font-mono">SIGNED ON-CHAIN</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="p-5 rounded-xl bg-[#050b18] border border-[#111e33] shadow-xl text-center py-12 flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-3">
+                    <Shield className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">
+                    {isCaseCompromised ? 'No File Selected' : 'SAFE: NO DATA BREACHED'}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-mono mt-1 max-w-[200px] leading-relaxed">
+                    {isCaseCompromised
+                      ? 'Click on any compromised file node on the radar grid to view its forensic access logs.'
+                      : 'No compromised files or data breaches detected for this case.'}
                   </p>
                 </div>
-
-                {/* SHA-256 Seal */}
-                <div className="mt-2.5 flex items-center justify-between p-1.5 rounded bg-[#030610] border border-[#111e33] text-[9px]">
-                  <span className="text-slate-400 font-mono">SHA-256:</span>
-                  <span className="font-mono text-slate-300 truncate max-w-[180px]">{selectedAsset.fingerprintHash}</span>
-                  <button
-                    onClick={() => handleCopy(selectedAsset.fingerprintHash)}
-                    className="p-1 rounded text-slate-400 hover:text-white"
-                    title="Copy Fingerprint Hash"
-                  >
-                    {copiedHash === selectedAsset.fingerprintHash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  </button>
-                </div>
-
-                {/* Quick Actions on Selected Decoy */}
-                <div className="mt-3 pt-2.5 border-t border-[#111e33] flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setAssets((prev) =>
-                        prev.map((a) =>
-                          a.id === selectedAsset.id
-                            ? { ...a, status: a.status === 'ARMED' ? 'ISOLATED' : 'ARMED' }
-                            : a
-                        )
-                      );
-                    }}
-                    className="flex-1 py-1.5 px-2 rounded-lg bg-[#081224] hover:bg-[#0e1d38] border border-[#162744] text-[10.5px] font-medium text-slate-200 transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    {selectedAsset.status === 'ARMED' ? <Lock className="w-3 h-3 text-amber-400" /> : <Unlock className="w-3 h-3 text-emerald-400" />}
-                    <span>{selectedAsset.status === 'ARMED' ? 'Quarantine Decoy' : 'Re-Arm Decoy'}</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (onSelectAction) onSelectAction(`Regenerating Watermarks on ${selectedAsset.name}`);
-                    }}
-                    className="py-1.5 px-2.5 rounded-lg bg-[#081224] hover:bg-[#0e1d38] border border-[#162744] text-[10.5px] font-medium text-slate-200 transition-colors flex items-center justify-center gap-1.5"
-                    title="Regenerate Zero-Width Watermark"
-                  >
-                    <RefreshCw className="w-3 h-3 text-cyan-400" />
-                    <span>Reseal</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Card 2: Deception Containment Policy Rule */}
-              <div className="p-3.5 rounded-xl bg-[#050b18] border border-[#111e33] shadow-xl">
-                <div className="flex items-center justify-between pb-2 border-b border-[#111e33]">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-blue-400" />
-                    AUTOMATED ENTRAPMENT POLICY
-                  </span>
-                </div>
-                <div className="mt-2 space-y-2 text-[10.5px]">
-                  <div className="p-2 rounded bg-[#030610] border border-[#14233c] text-slate-300">
-                    <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wider block mb-0.5">Active Rule:</span>
-                    {selectedAsset.containmentPolicy}
-                  </div>
-                  <div className="flex items-center justify-between text-slate-400 text-[10px]">
-                    <span>DLP Interception:</span>
-                    <span className="text-emerald-400 font-semibold font-mono">ENABLED (Strict)</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-400 text-[10px]">
-                    <span>Court Chain-of-Custody:</span>
-                    <span className="text-emerald-400 font-semibold font-mono">SIGNED ON-CHAIN</span>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}

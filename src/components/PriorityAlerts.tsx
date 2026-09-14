@@ -249,8 +249,8 @@ export const PriorityAlerts: React.FC<PriorityAlertsProps> = ({ onSelectAlert, o
                   Threat Queue ({compromisedCases.length})
                 </option>
                 {compromisedCases.map((c: AnalysisResult) => (
-                  <option key={c.id} value={c.id} className="bg-[#120409] text-red-200 py-1">
-                    [{c.firNumber || c.id}] {c.suspectName}
+                  <option key={c.id} value={c.id} className="bg-red-600 text-white font-bold py-1.5">
+                    🚨 [{c.firNumber || c.id}] {c.suspectName}
                   </option>
                 ))}
               </>

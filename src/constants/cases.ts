@@ -1,4 +1,6 @@
 // CrimeSync Indian Law Enforcement Cases Dataset (Fail-Safe & Reactive)
+import type { CompromisedFile } from '../types/fir';
+
 export interface LawCase {
   id: string;
   fir_number: string;
@@ -16,28 +18,125 @@ export interface LawCase {
   tracked_money_inr: number;
   evidence_count: number;
   suspects_count: number;
-  isCompromised?: boolean;
+  isCompromised: boolean;
+  compromisedFiles: CompromisedFile[];
 }
 
 export const ALL_CASES: LawCase[] = [
   {
     id: 'CRS-2026-HNY-047',
-    fir_number: 'FIR/CHE/2026/0947',
-    title: 'Operation Maya: Synthetic Identity Ingestion (satyakiran)',
-    description: 'Fabricated FIR dossier for satyakiran generated via recursive LLM hallucination and injected into police records. Kinematic transit impossibilities, Aadhaar biometric hash collision, and CDR cell tower triangulation mismatch detected.',
+    fir_number: 'FIR/BLR/2026/0914',
+    title: 'FIR/BLR/2026/0914 Operation Satyakiran',
+    description: 'Classified Counter-Intelligence Tripwire: Unauthorized exfiltration of encrypted sovereign evidence files and live CCTV telemetry detected across central police servers.',
     crime_category: 'DECEPTIVE_FIR',
     priority: 'CRITICAL',
     status: 'INVESTIGATING',
-    jurisdiction_city: 'Chennai & Hyderabad',
+    jurisdiction_city: 'Bengaluru & Chennai',
     lead_investigator_name: 'ACP Devendra Singhania',
-    badge_number: 'CHE-CYB-0947',
+    badge_number: 'BLR-CYB-0914',
     department: 'Special Cyber Crime & Counter-Deception Unit',
     lead_suspect: 'satyakiran "Phantom" Sen',
     lead_suspect_role: 'Synthetic Identity Operator',
     tracked_money_inr: 8750000,
-    evidence_count: 3,
+    evidence_count: 4,
     suspects_count: 1,
     isCompromised: true,
+    compromisedFiles: [
+      {
+        id: 'comp-file-1',
+        fileName: 'EVIDENCE_SQL_DUMP.sql',
+        fileType: 'SQL Database Dump',
+        radarX: 42,
+        radarY: 34,
+        fileSize: '48.2 MB',
+        sensitivity: 'Ultra-High',
+        sha256Proof: '7c91e0a819b18204918204918204918204918204918204918204918204918204',
+        targetFolder: '/vault/evidence/satyakiran/db_staging/',
+        accessLogs: [
+          {
+            user: 'ACP Rajeshwar Sharma',
+            timestamp: '2026-09-14 22:45:10 IST',
+            action: 'UNAUTHORIZED_READ',
+            role: 'Investigative Personnel',
+            ip: '10.240.8.214',
+          },
+          {
+            user: 'INS-17 (Vikram Rathore)',
+            timestamp: '2026-09-14 22:38:05 IST',
+            action: 'MASS_EXFILTRATION',
+            role: 'Sub-Inspector',
+            ip: '10.240.8.199',
+          },
+        ],
+      },
+      {
+        id: 'comp-file-2',
+        fileName: 'CCTV_FOOTAGE.mp4',
+        fileType: 'Stego Video Matrix',
+        radarX: 68,
+        radarY: 28,
+        fileSize: '1.4 GB',
+        sensitivity: 'Ultra-High',
+        sha256Proof: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        targetFolder: '/evidence/cctv_vault/bengaluru_terminal/',
+        accessLogs: [
+          {
+            user: 'ACP Rajeshwar Sharma',
+            timestamp: '2026-09-14 22:52:40 IST',
+            action: 'UNAUTHORIZED_STREAM',
+            role: 'Investigative Personnel',
+            ip: '10.240.8.214',
+          },
+        ],
+      },
+      {
+        id: 'comp-file-3',
+        fileName: 'HAWALA_VIP_LEDGER_CONFIDENTIAL.xlsx',
+        fileType: 'Decoy Financial Spreadsheet',
+        radarX: 25,
+        radarY: 65,
+        fileSize: '12.8 MB',
+        sensitivity: 'Ultra-High',
+        sha256Proof: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+        targetFolder: '/vault/evidence/confidential/ledger/',
+        accessLogs: [
+          {
+            user: 'ACP Rajeshwar Sharma',
+            timestamp: '2026-09-14 23:01:12 IST',
+            action: 'DECOY_CANARY_TRIP',
+            role: 'Investigative Personnel',
+            ip: '10.240.8.214',
+          },
+          {
+            user: 'EXT-ADVERSARY-99',
+            timestamp: '2026-09-14 21:15:00 IST',
+            action: 'UNAUTHORIZED_READ',
+            role: 'External Threat Actor',
+            ip: '185.220.101.5',
+          },
+        ],
+      },
+      {
+        id: 'comp-file-4',
+        fileName: 'AADHAAR_IRIS_REGISTRY.pdf',
+        fileType: 'Classified Biometric Export',
+        radarX: 75,
+        radarY: 72,
+        fileSize: '6.5 MB',
+        sensitivity: 'Ultra-High',
+        sha256Proof: '9a01f82710381029384710293847102938471029384710293847102938471029',
+        targetFolder: '/vault/evidence/biometrics/iris_vault/',
+        accessLogs: [
+          {
+            user: 'ACP Rajeshwar Sharma',
+            timestamp: '2026-09-14 23:14:22 IST',
+            action: 'UNAUTHORIZED_READ',
+            role: 'Investigative Personnel',
+            ip: '10.240.8.214',
+          },
+        ],
+      },
+    ],
   },
   {
     id: 'CASE-2026-004',
@@ -56,6 +155,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 4130000,
     evidence_count: 2,
     suspects_count: 2,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-005',
@@ -74,6 +175,96 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 5150000,
     evidence_count: 2,
     suspects_count: 2,
+    isCompromised: true,
+    compromisedFiles: [
+      {
+        id: 'comp-file-vajra-1',
+        fileName: 'EVIDENCE_SQL_DUMP.sql',
+        fileType: 'SQL Database Dump',
+        radarX: 42,
+        radarY: 34,
+        fileSize: '48.2 MB',
+        sensitivity: 'Ultra-High',
+        sha256Proof: '7c91e0a819b18204918204918204918204918204918204918204918204918204',
+        targetFolder: '/vault/evidence/vajra/db_staging/',
+        accessLogs: [
+          {
+            user: 'ACP Rajeshwar Sharma',
+            timestamp: '2026-09-14 22:45:10 IST',
+            action: 'UNAUTHORIZED_READ',
+            role: 'Investigative Personnel',
+            ip: '10.240.8.214',
+          },
+          {
+            user: 'INS-17 (Vikram Rathore)',
+            timestamp: '2026-09-14 22:38:05 IST',
+            action: 'MASS_EXFILTRATION',
+            role: 'Sub-Inspector',
+            ip: '10.240.8.199',
+          },
+        ],
+      },
+      {
+        id: 'comp-file-vajra-2',
+        fileName: 'CCTV_FOOTAGE.mp4',
+        fileType: 'Stego Video Matrix',
+        radarX: 68,
+        radarY: 28,
+        fileSize: '312.8 MB',
+        sensitivity: 'Ultra-High',
+        sha256Proof: '2b48d9e110482910481204810294810294810294810294810294810294810294',
+        targetFolder: '/vault/surveillance/vajra/cctv/',
+        accessLogs: [
+          {
+            user: 'ACP Rajeshwar Sharma',
+            timestamp: '2026-09-14 22:42:19 IST',
+            action: 'UNAUTHORIZED_STREAM_DECODER',
+            role: 'Investigative Personnel',
+            ip: '10.240.8.214',
+          },
+        ],
+      },
+      {
+        id: 'comp-file-vajra-3',
+        fileName: 'HAWALA_VIP_LEDGER_CONFIDENTIAL.xlsx',
+        fileType: 'Decoy Financial Spreadsheet',
+        radarX: 30,
+        radarY: 65,
+        fileSize: '14.6 MB',
+        sensitivity: 'Ultra-High',
+        sha256Proof: 'fa92019482019482019482019482019482019482019482019482019482019482',
+        targetFolder: '/vault/finance/vajra/ledgers/',
+        accessLogs: [
+          {
+            user: 'External Tor Node [185.220.101.5]',
+            timestamp: '2026-09-14 22:15:33 IST',
+            action: 'ZERO_DAY_EXFILTRATION',
+            role: 'Adversary Gateway',
+            ip: '185.220.101.5',
+          },
+        ],
+      },
+      {
+        id: 'comp-file-vajra-4',
+        fileName: 'AADHAAR_IRIS_REGISTRY.pdf',
+        fileType: 'Synthetically Poisoned Biometric Document',
+        radarX: 75,
+        radarY: 72,
+        fileSize: '88.1 MB',
+        sensitivity: 'Ultra-High',
+        sha256Proof: '9182309182309182309182309182309182309182309182309182309182309182',
+        targetFolder: '/vault/biometrics/vajra/registry/',
+        accessLogs: [
+          {
+            user: 'ACP Rajeshwar Sharma',
+            timestamp: '2026-09-14 22:40:02 IST',
+            action: 'UNAUTHORIZED_SIGNATURE_FORGERY',
+            role: 'Investigative Personnel',
+            ip: '10.240.8.214',
+          },
+        ],
+      },
+    ],
   },
   {
     id: 'CASE-2026-006',
@@ -92,6 +283,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 1960000,
     evidence_count: 2,
     suspects_count: 2,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-007',
@@ -110,6 +303,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 2550000,
     evidence_count: 2,
     suspects_count: 2,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-008',
@@ -128,6 +323,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 6280000,
     evidence_count: 2,
     suspects_count: 2,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-009',
@@ -146,6 +343,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 10000000,
     evidence_count: 2,
     suspects_count: 2,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-001',
@@ -164,6 +363,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 3480000,
     evidence_count: 2,
     suspects_count: 3,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-002',
@@ -182,6 +383,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 0,
     evidence_count: 1,
     suspects_count: 1,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-003',
@@ -200,6 +403,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 180000,
     evidence_count: 7,
     suspects_count: 2,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-010',
@@ -218,6 +423,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 500000,
     evidence_count: 5,
     suspects_count: 3,
+    isCompromised: false,
+    compromisedFiles: [],
   },
   {
     id: 'CASE-2026-011',
@@ -236,6 +443,8 @@ export const ALL_CASES: LawCase[] = [
     tracked_money_inr: 1000000,
     evidence_count: 5,
     suspects_count: 3,
+    isCompromised: false,
+    compromisedFiles: [],
   },
 ];
 

@@ -57,7 +57,10 @@ export function isCompromisedReport(report: unknown): boolean {
   const firNumber = String(r.fir_number || r.firNumber || '').toUpperCase();
   if (
     id === 'CRS-2026-HNY-047' ||
+    id === 'CASE-2026-005' ||
     id === 'FIR-2026-HYD-9942' ||
+    firNumber === 'FIR/MUM/2026/1842' ||
+    firNumber === 'FIR/BLR/2026/0914' ||
     firNumber === 'FIR/CHE/2026/0947' ||
     firNumber === 'FIR/HYD/2026/9942'
   ) {

@@ -22,6 +22,48 @@ export const deceptiveFIRPayload: AnalysisResult = {
     'Identity Doppelgänger State: COMPROMISED (Biometric Collision & Geolocation Mismatch)',
     'NLP Narrative Syntax: 96% Synthetic LLM Structure Match (Automated Modus Operandi Generation)',
   ],
+  compromisedFiles: [
+    {
+      id: 'hyd-file-1',
+      fileName: 'FIU_CENTRAL_BANKING_TELEMETRY.pcap',
+      fileType: 'Network Packet Capture',
+      radarX: 45,
+      radarY: 30,
+      fileSize: '184 MB',
+      sensitivity: 'Ultra-High',
+      sha256Proof: '8f91a0b182049182049182049182049182049182049182049182049182049182',
+      targetFolder: '/vault/fiu/traffic_logs/',
+      accessLogs: [
+        {
+          user: 'ACP Rajeshwar Sharma',
+          timestamp: '2026-09-14 22:45:10 IST',
+          action: 'UNAUTHORIZED_READ',
+          role: 'Investigative Personnel',
+          ip: '10.240.8.214',
+        },
+      ],
+    },
+    {
+      id: 'hyd-file-2',
+      fileName: 'CORE_BANKING_LEDGER_ALTERATIONS.xlsx',
+      fileType: 'Decoy Financial Spreadsheet',
+      radarX: 62,
+      radarY: 55,
+      fileSize: '14.2 MB',
+      sensitivity: 'Ultra-High',
+      sha256Proof: '3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855a',
+      targetFolder: '/vault/fiu/ledger_audit/',
+      accessLogs: [
+        {
+          user: 'INS-17 (Vikram Rathore)',
+          timestamp: '2026-09-14 22:38:05 IST',
+          action: 'MASS_EXFILTRATION',
+          role: 'Sub-Inspector',
+          ip: '10.240.8.199',
+        },
+      ],
+    },
+  ],
 };
 
 export const syntheticHoneypotFIRPayload: AnalysisResult = {
@@ -32,7 +74,7 @@ export const syntheticHoneypotFIRPayload: AnalysisResult = {
   biometricLocation: 'HITEC Cyber Towers, Hyderabad, TS',
   biometricTimestamp: '14:06 IST',
   reportingOfficer: 'ACP Devendra Singhania (Badge #CHE-CYB-0947)',
-  firNumber: 'FIR/CHE/2026/0947',
+  firNumber: 'FIR/BLR/2026/0914',
   complainantName: 'State Deception & Counter-Forensics Bureau',
   incidentDescription: 'Autonomous Honeypot tripwire detected synthetic FIR filing: Suspect satyakiran reported physical server tampering in Chennai at 14:00 IST, but Aadhaar IRIS biometric terminal authentication registered in Hyderabad at 14:06 IST (630km delta in 6 mins requiring 6,300 km/h kinematic velocity).',
   isCompromised: true,
@@ -45,6 +87,102 @@ export const syntheticHoneypotFIRPayload: AnalysisResult = {
     'Spatio-Temporal / CDR Anomaly: Chennai (14:00 IST) vs Hyderabad (14:06 IST) - 6,300 km/h required velocity',
     'Biometric Hash Collision: SHA-256 IRIS template match collision with inactive identity record',
     'Cross-Jurisdiction Conflict: Officer badge (#CHE-CYB-0947) registered to Chennai while biometric terminal located in Hyderabad',
+  ],
+  compromisedFiles: [
+    {
+      id: 'comp-file-1',
+      fileName: 'EVIDENCE_SQL_DUMP.sql',
+      fileType: 'SQL Database Dump',
+      radarX: 42,
+      radarY: 34,
+      fileSize: '48.2 MB',
+      sensitivity: 'Ultra-High',
+      sha256Proof: '7c91e0a819b18204918204918204918204918204918204918204918204918204',
+      targetFolder: '/vault/evidence/satyakiran/db_staging/',
+      accessLogs: [
+        {
+          user: 'ACP Rajeshwar Sharma',
+          timestamp: '2026-09-14 22:45:10 IST',
+          action: 'UNAUTHORIZED_READ',
+          role: 'Investigative Personnel',
+          ip: '10.240.8.214',
+        },
+        {
+          user: 'INS-17 (Vikram Rathore)',
+          timestamp: '2026-09-14 22:38:05 IST',
+          action: 'MASS_EXFILTRATION',
+          role: 'Sub-Inspector',
+          ip: '10.240.8.199',
+        },
+      ],
+    },
+    {
+      id: 'comp-file-2',
+      fileName: 'CCTV_FOOTAGE.mp4',
+      fileType: 'Stego Video Matrix',
+      radarX: 68,
+      radarY: 28,
+      fileSize: '1.4 GB',
+      sensitivity: 'Ultra-High',
+      sha256Proof: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      targetFolder: '/evidence/cctv_vault/bengaluru_terminal/',
+      accessLogs: [
+        {
+          user: 'ACP Rajeshwar Sharma',
+          timestamp: '2026-09-14 22:52:40 IST',
+          action: 'UNAUTHORIZED_STREAM',
+          role: 'Investigative Personnel',
+          ip: '10.240.8.214',
+        },
+      ],
+    },
+    {
+      id: 'comp-file-3',
+      fileName: 'HAWALA_VIP_LEDGER_CONFIDENTIAL.xlsx',
+      fileType: 'Decoy Financial Spreadsheet',
+      radarX: 25,
+      radarY: 65,
+      fileSize: '12.8 MB',
+      sensitivity: 'Ultra-High',
+      sha256Proof: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+      targetFolder: '/vault/evidence/confidential/ledger/',
+      accessLogs: [
+        {
+          user: 'ACP Rajeshwar Sharma',
+          timestamp: '2026-09-14 23:01:12 IST',
+          action: 'DECOY_CANARY_TRIP',
+          role: 'Investigative Personnel',
+          ip: '10.240.8.214',
+        },
+        {
+          user: 'EXT-ADVERSARY-99',
+          timestamp: '2026-09-14 21:15:00 IST',
+          action: 'UNAUTHORIZED_READ',
+          role: 'External Threat Actor',
+          ip: '185.220.101.5',
+        },
+      ],
+    },
+    {
+      id: 'comp-file-4',
+      fileName: 'AADHAAR_IRIS_REGISTRY.pdf',
+      fileType: 'Classified Biometric Export',
+      radarX: 75,
+      radarY: 72,
+      fileSize: '6.5 MB',
+      sensitivity: 'Ultra-High',
+      sha256Proof: '9a01f82710381029384710293847102938471029384710293847102938471029',
+      targetFolder: '/vault/evidence/biometrics/iris_vault/',
+      accessLogs: [
+        {
+          user: 'ACP Rajeshwar Sharma',
+          timestamp: '2026-09-14 23:14:22 IST',
+          action: 'UNAUTHORIZED_READ',
+          role: 'Investigative Personnel',
+          ip: '10.240.8.214',
+        },
+      ],
+    },
   ],
 };
 
@@ -64,6 +202,7 @@ export const nominalFIRPayload1: AnalysisResult = {
   confidenceScore: 8,
   anomalySummary: 'Nominal profile: Spatio-temporal and biometric parameters within standard operational thresholds.',
   flaggedParameters: [],
+  compromisedFiles: [],
 };
 
 export const nominalFIRPayload2: AnalysisResult = {
@@ -82,6 +221,7 @@ export const nominalFIRPayload2: AnalysisResult = {
   confidenceScore: 12,
   anomalySummary: 'Nominal profile: Verified location signatures match telemetry.',
   flaggedParameters: [],
+  compromisedFiles: [],
 };
 
 export const mockFIRReports: AnalysisResult[] = [
@@ -95,5 +235,3 @@ export const mockFIRReports: AnalysisResult[] = [
 export function getCompromisedFIRReports(): AnalysisResult[] {
   return mockFIRReports.filter(report => report.isCompromised === true);
 }
-
-

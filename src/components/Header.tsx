@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   ShieldCheck, 
   Bell, 
@@ -169,6 +169,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
     return cases as LawCase[];
   }, [cases, isSensitive]);
 
+  const isSelectedCaseCompromised = Boolean(
+    selectedCase && (selectedCase.isCompromised === true || isCompromisedReport(selectedCase))
+  );
+
   // Safe active selection reconciliation: if on a sensitive page and current case is not compromised,
   // select the first available compromised report without triggering route loops or infinite effects.
   useEffect(() => {
@@ -226,35 +230,39 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
               if (showNotifications) setShowNotifications(false);
             }}
             className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-left transition-all group ${
-              isSensitive
+              isSelectedCaseCompromised
+                ? 'bg-red-600 border-2 border-red-400 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] hover:bg-red-500'
+                : isSensitive
                 ? 'bg-gradient-to-r from-red-950/80 via-[#18040a] to-[#120409] border-red-500/60 shadow-[0_0_16px_rgba(239,68,68,0.3)] hover:border-red-400'
                 : 'bg-gradient-to-r from-[#08132e] via-[#0b1b3d] to-[#08132e] border-blue-500/50 hover:border-blue-400 shadow-[0_0_16px_rgba(37,99,235,0.25)]'
             }`}
           >
             <div className={`w-6 h-6 rounded-lg border flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0 ${
-              isSensitive
+              isSelectedCaseCompromised
+                ? 'bg-red-800 border-red-300 text-white'
+                : isSensitive
                 ? 'bg-red-900/40 border-red-500/50 text-red-300'
                 : 'bg-blue-600/30 border-blue-400/50 text-blue-300'
             }`}>
-              <FolderKanban className="w-3.5 h-3.5 text-cyan-300" />
+              <FolderKanban className={`w-3.5 h-3.5 ${isSelectedCaseCompromised ? 'text-white' : 'text-cyan-300'}`} />
             </div>
 
             <div className="flex flex-col min-w-0 pr-1 max-w-[130px] sm:max-w-[170px] lg:max-w-[210px]">
               <div className="flex items-center gap-1.5">
                 <span className={`text-[8.5px] font-extrabold uppercase tracking-wider ${
-                  isSensitive ? 'text-red-300' : 'text-blue-300'
+                  isSelectedCaseCompromised ? 'text-white font-black' : isSensitive ? 'text-red-300' : 'text-blue-300'
                 }`}>
-                  {isSensitive ? 'Threat Queue' : 'Active Case'}
+                  {isSelectedCaseCompromised ? '🚨 COMPROMISED' : isSensitive ? 'Threat Queue' : 'Active Case'}
                 </span>
                 <span className={`w-1.5 h-1.5 rounded-full ${
-                  isSensitive ? 'bg-red-400 animate-ping' : 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]'
+                  isSelectedCaseCompromised ? 'bg-white animate-ping' : isSensitive ? 'bg-red-400 animate-ping' : 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]'
                 }`} />
               </div>
               <div className="text-[11px] font-mono font-bold text-white truncate group-hover:text-cyan-200 transition-colors">
                 {selectedCase ? (
                   <>
-                    <span className="text-cyan-300 mr-1 font-black">{selectedCase.fir_number || selectedCase.id}</span>
-                    <span className="text-slate-200 font-sans font-semibold hidden md:inline">{selectedCase.title}</span>
+                    <span className={`${isSelectedCaseCompromised ? 'text-white' : 'text-cyan-300'} mr-1 font-black`}>{selectedCase.fir_number || selectedCase.id}</span>
+                    <span className={`${isSelectedCaseCompromised ? 'text-red-100' : 'text-slate-200'} font-sans font-semibold hidden md:inline`}>{selectedCase.title}</span>
                   </>
                 ) : (
                   'Select Investigation'
@@ -263,7 +271,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
             </div>
 
             <ChevronDown className={`w-3.5 h-3.5 ml-0.5 transition-transform duration-200 ${
-              isSensitive ? 'text-red-400' : 'text-blue-400'
+              isSelectedCaseCompromised ? 'text-white' : isSensitive ? 'text-red-400' : 'text-blue-400'
             } ${showCaseSwitcher ? 'rotate-180 text-cyan-300' : 'group-hover:translate-y-0.5'}`} />
           </button>
 
@@ -329,7 +337,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                 ) : (
                   filteredSwitcherCases.map((c: LawCase) => {
                     const isSelected = c.id === selectedCaseId;
-                    const isCompromised = isCompromisedReport(c);
+                    const isCompromised = c.isCompromised === true || isCompromisedReport(c);
                     return (
                       <button
                         key={c.id}
@@ -340,46 +348,48 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                           setShowCaseSwitcher(false);
                         }}
                         className={`w-full text-left p-3 rounded-xl transition-all flex items-start justify-between gap-2.5 ${
-                          isSelected
-                            ? isCompromised || isSensitive
+                          isCompromised
+                            ? 'bg-red-600 hover:bg-red-500 text-white font-bold tracking-wide border-l-4 border-red-900 shadow-[0_0_16px_rgba(239,68,68,0.5)]'
+                            : isSelected
+                            ? isSensitive
                               ? 'bg-red-950/90 border border-red-500 text-white shadow-[0_0_16px_rgba(239,68,68,0.35)]'
                               : 'bg-blue-950/90 border border-blue-500 text-white shadow-[0_0_16px_rgba(59,130,246,0.35)]'
-                            : isCompromised
-                            ? 'bg-gradient-to-r from-red-950/40 via-red-950/20 to-slate-900/90 hover:bg-red-950/60 border border-red-500/40 hover:border-red-400 text-red-100 shadow-[0_0_10px_rgba(239,68,68,0.15)]'
                             : 'hover:bg-slate-900/90 text-slate-300 border border-transparent hover:border-slate-800'
                         }`}
                       >
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-cyan-300">
+                            <span className={`text-xs font-mono font-bold ${isCompromised ? 'text-white' : 'text-cyan-300'}`}>
                               {c.fir_number || (c as any).firNumber || c.id}
                             </span>
                             <span
                               className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase ${
-                                c.priority === 'CRITICAL' || isCompromisedReport(c)
+                                isCompromised
+                                  ? 'bg-red-900 text-white border border-red-300 font-black'
+                                  : c.priority === 'CRITICAL'
                                   ? 'bg-red-950/90 text-red-300 border border-red-600/60'
                                   : 'bg-amber-950/90 text-amber-300 border border-amber-600/60'
                               }`}
                             >
-                              {isCompromisedReport(c) ? 'COMPROMISED' : c.priority}
+                              {isCompromised ? '🚨 COMPROMISED' : c.priority}
                             </span>
                           </div>
 
                           <div className="text-xs font-bold text-white truncate">{c.title || (c as any).suspectName}</div>
 
-                          <div className="text-[10px] text-slate-400 flex items-center gap-2">
-                            <span className="flex items-center gap-1 text-slate-300">
-                              <MapPin className="w-3 h-3 text-red-400" />
+                          <div className={`text-[10px] flex items-center gap-2 ${isCompromised ? 'text-red-100' : 'text-slate-400'}`}>
+                            <span className={`flex items-center gap-1 ${isCompromised ? 'text-white' : 'text-slate-300'}`}>
+                              <MapPin className={`w-3 h-3 ${isCompromised ? 'text-white' : 'text-red-400'}`} />
                               {c.jurisdiction_city || (c as any).location || 'National Scope'}
                             </span>
                             <span>•</span>
-                            <span className="text-blue-300 font-medium">{c.status}</span>
+                            <span className={`font-medium ${isCompromised ? 'text-white' : 'text-blue-300'}`}>{c.status}</span>
                           </div>
                         </div>
 
                         {isSelected && (
                           <div className={`mt-1 flex items-center justify-center w-5 h-5 rounded-full text-white shrink-0 shadow-md ${
-                            isSensitive ? 'bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.8)]'
+                            isCompromised ? 'bg-red-800 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : isSensitive ? 'bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.8)]'
                           }`}>
                             <Check className="w-3.5 h-3.5" />
                           </div>

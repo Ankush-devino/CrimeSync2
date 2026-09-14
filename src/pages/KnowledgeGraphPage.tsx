@@ -645,7 +645,7 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
                     {/* Inner: all visual styles, no positioning */}
                     <div
                       onClick={() => handleSelectNode(node)}
-                      className={`cursor-pointer p-2.5 rounded-xl border-2 flex flex-col items-center text-center shadow-lg ${node.bgClass} ${node.borderColor} ${isSelected ? 'ring-4 ring-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.8)]' : ''}`}
+                      className={`graph-interactive-node cursor-pointer p-2.5 rounded-xl border-2 flex flex-col items-center text-center shadow-lg transition-colors duration-150 hover:brightness-110 ${node.bgClass} ${node.borderColor} ${isSelected ? 'ring-4 ring-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.8)]' : ''}`}
                     >
                       <div className="pointer-events-none select-none flex flex-col items-center text-center w-full">
                         <div className="font-bold text-xs truncate max-w-[130px]">{node.name}</div>
