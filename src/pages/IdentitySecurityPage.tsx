@@ -15,12 +15,18 @@ import {
   MapPin,
   Clock,
   Globe,
+  FileText,
+  AlertOctagon,
+  Fingerprint,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth, type ThreatMode } from '../context/AuthContext';
 import { useCaseContext } from '../context/CaseContext';
 import { useAuditLog } from '../hooks/useAuditLog';
 import { logOfficerAction } from '../services/activityLogger';
+import { IdentityDoppelganger } from '../components/IdentityDoppelganger';
+import { ThreatAlert } from '../components/ThreatAlert';
 
 interface IdentitySecurityPageProps {
   onSelectAction?: (action: string) => void;
@@ -654,6 +660,16 @@ export const IdentitySecurityPage: React.FC<IdentitySecurityPageProps> = ({
           </table>
         </div>
       </div>
+
+      {/* ── 4. IDENTITY DOPPELGÄNGER: COMPROMISED PROFILES QUEUE ─────────────── */}
+      <IdentityDoppelganger onCaseSelected={(firCase) => {
+        if (onSelectAction) {
+          onSelectAction(`Inspecting Compromised FIR: ${firCase.firNumber || firCase.id}`);
+        }
+      }} />
+
+      {/* ── 5. GRANULAR DECEPTION DIAGNOSTIC AUDIT (THREAT ALERT VIEW) ────────── */}
+      <ThreatAlert />
 
     </div>
   );

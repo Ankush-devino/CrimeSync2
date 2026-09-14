@@ -7,6 +7,7 @@ import { SearchModal } from './components/Modals/SearchModal';
 import { ActionModal } from './components/Modals/ActionModal';
 import { AnalysisModal } from './components/Modals/AnalysisModal';
 import { CaseProvider } from './context/CaseContext';
+import { FIRProvider } from './context/FIRContext';
 import { AuthProvider } from './context/AuthContext';
 import { DbProvider, useDbContext } from './context/DbContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -556,7 +557,9 @@ export const App: React.FC = () => {
       <DbProvider>
         <AuthProvider>
           <CaseProvider>
-            <AppContent />
+            <FIRProvider>
+              <AppContent />
+            </FIRProvider>
           </CaseProvider>
         </AuthProvider>
       </DbProvider>

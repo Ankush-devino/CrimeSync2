@@ -768,7 +768,350 @@ export const CASE_INTELLIGENCE_REGISTRY: Record<string, CaseNetworkData> = {
       section65bStatus: 'CERTIFIED',
     },
   },
+  // 5. Operation Maya: Synthetic Identity & Deceptive FIR Ingestion (CRS-2026-HNY-047)
+  'CRS-2026-HNY-047': {
+    caseId: 'CRS-2026-HNY-047',
+    leadSuspect: {
+      name: 'satyakiran "Phantom" Sen',
+      alias: 'Phantom Sen / Ghost Actor',
+      role: 'Synthetic Identity Operator & Infiltration Specialist',
+      riskScore: 99,
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      phone: '+91 94440 91820',
+      location: 'Chennai & Hyderabad Triangulation',
+      bio: 'Operates automated generative model pipeline injecting forged FIR dossiers into judicial registry.',
+    },
+    nodes: [
+      {
+        id: 'sen_phantom',
+        label: 'satyakiran',
+        sublabel: 'Synthetic Identity Master (99 Risk)',
+        category: 'People',
+        risk: 'HIGH',
+        riskScore: 99,
+        x: 50,
+        y: 50,
+        type: 'center',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        details: { role: 'Lead Doppelgänger Operator', location: 'Chennai & Hyderabad', notes: 'Fabricated FIR dossier generated via recursive LLM hallucination.' },
+      },
+      {
+        id: 'aadhaar_iris_col',
+        label: 'Aadhaar IRIS Scanner',
+        sublabel: 'Biometric Collision Terminal',
+        category: 'Phones',
+        risk: 'HIGH',
+        riskScore: 96,
+        x: 22,
+        y: 28,
+        type: 'cyber',
+        iconColor: 'bg-rose-600 border-rose-400 text-rose-100',
+        details: { role: 'Biometric Scanner #HYD-992', location: 'HITEC Terminal, Hyderabad' },
+      },
+      {
+        id: 'honeypot_db_47',
+        label: 'Canary DB: HNY-47',
+        sublabel: 'Honeypot Tripwire Table',
+        category: 'Organisations',
+        risk: 'HIGH',
+        riskScore: 98,
+        x: 78,
+        y: 24,
+        type: 'cyber',
+        iconColor: 'bg-red-600 border-red-400 text-red-100',
+        details: { role: 'Canary Token Ingestion Trap', notes: 'Triggered automated alert upon unauthorized SQL read.' },
+      },
+      {
+        id: 'ghost_sim_che',
+        label: '+91 94440 91820',
+        sublabel: 'Ghost Burner SIM',
+        category: 'Phones',
+        risk: 'HIGH',
+        riskScore: 89,
+        x: 84,
+        y: 58,
+        type: 'phone',
+        iconColor: 'bg-blue-600 border-blue-400 text-blue-100',
+        details: { phone: '+91 94440 91820', role: 'Cell Tower Mismatch (Chennai)' },
+      },
+      {
+        id: 'darknet_relay_c2',
+        label: '103.241.11.90 (Relay)',
+        sublabel: 'C2 Reverse Tunnel',
+        category: 'Organisations',
+        risk: 'HIGH',
+        riskScore: 94,
+        x: 20,
+        y: 68,
+        type: 'cyber',
+        iconColor: 'bg-purple-600 border-purple-400 text-purple-100',
+        details: { role: 'Anonymized Proxy Gateway', location: 'Offshore Proxy Pool' },
+      },
+      {
+        id: 'mule_shell_hyd',
+        label: 'Canara AC: 10892049182',
+        sublabel: 'Phantom Escrow Mule',
+        category: 'Accounts',
+        risk: 'MEDIUM',
+        riskScore: 84,
+        x: 52,
+        y: 82,
+        type: 'account',
+        iconColor: 'bg-emerald-600 border-emerald-400 text-emerald-100',
+        details: { role: 'Layered Extortion Ingestion', location: 'Hyderabad' },
+      },
+      {
+        id: 'forged_badge_che',
+        label: 'Badge #CHE-CYB-0947',
+        sublabel: 'Forged Police PKI Seal',
+        category: 'People',
+        risk: 'HIGH',
+        riskScore: 92,
+        x: 74,
+        y: 80,
+        type: 'person',
+        iconColor: 'bg-amber-600 border-amber-400 text-amber-100',
+        details: { role: 'Spoofed Investigating Officer Badge' },
+      },
+    ],
+    edges: [
+      { from: 'sen_phantom', to: 'aadhaar_iris_col', relation: 'BIOMETRIC_COLLISION', isHighRisk: true, label: '6,300 km/h Kinematic Impossibility' },
+      { from: 'sen_phantom', to: 'honeypot_db_47', relation: 'HONEYPOT_TRIPWIRE', isHighRisk: true, label: 'Canary Ingestion Alert' },
+      { from: 'sen_phantom', to: 'ghost_sim_che', relation: 'ENCRYPTED_SIGNAL', isHighRisk: true, label: 'Anna Salai Cell Tower Ping' },
+      { from: 'sen_phantom', to: 'darknet_relay_c2', relation: 'C2_RELAY_UPLINK', isHighRisk: true, label: 'Tor Hidden Service Bridge' },
+      { from: 'sen_phantom', to: 'mule_shell_hyd', relation: 'MULE_FUNNEL', isHighRisk: true, label: '₹87.5L Layered Wire' },
+      { from: 'sen_phantom', to: 'forged_badge_che', relation: 'PKI_IMPERSONATION', isHighRisk: true, label: 'Spoofed Officer Signature' },
+      { from: 'aadhaar_iris_col', to: 'forged_badge_che', relation: 'CROSS_JURISDICTION', isHighRisk: true, label: 'Chennai vs Hyderabad' },
+    ],
+    aiInsight: {
+      suspectName: 'satyakiran "Phantom" Sen',
+      syndicateName: 'Operation Maya Deception Ring',
+      confidenceScore: 99.4,
+      explanation: 'Doppelgänger AI engine flagged impossible physical travel: Suspect satyakiran reported physical server tampering in Chennai at 14:00 IST, but Aadhaar IRIS biometric terminal authentication registered in Hyderabad at 14:06 IST (630km delta in 6 mins requiring 6,300 km/h velocity).',
+      evidenceSummary: [
+        { id: 'ev-1', iconType: 'biometric', title: 'Aadhaar IRIS Telemetry Collision', detail: 'Simultaneous biometric scan in Hyderabad while CDR cell towers localized device in Chennai' },
+        { id: 'ev-2', iconType: 'cyber', title: 'Synthetic NLP Syntactic Fingerprint', detail: '98% structural correlation with known recursive LLM automated FIR generator template' },
+        { id: 'ev-3', iconType: 'crypto', title: 'Merkle Block #19,401 Hash Invalidation', detail: 'Evidence ledger hash signature mismatch confirmed tamper attempt on FIR records' },
+      ],
+    },
+    timeMachineEvents: [
+      {
+        id: 'tm-1',
+        time: '14:06:12 IST',
+        date: '10 Sep 2026',
+        title: 'Biometric Scan Authenticated in Hyderabad',
+        sub: 'Aadhaar Terminal #HYD-992 • Electronic City Hub',
+        category: 'location',
+        riskSeverity: 'CRITICAL',
+      },
+      {
+        id: 'tm-2',
+        time: '14:00:00 IST',
+        date: '10 Sep 2026',
+        title: 'Reported Crime Scene in Chennai',
+        sub: 'Anna Salai Substation • Claimed Physical Breach',
+        category: 'cyber',
+        riskSeverity: 'CRITICAL',
+      },
+      {
+        id: 'tm-3',
+        time: '13:45:20 IST',
+        date: '10 Sep 2026',
+        title: 'Canary Honeypot Token Triggered',
+        sub: 'Ghost DB HNY-47 Accessed by Unauthorized Proxy',
+        category: 'cyber',
+        riskSeverity: 'HIGH',
+      },
+    ],
+    geoHotspot: {
+      cityName: 'Chennai',
+      state: 'Tamil Nadu & Telangana',
+      coordinates: [13.0827, 80.2707],
+      mapX: 42,
+      mapY: 76,
+      riskLevel: 'CRITICAL',
+      recentIncidentsCount: 14,
+      activeSurveillanceUnit: 'Special Cyber Crime & Counter-Deception Unit',
+    },
+    evidenceSummary: {
+      total: 3,
+      verified: 3,
+      tampered: 1,
+      pending: 0,
+      section65bStatus: 'SEALED',
+    },
+  },
+
+  // 6. Deceptive FIR Anomaly (FIR-2026-HYD-9942)
+  'FIR-2026-HYD-9942': {
+    caseId: 'FIR-2026-HYD-9942',
+    leadSuspect: {
+      name: 'Dr. Armaan "Cipher" Qureshi',
+      alias: 'Cipher Qureshi / Quantum Actor',
+      role: 'Banking Gateway Intrusion Operator',
+      riskScore: 99,
+      avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+      phone: '+91 98450 11920',
+      location: 'Hyderabad & Bengaluru Corridor',
+      bio: 'Core financial banking gateway intrusion specialist flagged for impossible spatio-temporal transit.',
+    },
+    nodes: [
+      {
+        id: 'armaan_q',
+        label: 'Dr. Armaan Qureshi',
+        sublabel: 'Gateway Intruder (99 Risk)',
+        category: 'People',
+        risk: 'HIGH',
+        riskScore: 99,
+        x: 50,
+        y: 48,
+        type: 'center',
+        avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+        details: { role: 'Lead Intrusion Actor', location: 'Hyderabad / Bengaluru' },
+      },
+      {
+        id: 'state_bank_api',
+        label: 'State Banking Core API',
+        sublabel: 'Intrusion Target Point',
+        category: 'Locations',
+        risk: 'HIGH',
+        riskScore: 98,
+        x: 24,
+        y: 24,
+        type: 'cyber',
+        iconColor: 'bg-red-600 border-red-400 text-red-100',
+        details: { location: 'HITEC Cyber Towers, Hyderabad', role: 'Target Banking System' },
+      },
+      {
+        id: 'blr_iris_term',
+        label: 'Bengaluru Biometric Terminal',
+        sublabel: 'Aadhaar IRIS Scan Point',
+        category: 'Phones',
+        risk: 'HIGH',
+        riskScore: 95,
+        x: 76,
+        y: 22,
+        type: 'cyber',
+        iconColor: 'bg-rose-600 border-rose-400 text-rose-100',
+        details: { location: 'Electronic City Terminal, Bengaluru', role: 'Biometric Authenticator' },
+      },
+      {
+        id: 'vpn_exit_nl',
+        label: 'VPN Exit: 185.220.101.5',
+        sublabel: 'Darknet Anonymizer Node',
+        category: 'Organisations',
+        risk: 'HIGH',
+        riskScore: 91,
+        x: 82,
+        y: 60,
+        type: 'cyber',
+        iconColor: 'bg-purple-600 border-purple-400 text-purple-100',
+        details: { role: 'Encrypted Proxy Relay', location: 'Amsterdam Exit Node' },
+      },
+      {
+        id: 'escrow_contract',
+        label: 'DeFi Bridge: 0x9f8a...33a1',
+        sublabel: 'Automated USDT Mixer',
+        category: 'Accounts',
+        risk: 'HIGH',
+        riskScore: 88,
+        x: 20,
+        y: 66,
+        type: 'account',
+        iconColor: 'bg-emerald-600 border-emerald-400 text-emerald-100',
+        details: { role: 'Cross-Chain Escrow Mixer', notes: 'Converted ₹92L to USDT across 4 bridges.' },
+      },
+      {
+        id: 'burner_hyd_sim',
+        label: '+91 98450 11920',
+        sublabel: 'Burner Intercept Line',
+        category: 'Phones',
+        risk: 'HIGH',
+        riskScore: 84,
+        x: 50,
+        y: 84,
+        type: 'phone',
+        iconColor: 'bg-blue-600 border-blue-400 text-blue-100',
+        details: { phone: '+91 98450 11920', role: 'VoIP Burner Signal' },
+      },
+    ],
+    edges: [
+      { from: 'armaan_q', to: 'state_bank_api', relation: 'API_BREACH_CLAIM', isHighRisk: true, label: '03:15 IST Incident Claim' },
+      { from: 'armaan_q', to: 'blr_iris_term', relation: 'BIOMETRIC_AUTH_HIT', isHighRisk: true, label: '03:20 IST Biometric IRIS Scan' },
+      { from: 'state_bank_api', to: 'blr_iris_term', relation: 'KINEMATIC_ANOMALY', isHighRisk: true, label: '6,840 km/h Velocity Delta' },
+      { from: 'armaan_q', to: 'vpn_exit_nl', relation: 'DARKNET_UPLINK', isHighRisk: true, label: 'TLS Encrypted Session' },
+      { from: 'armaan_q', to: 'escrow_contract', relation: 'FUNDS_SMURFING', isHighRisk: true, label: 'Cross-Chain Mixer' },
+      { from: 'armaan_q', to: 'burner_hyd_sim', relation: 'VOIP_INTERCEPT', isHighRisk: false, label: 'Active CDR Intercept' },
+    ],
+    aiInsight: {
+      suspectName: 'Dr. Armaan "Cipher" Qureshi',
+      syndicateName: 'Central Banking Gateway Intrusion Cell',
+      confidenceScore: 99.1,
+      explanation: 'Doppelgänger AI engine flagged impossible physical travel: Suspect reported committing crime in Hyderabad at 03:15 IST, but Aadhaar IRIS biometric scan authenticated in Bengaluru at 03:20 IST (570km delta in 5 mins requiring 6,840 km/h velocity).',
+      evidenceSummary: [
+        { id: 'ev-1', iconType: 'biometric', title: 'Aadhaar IRIS Timestamped Telemetry', detail: 'Electronic City Terminal authentication at 03:20 IST with 99.8% biometric iris confidence' },
+        { id: 'ev-2', iconType: 'telecom', title: '570km Velocity Discrepancy', detail: 'Physical impossibility confirmed: travel speed calculation yields 6,840 km/h' },
+        { id: 'ev-3', iconType: 'cyber', title: '96% Synthetic LLM Syntax Match', detail: 'Automated FIR text narrative generation detected matching recursive hallucination pattern' },
+      ],
+    },
+    timeMachineEvents: [
+      {
+        id: 'tm-1',
+        time: '03:20:00 IST',
+        date: '10 Sep 2026',
+        title: 'Biometric IRIS Authenticated in Bengaluru',
+        sub: 'Electronic City Terminal #BLR-401 • Physical IRIS Match',
+        category: 'location',
+        riskSeverity: 'CRITICAL',
+      },
+      {
+        id: 'tm-2',
+        time: '03:15:00 IST',
+        date: '10 Sep 2026',
+        title: 'Reported Incident at Banking Gateway in Hyderabad',
+        sub: 'HITEC Cyber Towers • Claimed Ledger Tampering',
+        category: 'cyber',
+        riskSeverity: 'CRITICAL',
+      },
+      {
+        id: 'tm-3',
+        time: '02:55:10 IST',
+        date: '10 Sep 2026',
+        title: 'VPN Session Egress from Amsterdam Node',
+        sub: 'IP 185.220.101.5 • Encrypted TLS Ingress',
+        category: 'cyber',
+        riskSeverity: 'HIGH',
+      },
+    ],
+    geoHotspot: {
+      cityName: 'Hyderabad',
+      state: 'Telangana / Karnataka',
+      coordinates: [17.3850, 78.4867],
+      mapX: 45,
+      mapY: 65,
+      riskLevel: 'CRITICAL',
+      recentIncidentsCount: 29,
+      activeSurveillanceUnit: 'National Financial Intelligence Unit (FIU-IND)',
+    },
+    evidenceSummary: {
+      total: 6,
+      verified: 6,
+      tampered: 1,
+      pending: 0,
+      section65bStatus: 'SEALED',
+    },
+  },
 };
+
+// Seeded deterministic random generator to build dynamic, varied graph topologies for any report
+function seededRandom(seed: number) {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
 
 // Fallback generator for other cases
 export function getActiveCaseIntelligence(caseObj: any): CaseNetworkData {
@@ -782,115 +1125,153 @@ export function getActiveCaseIntelligence(caseObj: any): CaseNetworkData {
 
   // Dynamic generator based on case metadata
   const title = caseObj.title || 'Active Investigation';
-  const suspectName = caseObj.lead_suspect || 'Key Syndicate Operative';
-  const city = caseObj.jurisdiction_city || 'National Jurisdiction';
-  const fir = caseObj.fir_number || id;
-  const category = caseObj.crime_category || 'CYBER_ATTACK';
+  const suspectName = caseObj.lead_suspect || caseObj.suspectName || 'Key Syndicate Operative';
+  const city = caseObj.jurisdiction_city || caseObj.location || 'National Jurisdiction';
+  const fir = caseObj.fir_number || caseObj.firNumber || id;
+  const category = caseObj.crime_category || (caseObj.isCompromised ? 'DECEPTIVE_FIR' : 'CYBER_ATTACK');
+
+  // Compute seed from case ID string
+  const seedNum = (id + fir + title).split('').reduce((acc, char, idx) => acc + char.charCodeAt(0) * (idx + 1) * 31, 1013);
+  const rand = seededRandom(seedNum);
+
+  // Dynamic peripheral nodes with unique polar layout coordinates
+  const nodeCount = 5 + Math.floor(rand() * 3); // 5 to 7 peripheral nodes
+  const dynamicNodes: (NetworkNode & { sublabel?: string; iconColor?: string; type?: string })[] = [];
+  const dynamicEdges: (NetworkEdge & { label?: string; flowSpeed?: number })[] = [];
+
+  const centerNodeId = `${id}_center`;
+  dynamicNodes.push({
+    id: centerNodeId,
+    label: suspectName,
+    sublabel: `Lead Target (${caseObj.priority === 'CRITICAL' ? '98' : '88'} Risk)`,
+    category: 'People',
+    risk: caseObj.priority === 'CRITICAL' || caseObj.isCompromised ? 'HIGH' : 'MEDIUM',
+    riskScore: caseObj.priority === 'CRITICAL' ? 98 : 88,
+    x: 50,
+    y: 48,
+    type: 'center',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    details: { role: caseObj.lead_suspect_role || 'Prime Operative', location: city, notes: `Central entity linked to ${fir}` },
+  });
+
+  const categoryPool = ['Phones', 'Accounts', 'Locations', 'Vehicles', 'Organisations', 'People'];
+  const baseRadius = 32 + rand() * 6; // 32% to 38% radius
+
+  for (let i = 0; i < nodeCount; i++) {
+    const angle = ((2 * Math.PI * i) / nodeCount) + (rand() * 0.4 - 0.2) - Math.PI / 2;
+    const radiusVariation = baseRadius + (i % 2 === 0 ? 5 : -4);
+    const nodeX = Math.round(Math.min(88, Math.max(12, 50 + radiusVariation * Math.cos(angle))));
+    const nodeY = Math.round(Math.min(86, Math.max(14, 48 + (radiusVariation * 0.85) * Math.sin(angle))));
+
+    const nodeCategory = categoryPool[i % categoryPool.length];
+    const peripheralNodeId = `${id}_node_${i + 1}`;
+    const riskScore = 70 + Math.floor(rand() * 26);
+    const isHighRisk = riskScore >= 85;
+
+    let label = '';
+    let sublabel = '';
+    let type = 'person';
+    let iconColor = 'bg-purple-600 border-purple-400 text-purple-100';
+    let edgeRelation = 'LINKED_TO';
+    let edgeLabel = 'Active Channel';
+
+    if (nodeCategory === 'Phones') {
+      label = `+91 98${Math.floor(100 + rand() * 899)} ${Math.floor(10000 + rand() * 89999)}`;
+      sublabel = 'Intercepted CDR Line';
+      type = 'phone';
+      iconColor = 'bg-blue-600 border-blue-400 text-blue-100';
+      edgeRelation = 'TELECOM_INTERCEPT';
+      edgeLabel = 'Encrypted Voice & CDR';
+    } else if (nodeCategory === 'Accounts') {
+      label = `HDFC AC: ${Math.floor(50100000000 + rand() * 8999999999)}`;
+      sublabel = `Mule Escrow (₹${(12 + Math.floor(rand() * 60))}L)`;
+      type = 'account';
+      iconColor = 'bg-emerald-600 border-emerald-400 text-emerald-100';
+      edgeRelation = 'MULE_FUNDS_TRANSFER';
+      edgeLabel = 'Proceeds Layering';
+    } else if (nodeCategory === 'Locations') {
+      label = `${city} Sector ${Math.floor(1 + rand() * 40)}`;
+      sublabel = 'Suspect Stash / Base';
+      type = 'location';
+      iconColor = 'bg-cyan-600 border-cyan-400 text-cyan-100';
+      edgeRelation = 'GEOGRAPHIC_BASE';
+      edgeLabel = 'Cell Tower Overlap';
+    } else if (nodeCategory === 'Vehicles') {
+      label = `DL${Math.floor(1 + rand() * 12)}AB${Math.floor(1000 + rand() * 8999)}`;
+      sublabel = 'ANPR Surveillance Match';
+      type = 'vehicle';
+      iconColor = 'bg-amber-600 border-amber-400 text-amber-100';
+      edgeRelation = 'OPERATES_VEHICLE';
+      edgeLabel = 'CCTV License Plate Hit';
+    } else if (nodeCategory === 'Organisations') {
+      label = `Relay ${Math.floor(100 + rand() * 899)}.${Math.floor(10 + rand() * 89)}.10.45`;
+      sublabel = 'Darknet C2 Node';
+      type = 'cyber';
+      iconColor = 'bg-red-600 border-red-400 text-red-100';
+      edgeRelation = 'C2_BEACON';
+      edgeLabel = 'Reverse TLS Socket';
+    } else {
+      label = `Co-Accused #${i + 1}`;
+      sublabel = 'Syndicate Accomplice';
+      type = 'person';
+      iconColor = 'bg-purple-600 border-purple-400 text-purple-100';
+      edgeRelation = 'CO_CONSPIRATOR';
+      edgeLabel = 'Encrypted Signal Chat';
+    }
+
+    dynamicNodes.push({
+      id: peripheralNodeId,
+      label,
+      sublabel,
+      category: nodeCategory,
+      risk: isHighRisk ? 'HIGH' : 'MEDIUM',
+      riskScore,
+      x: nodeX,
+      y: nodeY,
+      type,
+      iconColor,
+      details: { role: sublabel, location: city },
+    });
+
+    dynamicEdges.push({
+      from: centerNodeId,
+      to: peripheralNodeId,
+      relation: edgeRelation,
+      isHighRisk,
+      label: edgeLabel,
+    });
+  }
+
+  // Cross-link one pair of peripheral nodes for richer realistic topology
+  if (dynamicNodes.length > 3) {
+    dynamicEdges.push({
+      from: dynamicNodes[1].id,
+      to: dynamicNodes[2].id,
+      relation: 'INTER_ENTITY_FLOW',
+      isHighRisk: false,
+      label: 'Secondary Link',
+    });
+  }
 
   return {
     caseId: id,
     leadSuspect: {
       name: suspectName,
       alias: 'Unknown Operator',
-      role: 'Syndicate Prime Target',
-      riskScore: 90,
+      role: caseObj.lead_suspect_role || 'Syndicate Prime Target',
+      riskScore: caseObj.priority === 'CRITICAL' ? 98 : 88,
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
       phone: '+91 98453 34455',
       location: city,
       bio: `Prime suspect identified in connection with ${fir} (${title}).`,
     },
-    nodes: [
-      {
-        id: 'dynamic_center',
-        label: suspectName,
-        sublabel: 'Lead Target (90 Risk)',
-        category: 'People',
-        risk: 'HIGH',
-        riskScore: 90,
-        x: 50,
-        y: 48,
-        type: 'center',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-        details: { role: 'Prime Target', location: city, notes: `Central entity linked to ${fir}` },
-      },
-      {
-        id: 'dynamic_phone',
-        label: '+91 98453 34455',
-        sublabel: 'Primary Intercept Link',
-        category: 'Phones',
-        risk: 'HIGH',
-        riskScore: 86,
-        x: 50,
-        y: 18,
-        type: 'phone',
-        iconColor: 'bg-blue-600 border-blue-400 text-blue-100',
-        details: { phone: '+91 98453 34455', role: 'Active Voice Intercept' },
-      },
-      {
-        id: 'dynamic_bank',
-        label: `SBI AC: 30910049182`,
-        sublabel: 'Mule Transaction Account',
-        category: 'Accounts',
-        risk: 'MEDIUM',
-        riskScore: 78,
-        x: 76,
-        y: 28,
-        type: 'account',
-        iconColor: 'bg-emerald-600 border-emerald-400 text-emerald-100',
-        details: { role: 'Transaction Account', location: city },
-      },
-      {
-        id: 'dynamic_loc',
-        label: `${city} Sector Core`,
-        sublabel: 'Identified Base of Operations',
-        category: 'Locations',
-        risk: 'HIGH',
-        riskScore: 84,
-        x: 24,
-        y: 30,
-        type: 'location',
-        iconColor: 'bg-cyan-600 border-cyan-400 text-cyan-100',
-        details: { location: city, role: 'Operations Base' },
-      },
-      {
-        id: 'dynamic_co',
-        label: 'Co-Conspirator Alpha',
-        sublabel: 'Technical Associate',
-        category: 'People',
-        risk: 'HIGH',
-        riskScore: 82,
-        x: 80,
-        y: 62,
-        type: 'person',
-        iconColor: 'bg-purple-600 border-purple-400 text-purple-100',
-        details: { role: 'Technical Accomplice' },
-      },
-      {
-        id: 'dynamic_veh',
-        label: 'KA01MB9912',
-        sublabel: 'Identified Transport',
-        category: 'Vehicles',
-        risk: 'MEDIUM',
-        riskScore: 68,
-        x: 22,
-        y: 64,
-        type: 'vehicle',
-        iconColor: 'bg-amber-600 border-amber-400 text-amber-100',
-        details: { vehicleNumber: 'KA-01-MB-9912' },
-      },
-    ],
-    edges: [
-      { from: 'dynamic_center', to: 'dynamic_phone', relation: 'TELECOM_INTERCEPT', isHighRisk: true, label: 'Active CDR Calls' },
-      { from: 'dynamic_center', to: 'dynamic_bank', relation: 'MULE_FUNDS_TRANSFER', isHighRisk: true, label: 'Suspicious Transfers' },
-      { from: 'dynamic_center', to: 'dynamic_loc', relation: 'GEOGRAPHIC_BASE', isHighRisk: false, label: 'Tower Cell Match' },
-      { from: 'dynamic_center', to: 'dynamic_co', relation: 'CO_CONSPIRATOR', isHighRisk: true, label: 'Encrypted Messaging' },
-      { from: 'dynamic_center', to: 'dynamic_veh', relation: 'OPERATES_VEHICLE', isHighRisk: false, label: 'CCTV ANPR Detection' },
-    ],
+    nodes: dynamicNodes,
+    edges: dynamicEdges,
     aiInsight: {
       suspectName,
       syndicateName: `${title} Syndicate`,
       confidenceScore: 93.4,
-      explanation: `AI cross-correlator mapped multiple high-frequency nodes associating ${suspectName} with active ${category.replace('_', ' ')} operations in ${city}. Cryptographic verification on ledger confirms tamper-proof evidence custody.`,
+      explanation: `AI cross-correlator mapped ${dynamicNodes.length} high-frequency nodes associating ${suspectName} with active ${category.replace('_', ' ')} operations in ${city}. Cryptographic verification on ledger confirms tamper-proof evidence custody.`,
       evidenceSummary: [
         { id: 'ev-1', iconType: 'financial', title: 'Layered Bank Transactions', detail: 'Suspicious fund routing detected through regional accounts' },
         { id: 'ev-2', iconType: 'telecom', title: 'Cell Tower Triangulation', detail: 'Synchronized location handoffs matching active crime timestamps' },
@@ -945,3 +1326,4 @@ export function getActiveCaseIntelligence(caseObj: any): CaseNetworkData {
     },
   };
 }
+

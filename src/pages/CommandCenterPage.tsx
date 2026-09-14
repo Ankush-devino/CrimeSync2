@@ -9,6 +9,7 @@ import { CrimeTimeMachine } from '../components/CrimeTimeMachine';
 import { CyberDefenseSummary } from '../components/CyberDefenseSummary';
 import { EvidenceIntegrity } from '../components/EvidenceIntegrity';
 import { QuickActions } from '../components/QuickActions';
+import { useCaseContext } from '../context/CaseContext';
 import type { NetworkNode, AlertItem } from '../types/dashboard';
 
 interface CommandCenterPageProps {
@@ -26,6 +27,9 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
   onOpenAnalysis,
   onNavigateTab,
 }) => {
+  const { selectedCase, selectedCaseId } = useCaseContext();
+  const activeCaseKey = selectedCase?.id || selectedCaseId || 'command-graph';
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 8 }}
@@ -47,6 +51,7 @@ export const CommandCenterPage: React.FC<CommandCenterPageProps> = ({
         {/* SECTION 3: LIVE NETWORK GRAPH (HERO WIDGET - 8 COLS) */}
         <div className="lg:col-span-8 min-h-[480px] xl:min-h-[520px] flex flex-col">
           <CriminalNetworkGraph
+            key={activeCaseKey}
             onSelectNode={onSelectNode}
             onExploreGraph={() => {
               if (onNavigateTab) onNavigateTab('knowledge-graph');

@@ -16,9 +16,29 @@ export interface LawCase {
   tracked_money_inr: number;
   evidence_count: number;
   suspects_count: number;
+  isCompromised?: boolean;
 }
 
 export const ALL_CASES: LawCase[] = [
+  {
+    id: 'CRS-2026-HNY-047',
+    fir_number: 'FIR/CHE/2026/0947',
+    title: 'Operation Maya: Synthetic Identity Ingestion (satyakiran)',
+    description: 'Fabricated FIR dossier for satyakiran generated via recursive LLM hallucination and injected into police records. Kinematic transit impossibilities, Aadhaar biometric hash collision, and CDR cell tower triangulation mismatch detected.',
+    crime_category: 'DECEPTIVE_FIR',
+    priority: 'CRITICAL',
+    status: 'INVESTIGATING',
+    jurisdiction_city: 'Chennai & Hyderabad',
+    lead_investigator_name: 'ACP Devendra Singhania',
+    badge_number: 'CHE-CYB-0947',
+    department: 'Special Cyber Crime & Counter-Deception Unit',
+    lead_suspect: 'satyakiran "Phantom" Sen',
+    lead_suspect_role: 'Synthetic Identity Operator',
+    tracked_money_inr: 8750000,
+    evidence_count: 3,
+    suspects_count: 1,
+    isCompromised: true,
+  },
   {
     id: 'CASE-2026-004',
     fir_number: 'FIR/KOL/2026/0412',

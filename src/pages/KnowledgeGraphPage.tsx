@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   Network,
   Search,
@@ -540,21 +541,22 @@ export const KnowledgeGraphPage: React.FC<KnowledgeGraphPageProps> = ({ onSelect
                     style={{
                       left: `${node.x}%`,
                       top: `${node.y}%`,
-                      transform: 'translate(-50%, -50%)',
                     }}
-                    className={`absolute z-10 p-2.5 rounded-xl cursor-pointer border-2 transition-all flex flex-col items-center text-center shadow-lg ${
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 z-10 cursor-pointer p-2.5 rounded-xl border-2 flex flex-col items-center text-center shadow-lg transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_16px_rgba(168,85,247,0.6)] ${
                       node.bgClass
-                    } ${isSelected ? 'ring-4 ring-purple-400 scale-110 z-30 shadow-[0_0_20px_rgba(168,85,247,0.8)]' : 'hover:scale-105'}`}
+                    } ${isSelected ? 'ring-4 ring-purple-400 z-30 shadow-[0_0_20px_rgba(168,85,247,0.8)]' : ''}`}
                   >
-                    <div className="font-bold text-xs truncate max-w-[130px]">{node.name}</div>
-                    {node.sublabel && (
-                      <div className="text-[10px] opacity-90 truncate max-w-[130px]">{node.sublabel}</div>
-                    )}
-                    {node.sublabel2 && (
-                      <div className="text-[9px] font-mono bg-black/40 px-1.5 py-0.5 rounded-full mt-1">
-                        {node.sublabel2}
-                      </div>
-                    )}
+                    <div className="pointer-events-none select-none flex flex-col items-center text-center w-full">
+                      <div className="font-bold text-xs truncate max-w-[130px]">{node.name}</div>
+                      {node.sublabel && (
+                        <div className="text-[10px] opacity-90 truncate max-w-[130px]">{node.sublabel}</div>
+                      )}
+                      {node.sublabel2 && (
+                        <div className="text-[9px] font-mono bg-black/40 px-1.5 py-0.5 rounded-full mt-1">
+                          {node.sublabel2}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}

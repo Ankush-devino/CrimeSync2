@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   Target,
   Shield,
@@ -40,6 +41,8 @@ import {
 import { printCourtDossier } from '../utils/courtDossierPrinter';
 import { buildDossierForCase } from '../services/dossierService';
 import { ALL_CASES } from '../constants/cases';
+import { useCaseContext } from '../context/CaseContext';
+import { CaseSelector } from '../components/CaseSelector';
 import type {
   DeceptionAsset,
   TripwireIncident,
@@ -48,6 +51,626 @@ import type {
   Severity,
 } from '../types/dashboard';
 
+// Registry of case-tailored deception assets & incidents
+const CASE_DECEPTION_REGISTRY: Record<string, { assets: DeceptionAsset[]; incidents: TripwireIncident[] }> = {
+  'CASE-2026-002': {
+    assets: [
+      {
+        id: 'case-002-decoy-1',
+        name: 'SCADA_KALWA_400KV_GATEWAY_CONFIG.pdf',
+        type: 'honey_document',
+        categoryLabel: 'Decoy Document',
+        caseId: 'CASE-2026-002',
+        status: 'TRIPPED',
+        deploymentDate: '24 Aug 2026',
+        targetFolder: '/vault/evidence/scada_telemetry/mumbai_grid/',
+        accessCount: 5,
+        lastTriggered: '11:14 PM (Today)',
+        stegoWatermarkId: 'STG-TARIQ-4491-Z',
+        fingerprintHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        fakePayloadPreview: 'FABRICATED: Contains fake Modbus TCP/502 register addresses and dummy Kalwa grid substation breaker IDs.',
+        radarX: 42,
+        radarY: 34,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Auto-silent memory dump + IP trace + Telegram exfil beacon kill',
+      },
+      {
+        id: 'case-002-decoy-2',
+        name: 'pg_decoy://scada_telemetry_bus:5432',
+        type: 'ghost_database',
+        categoryLabel: 'Ghost Database Table',
+        caseId: 'CASE-2026-002',
+        status: 'TRIPPED',
+        deploymentDate: '21 Aug 2026',
+        targetFolder: 'db.crimesync.internal/scada_dispatch/staging',
+        accessCount: 14,
+        lastTriggered: '11:22 PM (Today)',
+        fingerprintHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+        fakePayloadPreview: 'GHOST SCHEMA: 8 simulated transformer load feeds with decoy telemetry commands matching CVE-2026-8812.',
+        radarX: 68,
+        radarY: 28,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Delay query response by 3s, record SQL fingerprint, auto-lock DB session',
+      },
+      {
+        id: 'case-002-decoy-3',
+        name: 'AWS_CANARY_POWERGRID_IAM_KEY',
+        type: 'iam_credential',
+        categoryLabel: 'Canary Cloud Token',
+        caseId: 'CASE-2026-002',
+        status: 'ARMED',
+        deploymentDate: '15 Aug 2026',
+        targetFolder: '.aws/credentials on Tariq Workstation',
+        accessCount: 0,
+        fingerprintHash: '7b91d90a980998f4803b91a7889ff0189d98e8432a9010049281a8c9098711ef',
+        fakePayloadPreview: 'CANARY TOKEN: AKIA99POWERGRID2026. Trips AWS CloudWatch Canary immediately upon STS GetCallerIdentity.',
+        radarX: 78,
+        radarY: 62,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Instant revoke officer session + SMS broadcast to Chief Cyber Warden',
+      },
+      {
+        id: 'case-002-decoy-4',
+        name: 'CDR_TARIQ_QURESHI_BURNER_DECOY.xlsx',
+        type: 'honey_document',
+        categoryLabel: 'Decoy Document',
+        caseId: 'CASE-2026-002',
+        status: 'TRIPPED',
+        deploymentDate: '26 Aug 2026',
+        targetFolder: '/intelligence/telecom_dumps/mumbai_bkc/',
+        accessCount: 3,
+        lastTriggered: '10:55 PM (Today)',
+        stegoWatermarkId: 'STG-MUM-9912-Q',
+        fingerprintHash: '1a90c298018ef902b4890c91823abce809182470129a01f98109340982481023',
+        fakePayloadPreview: 'SPOOFED CDR: 42 fake burner calls mapped to honey BTS towers in Bandra-Kurla Complex with geo-beacon webhooks.',
+        radarX: 30,
+        radarY: 66,
+        sensitivity: 'Standard',
+        containmentPolicy: 'Silently embed zero-width watermark matching downloader badge ID',
+      },
+      {
+        id: 'case-002-decoy-5',
+        name: 'api.crimesync.internal/v2/scada/kalwa_telemetry_stream',
+        type: 'fake_endpoint',
+        categoryLabel: 'Ghost REST Endpoint',
+        caseId: 'CASE-2026-002',
+        status: 'ARMED',
+        deploymentDate: '20 Aug 2026',
+        targetFolder: 'API Gateway / SCADA Mesh',
+        accessCount: 0,
+        fingerprintHash: '8910492810a9c8012894b91029381029c0192840192834019283401928340192',
+        fakePayloadPreview: 'SYNTHETIC PACKETS: Emits simulated DNP3/Modbus packet streams to detect unauthorized network sniffers.',
+        radarX: 52,
+        radarY: 82,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Port-mirror traffic, capture full PCAP dump, isolate switch port',
+      },
+      {
+        id: 'case-002-decoy-6',
+        name: 'CCTV_KALWA_400KV_CONTROL_ROOM_CAM04.mp4',
+        type: 'stego_media',
+        categoryLabel: 'Steganographic Video Trap',
+        caseId: 'CASE-2026-002',
+        status: 'ARMED',
+        deploymentDate: '27 Aug 2026',
+        targetFolder: '/evidence/cctv_vault/mumbai_grid/',
+        accessCount: 0,
+        stegoWatermarkId: 'STG-CCTV-002-MUM',
+        fingerprintHash: '9840192834019283401928340192834019283401928340192834019283401928',
+        fakePayloadPreview: 'STEGANOGRAPHIC VIDEO: High-bitrate 1080p surveillance video with embedded zero-width steganographic officer watermarks.',
+        radarX: 22,
+        radarY: 42,
+        sensitivity: 'Standard',
+        containmentPolicy: 'Extract frame LSB watermark, cross-reference duty roster',
+      },
+    ],
+    incidents: [
+      {
+        id: 'inc-002-1',
+        incidentRef: 'TRIP-2026-4401',
+        timestamp: '11:22 PM (Today)',
+        decoyId: 'case-002-decoy-2',
+        decoyName: 'pg_decoy://scada_telemetry_bus:5432',
+        decoyType: 'ghost_database',
+        severity: 'CRITICAL',
+        accessorBadge: 'EXT-ADVERSARY-99',
+        accessorName: 'Adversary (IP: 194.26.29.112)',
+        accessorRole: 'External APT Actor',
+        accessorUnit: 'Bulgarian Relay Host',
+        sourceIp: '194.26.29.112',
+        deviceUuid: 'UNKNOWN-APT-SCANNER',
+        geoLocation: 'Bulgaria (Cobalt Strike C2)',
+        attackVector: 'Port 502 Modbus / SCADA exploit probe',
+        exfiltrationMethod: 'SQL injection on simulated telemetry bus',
+        sha256Proof: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+        watermarkMatched: true,
+        watermarkRecipient: 'Kalwa Grid Control Security',
+        containmentStatus: 'CONTAINED',
+        containmentNotes: 'eBPF socket filter airgapped communication pipeline instantly.',
+      },
+      {
+        id: 'inc-002-2',
+        incidentRef: 'TRIP-2026-4402',
+        timestamp: '11:14 PM (Today)',
+        decoyId: 'case-002-decoy-1',
+        decoyName: 'SCADA_KALWA_400KV_GATEWAY_CONFIG.pdf',
+        decoyType: 'honey_document',
+        severity: 'CRITICAL',
+        accessorBadge: 'SI-7740',
+        accessorName: 'SI Vikramaditya Reddy',
+        accessorRole: 'Investigative Officer',
+        accessorUnit: 'CID Financial Fraud',
+        sourceIp: '115.242.18.94 (Off-Grid Commercial IP)',
+        deviceUuid: 'MAC: E4:5F:01:8A:22:9C',
+        geoLocation: 'Hyderabad, TS',
+        attackVector: 'Direct download of classified SCADA gateway dossier',
+        exfiltrationMethod: 'Off-grid residential IP file download',
+        sha256Proof: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        watermarkMatched: true,
+        watermarkRecipient: 'SI Vikramaditya Reddy (HYD-CID-7740)',
+        containmentStatus: 'ACTION_REQUIRED',
+        containmentNotes: 'Tripwire alert dispatched to Central Oversight Cell.',
+      },
+    ],
+  },
+  'CASE-2026-001': {
+    assets: [
+      {
+        id: 'case-001-decoy-1',
+        name: 'HAWALA_VIP_LEDGER_CONFIDENTIAL.xlsx',
+        type: 'honey_document',
+        categoryLabel: 'Decoy Document',
+        caseId: 'CASE-2026-001',
+        status: 'TRIPPED',
+        deploymentDate: '24 Aug 2026',
+        targetFolder: '/vault/evidence/confidential/delhi-syndicate/',
+        accessCount: 6,
+        lastTriggered: '10:21 PM (Today)',
+        stegoWatermarkId: 'STG-ACP23-9981-Z',
+        fingerprintHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        fakePayloadPreview: 'FABRICATED: Contains fake swiss banking swift routes and dummy safehouse coordinates in Connaught Place.',
+        radarX: 38,
+        radarY: 30,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Auto-silent memory dump + IP trace + Telegram exfil beacon kill',
+      },
+      {
+        id: 'case-001-decoy-2',
+        name: 'pg_decoy://mule_accounts_ledger:5432',
+        type: 'ghost_database',
+        categoryLabel: 'Ghost Database Table',
+        caseId: 'CASE-2026-001',
+        status: 'TRIPPED',
+        deploymentDate: '21 Aug 2026',
+        targetFolder: 'db.crimesync.internal/banking_lake/staging',
+        accessCount: 12,
+        lastTriggered: '10:36 PM (Today)',
+        fingerprintHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+        fakePayloadPreview: 'GHOST SCHEMA: 14 fake bank accounts containing decoy INR balances tied to synthetic PAN numbers.',
+        radarX: 72,
+        radarY: 24,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Delay query response by 3s, record SQL fingerprint, auto-lock DB session',
+      },
+      {
+        id: 'case-001-decoy-3',
+        name: 'AWS_CANARY_IAM_KEY_CRIMESYNC_BACKUP',
+        type: 'iam_credential',
+        categoryLabel: 'Canary Cloud Token',
+        caseId: 'CASE-2026-001',
+        status: 'ARMED',
+        deploymentDate: '15 Aug 2026',
+        targetFolder: '.aws/credentials on Investigator Workstations',
+        accessCount: 0,
+        fingerprintHash: '7b91d90a980998f4803b91a7889ff0189d98e8432a9010049281a8c9098711ef',
+        fakePayloadPreview: 'CANARY TOKEN: AKIA99HONEYCRIME2026. Trips AWS CloudWatch Canary immediately upon STS GetCallerIdentity.',
+        radarX: 82,
+        radarY: 58,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Instant revoke officer session + SMS broadcast to Chief Cyber Warden',
+      },
+      {
+        id: 'case-001-decoy-4',
+        name: 'CDR_HARSH_SINGHANIA_BURNER_DECOY.xlsx',
+        type: 'honey_document',
+        categoryLabel: 'Decoy Document',
+        caseId: 'CASE-2026-001',
+        status: 'TRIPPED',
+        deploymentDate: '26 Aug 2026',
+        targetFolder: '/intelligence/telecom_dumps/south_delhi/',
+        accessCount: 2,
+        lastTriggered: '10:28 PM (Today)',
+        stegoWatermarkId: 'STG-INS17-4402-Q',
+        fingerprintHash: '1a90c298018ef902b4890c91823abce809182470129a01f98109340982481023',
+        fakePayloadPreview: 'SPOOFED CDR: 35 fake burner calls mapped to honey BTS towers in Chandni Chowk with geo-beacon webhooks.',
+        radarX: 26,
+        radarY: 62,
+        sensitivity: 'Standard',
+        containmentPolicy: 'Silently embed zero-width watermark matching downloader badge ID',
+      },
+      {
+        id: 'case-001-decoy-5',
+        name: 'api.crimesync.internal/v2/wiretaps/dubai_angadia_stream',
+        type: 'fake_endpoint',
+        categoryLabel: 'Ghost REST Endpoint',
+        caseId: 'CASE-2026-001',
+        status: 'ARMED',
+        deploymentDate: '20 Aug 2026',
+        targetFolder: 'API Gateway / Internal Routing Mesh',
+        accessCount: 0,
+        fingerprintHash: '8910492810a9c8012894b91029381029c0192840192834019283401928340192',
+        fakePayloadPreview: 'SYNTHETIC AUDIO: Generates simulated VOIP raw pings to identify unauthorized packet sniffing within HQ LAN.',
+        radarX: 48,
+        radarY: 80,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Port-mirror traffic, capture full PCAP dump, isolate switch port',
+      },
+      {
+        id: 'case-001-decoy-6',
+        name: 'CCTV_KAROL_BAGH_CASH_VAULT_CAM02.mp4',
+        type: 'stego_media',
+        categoryLabel: 'Steganographic Video Trap',
+        caseId: 'CASE-2026-001',
+        status: 'ARMED',
+        deploymentDate: '27 Aug 2026',
+        targetFolder: '/evidence/cctv_vault/karol_bagh/',
+        accessCount: 0,
+        stegoWatermarkId: 'STG-CCTV-8819-B',
+        fingerprintHash: '9840192834019283401928340192834019283401928340192834019283401928',
+        fakePayloadPreview: 'STEGANOGRAPHIC VIDEO: High-bitrate 1080p surveillance video with embedded zero-width steganographic officer watermarks.',
+        radarX: 20,
+        radarY: 45,
+        sensitivity: 'Standard',
+        containmentPolicy: 'Extract frame LSB watermark, cross-reference duty roster',
+      },
+    ],
+    incidents: [
+      {
+        id: 'inc-001-1',
+        incidentRef: 'TRIP-2026-8821',
+        timestamp: '10:21 PM (Today)',
+        decoyId: 'case-001-decoy-1',
+        decoyName: 'HAWALA_VIP_LEDGER_CONFIDENTIAL.xlsx',
+        decoyType: 'honey_document',
+        severity: 'CRITICAL',
+        accessorBadge: 'ACP-23',
+        accessorName: 'ACP Rajeshwar Sharma',
+        accessorRole: 'Supervisory Officer',
+        accessorUnit: 'Special Crime Cell (Delhi)',
+        sourceIp: '10.240.8.21 (HQ Terminal #4)',
+        deviceUuid: 'MAC: D2:11:44:89:AF:02',
+        geoLocation: 'Delhi Police HQ, Floor 4',
+        attackVector: 'Direct file read on unassigned Hawala case dossier',
+        exfiltrationMethod: 'Export to staged local directory',
+        sha256Proof: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        watermarkMatched: true,
+        watermarkRecipient: 'ACP Rajeshwar Sharma (DEL-IPS-8821)',
+        containmentStatus: 'ACTION_REQUIRED',
+        containmentNotes: 'Zero assigned investigation duties. Flagged as Canary Trap incident.',
+      },
+    ],
+  },
+  'CRS-2026-HNY-047': {
+    assets: [
+      {
+        id: 'case-047-decoy-1',
+        name: 'FIR_0947_SYNTHETIC_AADHAAR_REGISTRY.pdf',
+        type: 'honey_document',
+        categoryLabel: 'Decoy Document',
+        caseId: 'CRS-2026-HNY-047',
+        status: 'TRIPPED',
+        deploymentDate: '28 Aug 2026',
+        targetFolder: '/vault/evidence/deceptive_firs/chennai_cyber/',
+        accessCount: 8,
+        lastTriggered: '09:44 PM (Today)',
+        stegoWatermarkId: 'STG-PHANTOM-0947-X',
+        fingerprintHash: '9a01f82710381029384710293847102938471029384710293847102938471029',
+        fakePayloadPreview: 'FABRICATED: Synthetic biometric IRIS hash and forged Connaught Place FIR narrative generated via AI hallucination.',
+        radarX: 40,
+        radarY: 32,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Auto-quarantine FIR registry + Push alert to Doppelgänger detector',
+      },
+      {
+        id: 'case-047-decoy-2',
+        name: 'pg_decoy://biometric_hash_collision_db:5432',
+        type: 'ghost_database',
+        categoryLabel: 'Ghost Database Table',
+        caseId: 'CRS-2026-HNY-047',
+        status: 'TRIPPED',
+        deploymentDate: '28 Aug 2026',
+        targetFolder: 'db.crimesync.internal/uidai_cache/staging',
+        accessCount: 9,
+        lastTriggered: '09:50 PM (Today)',
+        fingerprintHash: '8b91a7889ff0189d98e8432a9010049281a8c9098711ef4f53cda18c2baa0c03',
+        fakePayloadPreview: 'GHOST SCHEMA: Decoy Aadhaar terminal scan logs showing Mumbai BKC terminal vs Delhi timestamp conflict.',
+        radarX: 66,
+        radarY: 26,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Lock session token, trigger biometric re-authentication',
+      },
+      {
+        id: 'case-047-decoy-3',
+        name: 'AWS_CANARY_IAM_KEY_JUDICIAL_INGEST_API',
+        type: 'iam_credential',
+        categoryLabel: 'Canary Cloud Token',
+        caseId: 'CRS-2026-HNY-047',
+        status: 'ARMED',
+        deploymentDate: '27 Aug 2026',
+        targetFolder: '.aws/credentials on CCTNS Gateway Node',
+        accessCount: 0,
+        fingerprintHash: '1a90c298018ef902b4890c91823abce809182470129a01f98109340982481023',
+        fakePayloadPreview: 'CANARY TOKEN: AKIA99JUDICIAL2026. Alerts judicial compliance cell upon unauthorized PUT to Section 65B manifest.',
+        radarX: 80,
+        radarY: 60,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Instant revoke officer session + SMS broadcast to Chief Cyber Warden',
+      },
+      {
+        id: 'case-047-decoy-4',
+        name: 'CDR_SATYAKIRAN_PHANTOM_BTS_DUMP.xlsx',
+        type: 'honey_document',
+        categoryLabel: 'Decoy Document',
+        caseId: 'CRS-2026-HNY-047',
+        status: 'TRIPPED',
+        deploymentDate: '28 Aug 2026',
+        targetFolder: '/intelligence/telecom_dumps/chennai_hyderabad/',
+        accessCount: 4,
+        lastTriggered: '09:30 PM (Today)',
+        stegoWatermarkId: 'STG-CHE-0947-P',
+        fingerprintHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+        fakePayloadPreview: 'SPOOFED CDR: 52 simulated cell tower handoffs along Chennai-Hyderabad corridor with kinematic speed violations.',
+        radarX: 28,
+        radarY: 64,
+        sensitivity: 'Standard',
+        containmentPolicy: 'Silently embed zero-width watermark matching downloader badge ID',
+      },
+      {
+        id: 'case-047-decoy-5',
+        name: 'api.crimesync.internal/v2/doppelganger/synthetic_fir_stream',
+        type: 'fake_endpoint',
+        categoryLabel: 'Ghost REST Endpoint',
+        caseId: 'CRS-2026-HNY-047',
+        status: 'ARMED',
+        deploymentDate: '28 Aug 2026',
+        targetFolder: 'API Gateway / Doppelgänger Ingestion Mesh',
+        accessCount: 0,
+        fingerprintHash: '7b91d90a980998f4803b91a7889ff0189d98e8432a9010049281a8c9098711ef',
+        fakePayloadPreview: 'SYNTHETIC INGESTION: Detects automated bot injections of hallucinated FIR narratives into live database.',
+        radarX: 50,
+        radarY: 80,
+        sensitivity: 'Ultra-High',
+        containmentPolicy: 'Port-mirror traffic, capture full PCAP dump, isolate switch port',
+      },
+      {
+        id: 'case-047-decoy-6',
+        name: 'CCTV_BKC_TERMINAL_BIOMETRIC_SCAN_CAM11.mp4',
+        type: 'stego_media',
+        categoryLabel: 'Steganographic Video Trap',
+        caseId: 'CRS-2026-HNY-047',
+        status: 'ARMED',
+        deploymentDate: '28 Aug 2026',
+        targetFolder: '/evidence/cctv_vault/biometric_audit/',
+        accessCount: 0,
+        stegoWatermarkId: 'STG-CCTV-0947-BKC',
+        fingerprintHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        fakePayloadPreview: 'STEGANOGRAPHIC VIDEO: High-bitrate CCTV footage of suspect Vikramaditya Sen at Mumbai terminal with biometric watermark.',
+        radarX: 18,
+        radarY: 40,
+        sensitivity: 'Standard',
+        containmentPolicy: 'Extract frame LSB watermark, cross-reference duty roster',
+      },
+    ],
+    incidents: [
+      {
+        id: 'inc-047-1',
+        incidentRef: 'TRIP-2026-0947',
+        timestamp: '09:44 PM (Today)',
+        decoyId: 'case-047-decoy-1',
+        decoyName: 'FIR_0947_SYNTHETIC_AADHAAR_REGISTRY.pdf',
+        decoyType: 'honey_document',
+        severity: 'CRITICAL',
+        accessorBadge: 'SYS-AUTOBOT',
+        accessorName: 'Automated Ingestion Script #CHE-99',
+        accessorRole: 'System Bot',
+        accessorUnit: 'Automated Scripting',
+        sourceIp: '185.220.101.5 (Tor Exit)',
+        deviceUuid: 'UNKNOWN-BOT-RUNNER',
+        geoLocation: 'Tor Egress / Unknown',
+        attackVector: 'Synthetic FIR injection attempt into police records',
+        exfiltrationMethod: 'HTTP POST to /api/v1/cases/inject with forged signature',
+        sha256Proof: '9a01f82710381029384710293847102938471029384710293847102938471029',
+        watermarkMatched: true,
+        watermarkRecipient: 'Doppelgänger AI Engine',
+        containmentStatus: 'CONTAINED',
+        containmentNotes: 'Deceptive narrative quarantined; suspect identity flagged as synthetic collision.',
+      },
+    ],
+  },
+};
+
+function getCaseDeceptionAssetsAndIncidents(caseId: string, caseObj?: any): { assets: DeceptionAsset[]; incidents: TripwireIncident[] } {
+  if (CASE_DECEPTION_REGISTRY[caseId]) {
+    return CASE_DECEPTION_REGISTRY[caseId];
+  }
+
+  const c = caseObj || ALL_CASES.find((item) => item.id === caseId) || {
+    id: caseId,
+    fir_number: caseId,
+    title: 'Active Cyber & Financial Fraud Investigation',
+    lead_suspect: 'Primary Target Operative',
+    jurisdiction_city: 'Delhi NCR',
+    crime_category: 'FINANCIAL_FRAUD',
+  };
+
+  const fir = c.fir_number || (c as any).firNumber || caseId;
+  const suspect = c.lead_suspect || (c as any).suspectName || 'Target Operative';
+  const cleanSuspect = suspect.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  const city = c.jurisdiction_city || (c as any).location || 'National Scope';
+
+  const dynamicAssets: DeceptionAsset[] = [
+    {
+      id: `${caseId}-decoy-1`,
+      name: `${fir.replace(/[^a-zA-Z0-9]/g, '_')}_CONFIDENTIAL_DOSSIER.pdf`,
+      type: 'honey_document',
+      categoryLabel: 'Decoy Document',
+      caseId: caseId,
+      status: 'TRIPPED',
+      deploymentDate: '24 Aug 2026',
+      targetFolder: `/vault/evidence/confidential/${caseId.toLowerCase()}/`,
+      accessCount: 4,
+      lastTriggered: '10:45 PM (Today)',
+      stegoWatermarkId: `STG-${cleanSuspect.slice(0, 8)}-9912-Z`,
+      fingerprintHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      fakePayloadPreview: `FABRICATED: Contains synthetic ledger accounts and dummy safehouse coordinates for ${suspect} in ${city}.`,
+      radarX: 42,
+      radarY: 34,
+      sensitivity: 'Ultra-High',
+      containmentPolicy: 'Auto-silent memory dump + IP trace + Telegram exfil beacon kill',
+    },
+    {
+      id: `${caseId}-decoy-2`,
+      name: `pg_decoy://${cleanSuspect.toLowerCase().slice(0, 10)}_mule_ledger:5432`,
+      type: 'ghost_database',
+      categoryLabel: 'Ghost Database Table',
+      caseId: caseId,
+      status: 'TRIPPED',
+      deploymentDate: '21 Aug 2026',
+      targetFolder: `db.crimesync.internal/${caseId.toLowerCase()}/staging`,
+      accessCount: 11,
+      lastTriggered: '10:52 PM (Today)',
+      fingerprintHash: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+      fakePayloadPreview: `GHOST SCHEMA: 12 fake transactions linked to ${suspect} with decoy balances to attract unauthorized queries.`,
+      radarX: 68,
+      radarY: 28,
+      sensitivity: 'Ultra-High',
+      containmentPolicy: 'Delay query response by 3s, record SQL fingerprint, auto-lock DB session',
+    },
+    {
+      id: `${caseId}-decoy-3`,
+      name: `AWS_CANARY_IAM_KEY_${caseId.replace(/[^a-zA-Z0-9]/g, '_')}_VAULT`,
+      type: 'iam_credential',
+      categoryLabel: 'Canary Cloud Token',
+      caseId: caseId,
+      status: 'ARMED',
+      deploymentDate: '15 Aug 2026',
+      targetFolder: `.aws/credentials on Investigator Workstations`,
+      accessCount: 0,
+      fingerprintHash: '7b91d90a980998f4803b91a7889ff0189d98e8432a9010049281a8c9098711ef',
+      fakePayloadPreview: `CANARY TOKEN: AKIA99${cleanSuspect.slice(0, 6)}2026. Trips CloudWatch Canary immediately upon STS GetCallerIdentity.`,
+      radarX: 78,
+      radarY: 62,
+      sensitivity: 'Ultra-High',
+      containmentPolicy: 'Instant revoke officer session + SMS broadcast to Chief Cyber Warden',
+    },
+    {
+      id: `${caseId}-decoy-4`,
+      name: `CDR_${cleanSuspect.slice(0, 12)}_BURNER_DUMP.xlsx`,
+      type: 'honey_document',
+      categoryLabel: 'Decoy Document',
+      caseId: caseId,
+      status: 'TRIPPED',
+      deploymentDate: '26 Aug 2026',
+      targetFolder: `/intelligence/telecom_dumps/${city.toLowerCase().replace(/[^a-z0-9]/g, '_')}/`,
+      accessCount: 2,
+      lastTriggered: '10:18 PM (Today)',
+      stegoWatermarkId: `STG-CDR-${caseId.slice(-4)}`,
+      fingerprintHash: '1a90c298018ef902b4890c91823abce809182470129a01f98109340982481023',
+      fakePayloadPreview: `SPOOFED CDR: 48 simulated burner calls and tower pings across ${city} with embedded tracking webhooks.`,
+      radarX: 30,
+      radarY: 66,
+      sensitivity: 'Standard',
+      containmentPolicy: 'Silently embed zero-width watermark matching downloader badge ID',
+    },
+    {
+      id: `${caseId}-decoy-5`,
+      name: `api.crimesync.internal/v2/${caseId.toLowerCase()}/telemetry_stream`,
+      type: 'fake_endpoint',
+      categoryLabel: 'Ghost REST Endpoint',
+      caseId: caseId,
+      status: 'ARMED',
+      deploymentDate: '20 Aug 2026',
+      targetFolder: 'API Gateway / Internal Routing Mesh',
+      accessCount: 0,
+      fingerprintHash: '8910492810a9c8012894b91029381029c0192840192834019283401928340192',
+      fakePayloadPreview: 'SYNTHETIC STREAM: Generates realistic mock telemetry packets to trap packet sniffers and crawler bots.',
+      radarX: 52,
+      radarY: 82,
+      sensitivity: 'Ultra-High',
+      containmentPolicy: 'Port-mirror traffic, capture full PCAP dump, isolate switch port',
+    },
+    {
+      id: `${caseId}-decoy-6`,
+      name: `CCTV_${city.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_SURVEILLANCE_CAM04.mp4`,
+      type: 'stego_media',
+      categoryLabel: 'Steganographic Video Trap',
+      caseId: caseId,
+      status: 'ARMED',
+      deploymentDate: '27 Aug 2026',
+      targetFolder: `/evidence/cctv_vault/${city.toLowerCase().replace(/[^a-z0-9]/g, '_')}/`,
+      accessCount: 0,
+      stegoWatermarkId: `STG-CCTV-${caseId.slice(-4)}`,
+      fingerprintHash: '9840192834019283401928340192834019283401928340192834019283401928',
+      fakePayloadPreview: `STEGANOGRAPHIC VIDEO: 1080p footage with embedded zero-width watermarks identifying any unauthenticated exfiltration.`,
+      radarX: 22,
+      radarY: 42,
+      sensitivity: 'Standard',
+      containmentPolicy: 'Extract frame LSB watermark, cross-reference duty roster',
+    },
+  ];
+
+  const dynamicIncidents: TripwireIncident[] = [
+    {
+      id: `inc-${caseId}-1`,
+      incidentRef: `TRIP-2026-${Math.floor(1000 + Math.random() * 8999)}`,
+      timestamp: '10:52 PM (Today)',
+      decoyId: `${caseId}-decoy-2`,
+      decoyName: dynamicAssets[1].name,
+      decoyType: 'ghost_database',
+      severity: 'CRITICAL',
+      accessorBadge: 'OFFICER-PROBE',
+      accessorName: 'Unauthorized Session #9941',
+      accessorRole: 'Terminal Operator',
+      accessorUnit: city,
+      sourceIp: '10.240.8.214 (HQ Workstation)',
+      deviceUuid: 'MAC: E4:5F:01:8A:22:9C',
+      geoLocation: `${city} Police Cyber Ops`,
+      attackVector: `SQL enumeration query against ${dynamicAssets[1].name}`,
+      exfiltrationMethod: 'Bulk table export attempt',
+      sha256Proof: dynamicAssets[1].fingerprintHash,
+      watermarkMatched: true,
+      watermarkRecipient: 'CrimeSync Canary Oversight System',
+      containmentStatus: 'CONTAINED',
+      containmentNotes: 'Automatic memory dump created and session access tokens revoked.',
+    },
+    {
+      id: `inc-${caseId}-2`,
+      incidentRef: `TRIP-2026-${Math.floor(1000 + Math.random() * 8999)}`,
+      timestamp: '10:45 PM (Today)',
+      decoyId: `${caseId}-decoy-1`,
+      decoyName: dynamicAssets[0].name,
+      decoyType: 'honey_document',
+      severity: 'CRITICAL',
+      accessorBadge: 'EXT-ADVERSARY-99',
+      accessorName: 'Adversary (Unregistered IP)',
+      accessorRole: 'External Threat Actor',
+      accessorUnit: 'External Egress',
+      sourceIp: '115.242.18.94 (Commercial Subnet)',
+      deviceUuid: 'UNKNOWN-DEVICE',
+      geoLocation: city,
+      attackVector: `Unauthorized download of sealed dossier for ${suspect}`,
+      exfiltrationMethod: 'Direct REST API file read',
+      sha256Proof: dynamicAssets[0].fingerprintHash,
+      watermarkMatched: true,
+      watermarkRecipient: 'Counter-Deception Unit',
+      containmentStatus: 'ACTION_REQUIRED',
+      containmentNotes: 'Tripwire tripped; digital forensic custody log recorded.',
+    },
+  ];
+
+  return { assets: dynamicAssets, incidents: dynamicIncidents };
+}
+
 interface DeceptionNetworkPageProps {
   onSelectAction?: (action: string) => void;
 }
@@ -55,19 +678,34 @@ interface DeceptionNetworkPageProps {
 type TabType = 'sensor-grid' | 'breach-stream' | 'asset-inventory' | 'insider-matrix' | 'watermark-lab';
 
 export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSelectAction }) => {
+  const { selectedCaseId, selectedCase, setSelectedCaseId } = useCaseContext();
+  const activeCaseKey = selectedCase?.id || selectedCaseId || 'CASE-2026-002';
+
   // Page State
   const [activeTab, setActiveTab] = useState<TabType>('sensor-grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   
-  // Data State (supports live additions & simulations)
-  const [assets, setAssets] = useState<DeceptionAsset[]>(deceptionAssetsData);
-  const [incidents, setIncidents] = useState<TripwireIncident[]>(tripwireIncidentsData);
-  const [selectedAssetId, setSelectedAssetId] = useState<string>(deceptionAssetsData[0]?.id || '');
+  // Data State (supports live additions & simulations & reactive case switching)
+  const initialData = useMemo(() => {
+    return getCaseDeceptionAssetsAndIncidents(activeCaseKey, selectedCase);
+  }, [activeCaseKey, selectedCase]);
+
+  const [assets, setAssets] = useState<DeceptionAsset[]>(initialData.assets);
+  const [incidents, setIncidents] = useState<TripwireIncident[]>(initialData.incidents);
+  const [selectedAssetId, setSelectedAssetId] = useState<string>(initialData.assets[0]?.id || '');
   const [selectedIncident, setSelectedIncident] = useState<TripwireIncident | null>(null);
   const [radarZoom, setRadarZoom] = useState<number>(1);
   const [radarFilter, setRadarFilter] = useState<'ALL' | 'TRIPPED' | 'ARMED'>('ALL');
+
+  // Reactively synchronize assets and incidents when the selected report/case changes
+  React.useEffect(() => {
+    const updated = getCaseDeceptionAssetsAndIncidents(activeCaseKey, selectedCase);
+    setAssets(updated.assets);
+    setIncidents(updated.incidents);
+    setSelectedAssetId(updated.assets[0]?.id || '');
+  }, [activeCaseKey, selectedCase]);
 
   // Modals & Banners
   const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
@@ -338,7 +976,7 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
   };
 
   return (
-    <div className="flex-1 p-3.5 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
+    <div key={activeCaseKey} className="flex-1 p-3.5 flex flex-col h-full bg-[#030712] text-slate-100 font-sans overflow-hidden">
       {/* ─── Simulation Alert Toast ──────────────────────────────────────────────── */}
       {simulationAlert && (
         <div className="mb-3 p-3 rounded-xl bg-gradient-to-r from-red-950/90 via-[#1f0a0a] to-amber-950/90 border border-red-500/70 shadow-[0_0_25px_rgba(239,68,68,0.5)] flex items-center justify-between animate-bounce">
@@ -396,8 +1034,21 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons & Case Selector */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Honeypot Active Investigation Selector (Shows all reports with compromised highlighted) */}
+          <CaseSelector
+            selectedCaseId={selectedCaseId}
+            onSelectCase={(id) => {
+              setSelectedCaseId(id);
+              if (onSelectAction) {
+                onSelectAction(`Selected Active Case: ${id}`);
+              }
+            }}
+            allowAll={false}
+            className="hidden sm:flex"
+          />
+
           {/* Simulate Tripwire Breach Button */}
           <button
             onClick={handleSimulateBreach}
@@ -613,7 +1264,10 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 h-full overflow-hidden">
             {/* Left 8 cols: Interactive Radar Scanner + Live Traps */}
             <div className="lg:col-span-8 flex flex-col gap-3 h-full overflow-hidden">
-              <div className="rounded-xl bg-[#050b18] border border-[#111e33] flex flex-col relative overflow-hidden shadow-xl flex-1 min-h-[380px]">
+              <div 
+                key={`radar-${activeCaseKey}`}
+                className="rounded-xl bg-[#050b18] border border-[#111e33] flex flex-col relative overflow-hidden shadow-xl flex-1 min-h-[380px]"
+              >
                 {/* Radar Toolbar */}
                 <div className="px-3 py-2 border-b border-[#111e33] flex items-center justify-between bg-[#040813] text-xs">
                   <div className="flex items-center gap-2">
@@ -717,34 +1371,35 @@ export const DeceptionNetworkPage: React.FC<DeceptionNetworkPageProps> = ({ onSe
                           style={{
                             left: `${asset.radarX}%`,
                             top: `${asset.radarY}%`,
-                            transform: 'translate(-50%, -50%)',
                           }}
-                          className={`absolute cursor-pointer flex flex-col items-center group z-20 transition-all ${
-                            isSelected ? 'scale-125 z-30' : 'hover:scale-110'
+                          className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer flex flex-col items-center group z-20 transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_14px_rgba(245,158,11,0.5)] ${
+                            isSelected ? 'z-30' : ''
                           }`}
                         >
-                          {/* Animated Ping Ring for Tripped Nodes */}
-                          {isTripped && (
-                            <span className="absolute -inset-2 rounded-full bg-red-500/50 animate-ping pointer-events-none" />
-                          )}
+                          <div className="pointer-events-none select-none flex flex-col items-center">
+                            {/* Animated Ping Ring for Tripped Nodes */}
+                            {isTripped && (
+                              <span className="absolute -inset-2 rounded-full bg-red-500/50 animate-ping pointer-events-none" />
+                            )}
 
-                          {/* Node Icon Box */}
-                          <div
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center border shadow-lg transition-all ${
-                              isTripped
-                                ? 'bg-red-950 border-red-500 text-red-300 shadow-[0_0_12px_#ef4444]'
-                                : isEngaged
-                                ? 'bg-amber-950 border-amber-500 text-amber-300 shadow-[0_0_10px_#f59e0b]'
-                                : 'bg-[#081224] border-cyan-500/60 text-cyan-300 shadow-[0_0_8px_rgba(0,240,255,0.3)]'
-                            } ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''}`}
-                          >
-                            {renderTypeIcon(asset.type, 'w-3.5 h-3.5')}
-                          </div>
+                            {/* Node Icon Box */}
+                            <div
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center border shadow-lg transition-all ${
+                                isTripped
+                                  ? 'bg-red-950 border-red-500 text-red-300 shadow-[0_0_12px_#ef4444]'
+                                  : isEngaged
+                                  ? 'bg-amber-950 border-amber-500 text-amber-300 shadow-[0_0_10px_#f59e0b]'
+                                  : 'bg-[#081224] border-cyan-500/60 text-cyan-300 shadow-[0_0_8px_rgba(0,240,255,0.3)]'
+                              } ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''}`}
+                            >
+                              {renderTypeIcon(asset.type, 'w-3.5 h-3.5')}
+                            </div>
 
-                          {/* Label Pill */}
-                          <div className="mt-1 px-1.5 py-0.5 rounded bg-[#050b18]/95 border border-[#162744] text-[9px] font-bold text-slate-200 whitespace-nowrap shadow-md pointer-events-none group-hover:border-amber-400">
-                            {asset.name}
-                            {isTripped && <span className="ml-1 text-red-400 font-mono">(HIT: {asset.accessCount})</span>}
+                            {/* Label Pill */}
+                            <div className="mt-1 px-1.5 py-0.5 rounded bg-[#050b18]/95 border border-[#162744] text-[9px] font-bold text-slate-200 whitespace-nowrap shadow-md pointer-events-none group-hover:border-amber-400">
+                              {asset.name}
+                              {isTripped && <span className="ml-1 text-red-400 font-mono">(HIT: {asset.accessCount})</span>}
+                            </div>
                           </div>
                         </div>
                       );

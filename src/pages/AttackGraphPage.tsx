@@ -344,62 +344,65 @@ export const AttackGraphPage: React.FC<AttackGraphPageProps> = ({ onSelectAction
                 const isBlock = node.severity === 'CONTAINED';
 
                 return (
-                  <motion.div
+                  <div
                     key={node.id}
-                    initial={{ opacity: 0, scale: 0.7 }}
-                    animate={{
-                      opacity: isVisible ? 1 : 0.2,
-                      scale: isVisible ? (isSelected ? 1.08 : 1) : 0.85,
-                    }}
-                    transition={{ duration: 0.25 }}
                     onClick={() => setSelectedNodeId(node.id)}
-                    className={`relative z-10 flex flex-col items-center cursor-pointer transition-all w-24 sm:w-32 ${
+                    className={`relative z-10 flex flex-col items-center cursor-pointer w-24 sm:w-32 transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_16px_rgba(6,182,212,0.5)] ${
                       !isVisible ? 'pointer-events-none' : ''
                     }`}
                   >
-                    {/* Node Orb */}
-                    <div
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all shadow-lg ${
-                        isSelected ? 'ring-4 ring-cyan-400 ring-offset-2 ring-offset-[#030712]' : ''
-                      } ${
-                        isBlock
-                          ? 'bg-blue-950 border-blue-400 text-cyan-300 shadow-[0_0_18px_rgba(59,130,246,0.6)] animate-pulse'
-                          : isCrit
-                          ? 'bg-red-950 border-red-500 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.5)]'
-                          : isWarn
-                          ? 'bg-amber-950 border-amber-500 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.4)]'
-                          : 'bg-emerald-950 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                      }`}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{
+                        opacity: isVisible ? 1 : 0.2,
+                      }}
+                      transition={{ duration: 0.3 }}
+                      className="flex flex-col items-center w-full pointer-events-none select-none"
                     >
-                      {node.iconType === 'login' && <Globe className="w-4 h-4" />}
-                      {node.iconType === 'case' && <Network className="w-4 h-4" />}
-                      {node.iconType === 'evidence' && <Layers className="w-4 h-4" />}
-                      {node.iconType === 'honey' && <Bug className="w-4 h-4 animate-bounce" />}
-                      {node.iconType === 'export' && <FileText className="w-4 h-4" />}
-                      {node.iconType === 'containment' && <ShieldAlert className="w-5 h-5" />}
-                    </div>
-
-                    <span className={`text-[8px] font-mono font-bold px-1.5 py-0.2 rounded mt-2 border ${
-                      isBlock
-                        ? 'bg-blue-950 text-blue-300 border-blue-500/40'
-                        : isCrit
-                        ? 'bg-red-950 text-red-300 border-red-500/40'
-                        : isWarn
-                        ? 'bg-amber-950 text-amber-300 border-amber-500/40'
-                        : 'bg-emerald-950 text-emerald-300 border-emerald-500/40'
-                    }`}>
-                      0{node.stepNumber} • {node.category}
-                    </span>
-
-                    <div className="text-center mt-1 px-1">
-                      <div className="font-bold text-white text-[10.5px] font-mono leading-tight truncate max-w-[110px]">
-                        {node.title}
+                      {/* Node Orb */}
+                      <div
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all shadow-lg ${
+                          isSelected ? 'ring-4 ring-cyan-400 ring-offset-2 ring-offset-[#030712]' : ''
+                        } ${
+                          isBlock
+                            ? 'bg-blue-950 border-blue-400 text-cyan-300 shadow-[0_0_18px_rgba(59,130,246,0.6)] animate-pulse'
+                            : isCrit
+                            ? 'bg-red-950 border-red-500 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.5)]'
+                            : isWarn
+                            ? 'bg-amber-950 border-amber-500 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.4)]'
+                            : 'bg-emerald-950 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                        }`}
+                      >
+                        {node.iconType === 'login' && <Globe className="w-4 h-4" />}
+                        {node.iconType === 'case' && <Network className="w-4 h-4" />}
+                        {node.iconType === 'evidence' && <Layers className="w-4 h-4" />}
+                        {node.iconType === 'honey' && <Bug className="w-4 h-4 animate-bounce" />}
+                        {node.iconType === 'export' && <FileText className="w-4 h-4" />}
+                        {node.iconType === 'containment' && <ShieldAlert className="w-5 h-5" />}
                       </div>
-                      <div className="text-[9px] text-slate-400 font-mono mt-0.5">
-                        {node.timestamp}
+
+                      <span className={`text-[8px] font-mono font-bold px-1.5 py-0.2 rounded mt-2 border ${
+                        isBlock
+                          ? 'bg-blue-950 text-blue-300 border-blue-500/40'
+                          : isCrit
+                          ? 'bg-red-950 text-red-300 border-red-500/40'
+                          : isWarn
+                          ? 'bg-amber-950 text-amber-300 border-amber-500/40'
+                          : 'bg-emerald-950 text-emerald-300 border-emerald-500/40'
+                      }`}>
+                        0{node.stepNumber} • {node.category}
+                      </span>
+
+                      <div className="text-center mt-1 px-1">
+                        <div className="font-bold text-white text-[10.5px] font-mono leading-tight truncate max-w-[110px]">
+                          {node.title}
+                        </div>
+                        <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                          {node.timestamp}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
+                    </motion.div>
+                  </div>
                 );
               })}
             </div>

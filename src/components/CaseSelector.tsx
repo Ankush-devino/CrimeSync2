@@ -4,6 +4,7 @@ import { type LawCase, getCaseById } from '../constants/cases';
 import { useCaseContext } from '../context/CaseContext';
 import { useAuth } from '../context/AuthContext';
 import { useAuditLog } from '../hooks/useAuditLog';
+import { isCompromisedReport } from '../utils/reportFilters';
 
 interface CaseSelectorProps {
   selectedCaseId: string;
@@ -12,6 +13,7 @@ interface CaseSelectorProps {
   allowAll?: boolean;
   allLabel?: string;
   className?: string;
+  threatOnly?: boolean;
 }
 
 export const CaseSelector: React.FC<CaseSelectorProps> = ({
@@ -21,16 +23,18 @@ export const CaseSelector: React.FC<CaseSelectorProps> = ({
   allowAll = false,
   allLabel = 'All Authorized Cases',
   className = '',
+  threatOnly = false,
 }) => {
   const { cases: contextCases } = useCaseContext();
   const { permissions } = useAuth();
   const { logEvent, setActiveCaseId } = useAuditLog();
 
-  const caseList = (propCases && propCases.length > 0) ? propCases : contextCases;
+  const rawList = (propCases && propCases.length > 0) ? propCases : contextCases;
+  const caseList = threatOnly ? rawList.filter(isCompromisedReport) : rawList;
   const activeCase: LawCase | undefined = caseList.find((c: any) => c.id === selectedCaseId) || getCaseById(selectedCaseId);
 
   // allowAll should only be available if the officer has supervisory clearance (canViewAllCases)
-  const canShowAll = allowAll && permissions.canViewAllCases;
+  const canShowAll = allowAll && permissions.canViewAllCases && !threatOnly;
 
   return (
     <div className={`flex items-center gap-2 bg-slate-900 border border-slate-700/90 hover:border-slate-600 rounded-xl px-3 py-1.5 shadow-md transition-colors ${className}`}>
@@ -54,11 +58,29 @@ export const CaseSelector: React.FC<CaseSelectorProps> = ({
               🌐 {allLabel}
             </option>
           )}
-          {caseList.map((c: any) => (
-            <option key={c.id} value={c.id} className="bg-slate-900 text-slate-200 py-1">
-              [{c.fir_number?.split('/')[1] || c.id}] {c.title}
+          {caseList.length === 0 ? (
+            <option value="" disabled className="bg-slate-900 text-slate-500">
+              No Compromised Cases
             </option>
-          ))}
+          ) : (
+            caseList.map((c: any) => {
+              const isCompromised = isCompromisedReport(c);
+              return (
+                <option
+                  key={c.id}
+                  value={c.id}
+                  className={`${
+                    isCompromised
+                      ? 'bg-[#22070e] text-red-300 font-bold py-1.5'
+                      : 'bg-slate-900 text-slate-200 py-1'
+                  }`}
+                >
+                  {isCompromised ? '🚨 [COMPROMISED] ' : ''}
+                  [{c.fir_number?.split('/')[1] || c.firNumber || c.id}] {c.title || c.suspectName}
+                </option>
+              );
+            })
+          )}
         </select>
         <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute right-0" />
       </div>

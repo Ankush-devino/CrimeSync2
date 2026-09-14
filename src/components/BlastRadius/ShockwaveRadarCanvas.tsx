@@ -430,8 +430,9 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
         )}
 
         {/* CHECK 3: Safe Vector Connecting Edges with NaN/Missing Protection */}
-        <g className="edges-layer">
+        <g className="edges-layer" pointerEvents="none">
           {filteredEdges.map((edge) => {
+            if (!edge) return null;
             const srcCoord = nodeCoords.get(edge.source);
             const tgtCoord = nodeCoords.get(edge.target);
 
@@ -468,7 +469,7 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
             const pathD = `M ${srcCoord.x} ${srcCoord.y} Q ${ctrlX} ${ctrlY} ${tgtCoord.x} ${tgtCoord.y}`;
 
             return (
-              <g key={edge.id} className="transition-all duration-300">
+              <g key={edge.id} pointerEvents="none" className="transition-all duration-300">
                 {/* Background Shadow Line for high contrast */}
                 <path
                   d={pathD}
@@ -476,6 +477,7 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
                   stroke="#020617"
                   strokeWidth={edgeStyle.strokeWidth + 3}
                   opacity="0.8"
+                  pointerEvents="none"
                 />
 
                 {/* Primary Vector Path */}
@@ -486,12 +488,12 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
                   strokeWidth={isSelected ? edgeStyle.strokeWidth + 1.5 : edgeStyle.strokeWidth}
                   strokeDasharray={edgeStyle.strokeDasharray}
                   opacity={isSevered ? 0.35 : isSelected ? 1 : isHovered ? 0.95 : edgeStyle.opacity}
-                  className={!isSevered ? 'animate-[dash_20s_linear_infinite]' : ''}
+                  pointerEvents="none"
                 />
 
                 {/* CHECK 5: Severed Line Cross Indicator */}
                 {isSevered && (
-                  <g transform={`translate(${midX}, ${midY})`}>
+                  <g transform={`translate(${midX}, ${midY})`} pointerEvents="none">
                     <circle r="9" fill="#7f1d1d" stroke="#ef4444" strokeWidth="1.5" />
                     <line x1="-4.5" y1="-4.5" x2="4.5" y2="4.5" stroke="#ffffff" strokeWidth="2" />
                     <line x1="4.5" y1="-4.5" x2="-4.5" y2="4.5" stroke="#ffffff" strokeWidth="2" />
@@ -500,7 +502,7 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
 
                 {/* Edge Label Tooltip Pill (on Hover or Selection) */}
                 {(isSelected || isHovered) && (
-                  <g transform={`translate(${ctrlX}, ${ctrlY})`}>
+                  <g transform={`translate(${ctrlX}, ${ctrlY})`} pointerEvents="none">
                     <rect
                       x="-80"
                       y="-12"
@@ -533,6 +535,7 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
         {/* Nodes Layer */}
         <g className="nodes-layer">
           {nodes.map((node) => {
+            if (!node) return null;
             const coord = nodeCoords.get(node.id);
             if (!coord || isNaN(coord.x) || isNaN(coord.y)) return null;
 
@@ -548,109 +551,135 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
               <g
                 key={node.id}
                 transform={`translate(${coord.x}, ${coord.y})`}
-                className="cursor-pointer transition-all duration-300"
-                onClick={() => onSelectNode(node)}
-                onMouseEnter={() => setHoveredNodeId(node.id)}
-                onMouseLeave={() => setHoveredNodeId(null)}
               >
-                {/* Selection Halo Ring */}
-                {isSelected && (
-                  <circle
-                    r={nodeRadius + 9}
-                    fill="none"
-                    stroke="#38bdf8"
-                    strokeWidth="2.5"
-                    strokeDasharray="4 2"
-                    className="animate-spin"
-                    style={{ transformOrigin: '0 0', animationDuration: '8s' }}
-                  />
-                )}
-
-                {/* Outer Glow Ring */}
+                {/* TIER 1: STATIC HITBOX - Never moves, scales, or transforms on hover */}
                 <circle
-                  r={nodeRadius + 4}
-                  fill="none"
-                  stroke={styles.svgStroke}
-                  strokeWidth="2"
-                  opacity={isContained ? 0.3 : isHovered ? 0.9 : 0.5}
+                  cx={0}
+                  cy={0}
+                  r={nodeRadius + 14}
+                  fill="transparent"
+                  pointerEvents="all"
+                  className="cursor-pointer"
+                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                  onMouseLeave={() => setHoveredNodeId((curr) => (curr === node.id ? null : curr))}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSelectNode(node);
+                  }}
                 />
 
-                {/* Primary Node Badge Circle */}
-                <circle
-                  r={nodeRadius}
-                  fill={styles.svgFill}
-                  stroke={styles.svgStroke}
-                  strokeWidth={isSelected ? 2.5 : 1.8}
-                />
-
-                {/* Node Center Icon */}
-                <foreignObject
-                  x={-nodeRadius}
-                  y={-nodeRadius}
-                  width={nodeRadius * 2}
-                  height={nodeRadius * 2}
+                {/* TIER 2: VISUAL GROUP - Physics-safe brightness & drop-shadow */}
+                <g
                   className="pointer-events-none"
+                  style={{
+                    filter: isHovered ? 'brightness(1.3) drop-shadow(0 0 10px rgba(56, 189, 248, 0.6))' : 'none',
+                    transition: 'filter 150ms ease, opacity 140ms ease',
+                  }}
                 >
-                  <div
-                    className={`w-full h-full flex items-center justify-center ${styles.text}`}
-                  >
-                    {isContained ? (
-                      <Lock className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      getNodeIcon(node.type)
-                    )}
-                  </div>
-                </foreignObject>
-
-                {/* Status Indicator Badge (Top-Right) */}
-                <g transform={`translate(${nodeRadius - 4}, ${-nodeRadius + 4})`}>
-                  {isContained ? (
-                    <circle r="5" fill="#64748b" stroke="#0f172a" strokeWidth="1.5" />
-                  ) : isGroundZero ? (
+                  {/* Selection Halo Ring */}
+                  {isSelected && (
                     <circle
-                      r="5.5"
-                      fill="#ef4444"
-                      stroke="#0f172a"
-                      strokeWidth="1.5"
-                      className="animate-ping"
-                    />
-                  ) : (
-                    <circle
-                      r="5"
-                      fill={styles.svgStroke}
-                      stroke="#0f172a"
-                      strokeWidth="1.5"
+                      cx={0}
+                      cy={0}
+                      r={nodeRadius + 9}
+                      fill="none"
+                      stroke="#38bdf8"
+                      strokeWidth="2.5"
+                      strokeDasharray="4 2"
                     />
                   )}
-                </g>
 
-                {/* Risk Score Badge (Top-Left) */}
-                <g transform={`translate(${-nodeRadius + 4}, ${-nodeRadius + 4})`}>
-                  <rect
-                    x="-14"
-                    y="-7"
-                    width="22"
-                    height="14"
-                    rx="4"
-                    fill="#090d16"
+                  {/* Outer Glow Ring */}
+                  <circle
+                    cx={0}
+                    cy={0}
+                    r={nodeRadius + 4}
+                    fill="none"
                     stroke={styles.svgStroke}
-                    strokeWidth="1"
+                    strokeWidth="2"
+                    opacity={isContained ? 0.3 : isHovered ? 0.95 : 0.5}
                   />
-                  <text
-                    x="-3"
-                    y="3.5"
-                    textAnchor="middle"
-                    fill={styles.svgStroke}
-                    fontSize="8"
-                    fontFamily="monospace"
-                    fontWeight="800"
+
+                  {/* Primary Node Badge Circle */}
+                  <circle
+                    cx={0}
+                    cy={0}
+                    r={nodeRadius}
+                    fill={styles.svgFill}
+                    stroke={styles.svgStroke}
+                    strokeWidth={isSelected ? 2.5 : 1.8}
+                  />
+
+                  {/* Node Center Icon */}
+                  <foreignObject
+                    x={-nodeRadius}
+                    y={-nodeRadius}
+                    width={nodeRadius * 2}
+                    height={nodeRadius * 2}
+                    className="pointer-events-none"
                   >
-                    {node.riskScore}
-                  </text>
+                    <div
+                      className={`w-full h-full flex items-center justify-center ${styles.text}`}
+                    >
+                      {isContained ? (
+                        <Lock className="w-4 h-4 text-slate-400" />
+                      ) : (
+                        getNodeIcon(node.type)
+                      )}
+                    </div>
+                  </foreignObject>
+
+                  {/* Status Indicator Badge (Top-Right) */}
+                  <g transform={`translate(${nodeRadius - 4}, ${-nodeRadius + 4})`}>
+                    {isContained ? (
+                      <circle r="5" fill="#64748b" stroke="#0f172a" strokeWidth="1.5" />
+                    ) : isGroundZero ? (
+                      <circle
+                        r="5.5"
+                        fill="#ef4444"
+                        stroke="#0f172a"
+                        strokeWidth="1.5"
+                        className="animate-ping"
+                      />
+                    ) : (
+                      <circle
+                        r="5"
+                        fill={styles.svgStroke}
+                        stroke="#0f172a"
+                        strokeWidth="1.5"
+                      />
+                    )}
+                  </g>
+
+                  {/* Risk Score Badge (Top-Left) */}
+                  <g transform={`translate(${-nodeRadius + 4}, ${-nodeRadius + 4})`}>
+                    <rect
+                      x="-14"
+                      y="-7"
+                      width="22"
+                      height="14"
+                      rx="4"
+                      fill="#090d16"
+                      stroke={styles.svgStroke}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x="-3"
+                      y="3.5"
+                      textAnchor="middle"
+                      fill={styles.svgStroke}
+                      fontSize="8"
+                      fontFamily="monospace"
+                      fontWeight="800"
+                    >
+                      {node.riskScore}
+                    </text>
+                  </g>
                 </g>
 
-                {/* Node Name Label Pill */}
-                <g transform={`translate(0, ${nodeRadius + 14})`}>
+                {/* TIER 3: STATIC LABEL PILL - Remains geometrically stable */}
+                <g transform={`translate(0, ${nodeRadius + 14})`} pointerEvents="none">
                   <rect
                     x="-75"
                     y="-10"
@@ -667,7 +696,7 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
                     x="0"
                     y="4"
                     textAnchor="middle"
-                    fill={isContained ? '#94a3b8' : isSelected ? '#38bdf8' : '#f1f5f9'}
+                    fill={isContained ? '#94a3b8' : isSelected ? '#38bdf8' : isHovered ? '#38bdf8' : '#f1f5f9'}
                     fontSize="10"
                     fontWeight={isSelected || isGroundZero ? '700' : '600'}
                     letterSpacing="0.01em"
@@ -677,7 +706,7 @@ export const ShockwaveRadarCanvas: React.FC<ShockwaveRadarCanvasProps> = ({
                 </g>
 
                 {/* Role Sub-caption */}
-                <g transform={`translate(0, ${nodeRadius + 30})`}>
+                <g transform={`translate(0, ${nodeRadius + 30})`} pointerEvents="none">
                   <text
                     x="0"
                     y="0"

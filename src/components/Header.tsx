@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   ShieldCheck, 
   Bell, 
@@ -22,6 +22,8 @@ import { useAuth } from '../context/AuthContext';
 import { useCaseContext } from '../context/CaseContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAuditLog } from '../hooks/useAuditLog';
+import type { LawCase } from '../constants/cases';
+import { isCompromisedReport, isCompromiseSensitivePage } from '../utils/reportFilters';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -156,17 +158,42 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter cases in switcher
-  const filteredSwitcherCases = cases.filter((c) => {
-    if (!caseFilterQuery.trim()) return true;
+  // Detect compromise-sensitive pages (Threat Alerts & Identity Doppelgänger)
+  const isSensitive = isCompromiseSensitivePage(activeTab);
+
+  // Derived filtered reports for the active view (never mutates master dataset)
+  const availableCases = useMemo<LawCase[]>(() => {
+    if (isSensitive) {
+      return (cases as LawCase[]).filter(isCompromisedReport);
+    }
+    return cases as LawCase[];
+  }, [cases, isSensitive]);
+
+  // Safe active selection reconciliation: if on a sensitive page and current case is not compromised,
+  // select the first available compromised report without triggering route loops or infinite effects.
+  useEffect(() => {
+    if (isSensitive && availableCases.length > 0) {
+      const isCurrentValid = availableCases.some((c: LawCase) => c.id === selectedCaseId);
+      if (!isCurrentValid) {
+        setSelectedCaseId(availableCases[0].id);
+        setActiveCaseId(availableCases[0].id);
+      }
+    }
+  }, [isSensitive, availableCases, selectedCaseId, setSelectedCaseId, setActiveCaseId]);
+
+  // Filter cases in switcher via search query on top of available page-scoped reports
+  const filteredSwitcherCases = useMemo<LawCase[]>(() => {
+    if (!caseFilterQuery.trim()) return availableCases;
     const q = caseFilterQuery.toLowerCase();
-    return (
-      c.title?.toLowerCase().includes(q) ||
-      c.fir_number?.toLowerCase().includes(q) ||
-      c.jurisdiction_city?.toLowerCase().includes(q) ||
-      c.crime_category?.toLowerCase().includes(q)
-    );
-  });
+    return availableCases.filter((c: LawCase) => {
+      return (
+        c.title?.toLowerCase().includes(q) ||
+        c.fir_number?.toLowerCase().includes(q) ||
+        c.jurisdiction_city?.toLowerCase().includes(q) ||
+        c.crime_category?.toLowerCase().includes(q)
+      );
+    });
+  }, [availableCases, caseFilterQuery]);
 
   return (
     <header className="bg-[#040814]/95 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-xl flex-shrink-0 select-none shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
@@ -198,23 +225,35 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
               if (showProfileMenu) setShowProfileMenu(false);
               if (showNotifications) setShowNotifications(false);
             }}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#08132e] via-[#0b1b3d] to-[#08132e] border border-blue-500/50 hover:border-blue-400 text-left transition-all shadow-[0_0_16px_rgba(37,99,235,0.25)] group"
+            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-left transition-all group ${
+              isSensitive
+                ? 'bg-gradient-to-r from-red-950/80 via-[#18040a] to-[#120409] border-red-500/60 shadow-[0_0_16px_rgba(239,68,68,0.3)] hover:border-red-400'
+                : 'bg-gradient-to-r from-[#08132e] via-[#0b1b3d] to-[#08132e] border-blue-500/50 hover:border-blue-400 shadow-[0_0_16px_rgba(37,99,235,0.25)]'
+            }`}
           >
-            <div className="w-6 h-6 rounded-lg bg-blue-600/30 border border-blue-400/50 flex items-center justify-center text-blue-300 group-hover:scale-105 transition-transform flex-shrink-0">
+            <div className={`w-6 h-6 rounded-lg border flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0 ${
+              isSensitive
+                ? 'bg-red-900/40 border-red-500/50 text-red-300'
+                : 'bg-blue-600/30 border-blue-400/50 text-blue-300'
+            }`}>
               <FolderKanban className="w-3.5 h-3.5 text-cyan-300" />
             </div>
 
             <div className="flex flex-col min-w-0 pr-1 max-w-[130px] sm:max-w-[170px] lg:max-w-[210px]">
               <div className="flex items-center gap-1.5">
-                <span className="text-[8.5px] font-extrabold text-blue-300 uppercase tracking-wider">
-                  Active Case
+                <span className={`text-[8.5px] font-extrabold uppercase tracking-wider ${
+                  isSensitive ? 'text-red-300' : 'text-blue-300'
+                }`}>
+                  {isSensitive ? 'Threat Queue' : 'Active Case'}
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  isSensitive ? 'bg-red-400 animate-ping' : 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]'
+                }`} />
               </div>
               <div className="text-[11px] font-mono font-bold text-white truncate group-hover:text-cyan-200 transition-colors">
                 {selectedCase ? (
                   <>
-                    <span className="text-cyan-300 mr-1 font-black">{selectedCase.fir_number}</span>
+                    <span className="text-cyan-300 mr-1 font-black">{selectedCase.fir_number || selectedCase.id}</span>
                     <span className="text-slate-200 font-sans font-semibold hidden md:inline">{selectedCase.title}</span>
                   </>
                 ) : (
@@ -223,25 +262,35 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
               </div>
             </div>
 
-            <ChevronDown className={`w-3.5 h-3.5 text-blue-400 ml-0.5 transition-transform duration-200 ${showCaseSwitcher ? 'rotate-180 text-cyan-300' : 'group-hover:translate-y-0.5'}`} />
+            <ChevronDown className={`w-3.5 h-3.5 ml-0.5 transition-transform duration-200 ${
+              isSensitive ? 'text-red-400' : 'text-blue-400'
+            } ${showCaseSwitcher ? 'rotate-180 text-cyan-300' : 'group-hover:translate-y-0.5'}`} />
           </button>
 
           {/* Case Switcher Dropdown */}
           {showCaseSwitcher && (
-            <div className="absolute left-0 top-full mt-2 w-88 sm:w-96 bg-[#061026] border border-blue-500/60 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-[1100] overflow-hidden flex flex-col max-h-[520px] backdrop-blur-2xl">
+            <div className={`absolute left-0 top-full mt-2 w-88 sm:w-96 bg-[#061026] border rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] z-[1100] overflow-hidden flex flex-col max-h-[520px] backdrop-blur-2xl ${
+              isSensitive ? 'border-red-500/60' : 'border-blue-500/60'
+            }`}>
               {/* Dropdown Header */}
               <div className="p-3.5 border-b border-slate-800/90 bg-gradient-to-r from-[#06122e] to-[#040c20] flex items-center justify-between">
                 <div className="space-y-0.5">
                   <div className="text-xs font-extrabold text-white flex items-center gap-2">
-                    <FolderKanban className="w-4 h-4 text-blue-400" />
-                    <span>Authorized Investigations ({cases.length})</span>
+                    <FolderKanban className={`w-4 h-4 ${isSensitive ? 'text-red-400' : 'text-blue-400'}`} />
+                    <span>
+                      {isSensitive ? 'Compromised Threat Queue' : 'Authorized Investigations'} ({availableCases.length})
+                    </span>
                   </div>
                   <div className="text-[10px] text-slate-400">
                     Logged Officer: <strong className="text-blue-300">{currentUser.name}</strong>
                   </div>
                 </div>
-                <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded-md border border-cyan-500/40 font-bold">
-                  {currentUser.role}
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md border font-bold ${
+                  isSensitive
+                    ? 'text-red-300 bg-red-950/80 border-red-500/40'
+                    : 'text-cyan-300 bg-cyan-950/80 border-cyan-500/40'
+                }`}>
+                  {isSensitive ? 'COMPROMISED ONLY' : currentUser.role}
                 </span>
               </div>
 
@@ -253,7 +302,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                     type="text"
                     value={caseFilterQuery}
                     onChange={(e) => setCaseFilterQuery(e.target.value)}
-                    placeholder="Search by FIR, Title, City or Category..."
+                    placeholder={
+                      isSensitive
+                        ? 'Search compromised reports by FIR, Suspect...'
+                        : 'Search by FIR, Title, City or Category...'
+                    }
                     className="w-full bg-[#061026] border border-slate-700/80 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 font-sans"
                     autoFocus
                   />
@@ -269,11 +322,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                   </div>
                 ) : filteredSwitcherCases.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-400">
-                    No authorized investigations matched query.
+                    {isSensitive
+                      ? 'No compromised threat investigations matched query.'
+                      : 'No authorized investigations matched query.'}
                   </div>
                 ) : (
-                  filteredSwitcherCases.map((c) => {
+                  filteredSwitcherCases.map((c: LawCase) => {
                     const isSelected = c.id === selectedCaseId;
+                    const isCompromised = isCompromisedReport(c);
                     return (
                       <button
                         key={c.id}
@@ -285,32 +341,36 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                         }}
                         className={`w-full text-left p-3 rounded-xl transition-all flex items-start justify-between gap-2.5 ${
                           isSelected
-                            ? 'bg-blue-950/90 border border-blue-500 text-white shadow-[0_0_16px_rgba(59,130,246,0.35)]'
+                            ? isCompromised || isSensitive
+                              ? 'bg-red-950/90 border border-red-500 text-white shadow-[0_0_16px_rgba(239,68,68,0.35)]'
+                              : 'bg-blue-950/90 border border-blue-500 text-white shadow-[0_0_16px_rgba(59,130,246,0.35)]'
+                            : isCompromised
+                            ? 'bg-gradient-to-r from-red-950/40 via-red-950/20 to-slate-900/90 hover:bg-red-950/60 border border-red-500/40 hover:border-red-400 text-red-100 shadow-[0_0_10px_rgba(239,68,68,0.15)]'
                             : 'hover:bg-slate-900/90 text-slate-300 border border-transparent hover:border-slate-800'
                         }`}
                       >
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-mono font-bold text-cyan-300">
-                              {c.fir_number}
+                              {c.fir_number || (c as any).firNumber || c.id}
                             </span>
                             <span
                               className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase ${
-                                c.priority === 'CRITICAL'
+                                c.priority === 'CRITICAL' || isCompromisedReport(c)
                                   ? 'bg-red-950/90 text-red-300 border border-red-600/60'
                                   : 'bg-amber-950/90 text-amber-300 border border-amber-600/60'
                               }`}
                             >
-                              {c.priority}
+                              {isCompromisedReport(c) ? 'COMPROMISED' : c.priority}
                             </span>
                           </div>
 
-                          <div className="text-xs font-bold text-white truncate">{c.title}</div>
+                          <div className="text-xs font-bold text-white truncate">{c.title || (c as any).suspectName}</div>
 
                           <div className="text-[10px] text-slate-400 flex items-center gap-2">
                             <span className="flex items-center gap-1 text-slate-300">
                               <MapPin className="w-3 h-3 text-red-400" />
-                              {c.jurisdiction_city || 'National Scope'}
+                              {c.jurisdiction_city || (c as any).location || 'National Scope'}
                             </span>
                             <span>•</span>
                             <span className="text-blue-300 font-medium">{c.status}</span>
@@ -318,7 +378,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, activeTab }) => {
                         </div>
 
                         {isSelected && (
-                          <div className="mt-1 flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white shrink-0 shadow-[0_0_8px_rgba(37,99,235,0.8)]">
+                          <div className={`mt-1 flex items-center justify-center w-5 h-5 rounded-full text-white shrink-0 shadow-md ${
+                            isSensitive ? 'bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.8)]'
+                          }`}>
                             <Check className="w-3.5 h-3.5" />
                           </div>
                         )}

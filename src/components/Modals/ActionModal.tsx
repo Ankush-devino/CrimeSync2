@@ -1,30 +1,53 @@
-import React, { useState } from 'react';
-import { X, Sparkles, CheckCircle2, ShieldCheck, Cpu, Upload, FileText, AlertOctagon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Sparkles, CheckCircle2, Cpu } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ActionModalProps {
   actionName: string | null;
   onClose: () => void;
+  onExecute?: (actionName: string) => void;
 }
 
-export const ActionModal: React.FC<ActionModalProps> = ({ actionName, onClose }) => {
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+export const ActionModal: React.FC<ActionModalProps> = ({ actionName, onClose, onExecute }) => {
+  const [isExecuting, setIsExecuting] = useState<boolean>(false);
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (actionName) {
+      setIsExecuting(false);
+      setIsSuccess(false);
+    }
+  }, [actionName]);
 
   if (!actionName) return null;
 
-  const handleRun = () => {
+  const handleDismiss = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setIsExecuting(false);
+    setIsSuccess(false);
+    onClose();
+  };
+
+  const handleRun = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsExecuting(true);
     setTimeout(() => {
       setIsExecuting(false);
       setIsSuccess(true);
+      if (onExecute) {
+        onExecute(actionName);
+      }
       confetti({
         particleCount: 80,
         spread: 70,
         origin: { y: 0.6 },
         colors: ['#00f0ff', '#a855f7', '#10b981'],
       });
-    }, 1500);
+    }, 1200);
   };
 
   return (
@@ -43,8 +66,9 @@ export const ActionModal: React.FC<ActionModalProps> = ({ actionName, onClose })
           </div>
 
           <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+            type="button"
+            onClick={handleDismiss}
+            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -88,13 +112,15 @@ export const ActionModal: React.FC<ActionModalProps> = ({ actionName, onClose })
         {/* Footer */}
         <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-end gap-2">
           <button
-            onClick={onClose}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-medium text-slate-300 hover:bg-slate-700"
+            type="button"
+            onClick={handleDismiss}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors"
           >
             {isSuccess ? 'Dismiss' : 'Cancel'}
           </button>
           {!isSuccess && (
             <button
+              type="button"
               disabled={isExecuting}
               onClick={handleRun}
               className="px-4 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-[0_0_15px_rgba(0,240,255,0.4)]"

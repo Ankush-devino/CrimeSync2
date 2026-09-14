@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   Filter,
   Info,
@@ -750,7 +751,7 @@ export const FinancialIntelligencePage: React.FC<FinancialIntelligencePageProps>
                         style={{ left: `${midX}px`, top: `${midY}px` }}
                         className="absolute -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto cursor-pointer group"
                       >
-                        <div className={`px-2.5 py-1 rounded-full border backdrop-blur-md flex items-center gap-1.5 transition-all duration-200 group-hover:scale-110 group-hover:z-30 ${badgeBorder}`}>
+                        <div className={`px-2.5 py-1 rounded-full border backdrop-blur-md flex items-center gap-1.5 transition-colors duration-150 group-hover:brightness-125 group-hover:shadow-[0_0_12px_rgba(6,182,212,0.5)] group-hover:z-30 ${badgeBorder}`}>
                           <span className="font-mono font-extrabold text-xs text-white tracking-tight">
                             {displayAmount}
                           </span>
@@ -799,41 +800,39 @@ export const FinancialIntelligencePage: React.FC<FinancialIntelligencePageProps>
                         onMouseEnter={() => setHoveredNode(node.id)}
                         onMouseLeave={() => setHoveredNode(null)}
                         style={{ left: `${node.x}px`, top: `${node.y}px` }}
-                        className={`absolute w-[210px] p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 z-10 ${nodeColor} ${
-                          isSelected
-                            ? 'ring-2 ring-white scale-105 shadow-2xl z-30'
-                            : isHovered
-                            ? 'scale-105 z-20'
-                            : ''
+                        className={`absolute z-10 w-[210px] p-3 rounded-xl border-2 cursor-pointer transition-colors duration-150 hover:brightness-120 hover:drop-shadow-[0_0_18px_rgba(59,130,246,0.4)] ${nodeColor} ${
+                          isSelected ? 'ring-2 ring-white shadow-2xl z-30' : ''
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[8.5px] font-extrabold uppercase tracking-wide font-mono px-2 py-0.5 rounded bg-black/50 border border-white/10">
-                            {node.type.replace(/_/g, ' ')}
-                          </span>
-                          {isFrozen ? (
-                            <span className="text-[8.5px] font-bold px-2 py-0.5 rounded bg-cyan-900 text-cyan-200 font-mono border border-cyan-500/40">
-                              🔒 FROZEN
+                        <div className="pointer-events-none select-none flex flex-col w-full">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[8.5px] font-extrabold uppercase tracking-wide font-mono px-2 py-0.5 rounded bg-black/50 border border-white/10">
+                              {node.type.replace(/_/g, ' ')}
                             </span>
-                          ) : (
-                            <span className="text-[9px] font-mono font-bold text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-500/30">
-                              Risk {node.risk_score}%
+                            {isFrozen ? (
+                              <span className="text-[8.5px] font-bold px-2 py-0.5 rounded bg-cyan-900 text-cyan-200 font-mono border border-cyan-500/40">
+                                🔒 FROZEN
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-mono font-bold text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-500/30">
+                                Risk {node.risk_score}%
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-xs font-extrabold text-white leading-tight truncate" title={node.label}>
+                            {node.label}
+                          </div>
+                          <div className="text-[10px] text-slate-300 leading-tight truncate mt-0.5 font-mono" title={node.sublabel}>
+                            {node.sublabel}
+                          </div>
+
+                          <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-mono">
+                            <span className="text-slate-400">Balance:</span>
+                            <span className="font-bold text-emerald-300 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                              ₹{(node.balance / 100000).toFixed(2)} Lakhs
                             </span>
-                          )}
-                        </div>
-
-                        <div className="text-xs font-extrabold text-white leading-tight truncate" title={node.label}>
-                          {node.label}
-                        </div>
-                        <div className="text-[10px] text-slate-300 leading-tight truncate mt-0.5 font-mono" title={node.sublabel}>
-                          {node.sublabel}
-                        </div>
-
-                        <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] font-mono">
-                          <span className="text-slate-400">Balance:</span>
-                          <span className="font-bold text-emerald-300 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                            ₹{(node.balance / 100000).toFixed(2)} Lakhs
-                          </span>
+                          </div>
                         </div>
                       </div>
                     );

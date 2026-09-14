@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { 
   ZoomIn, 
   ZoomOut, 
@@ -26,17 +27,23 @@ import type { NetworkNode } from '../types/dashboard';
 interface CriminalNetworkGraphProps {
   onSelectNode: (node: NetworkNode) => void;
   onExploreGraph: () => void;
+  customCase?: any;
+  caseId?: string;
 }
 
 export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
   onSelectNode,
   onExploreGraph,
+  customCase,
+  caseId,
 }) => {
-  const { selectedCase, selectedCaseId } = useCaseContext();
+  const { selectedCase: contextCase, selectedCaseId: contextCaseId } = useCaseContext();
+  const effectiveCase = customCase !== undefined ? customCase : contextCase;
+  const effectiveCaseId = caseId || effectiveCase?.id || contextCaseId;
 
   const caseIntel = useMemo(() => {
-    return getActiveCaseIntelligence(selectedCase || { id: selectedCaseId });
-  }, [selectedCase, selectedCaseId]);
+    return getActiveCaseIntelligence(effectiveCase || { id: effectiveCaseId });
+  }, [effectiveCase, effectiveCaseId]);
 
   // Graph state: Zoom, Pan & Selected Entity
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -57,7 +64,7 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
     setPanOffset({ x: 0, y: 0 });
     setActiveModalNode(null);
     setSearchQuery('');
-  }, [selectedCaseId]);
+  }, [effectiveCaseId, effectiveCase?.id]);
 
   // Pan dragging handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -136,6 +143,7 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
 
   return (
     <div 
+      key={effectiveCaseId || 'criminal-network-graph'}
       ref={containerRef}
       className="p-4 rounded-2xl bg-gradient-to-b from-[#060f22]/95 via-[#040a18]/95 to-[#020610]/95 border border-blue-500/30 shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex flex-col justify-between h-full relative overflow-hidden select-none group"
     >
@@ -165,7 +173,7 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
               </span>
             </div>
             <span className="text-[10px] text-slate-400 font-sans">
-              Case Scope: <strong className="text-cyan-300">{selectedCase?.fir_number || selectedCaseId}</strong> — {selectedCase?.title}
+              Case Scope: <strong className="text-cyan-300">{effectiveCase?.fir_number || effectiveCase?.firNumber || effectiveCaseId}</strong> — {effectiveCase?.title || effectiveCase?.suspectName || 'Active Case Scope'}
             </span>
           </div>
         </div>
@@ -308,7 +316,6 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
           {filteredNodes.map((node) => {
             const isCenter = node.type === 'center';
             const isSelected = activeModalNode?.id === node.id;
-            const isHovered = hoveredNode === node.id;
 
             return (
               <div
@@ -323,15 +330,14 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
                 style={{
                   left: `${node.x}%`,
                   top: `${node.y}%`,
-                  transform: 'translate(-50%, -50%)',
                 }}
-                className={`absolute graph-interactive-node cursor-pointer z-10 transition-transform duration-200 ${
-                  isHovered || isSelected ? 'scale-125 z-30' : 'hover:scale-110'
+                className={`absolute -translate-x-1/2 -translate-y-1/2 graph-interactive-node cursor-pointer z-10 transition-colors duration-150 hover:brightness-125 hover:drop-shadow-[0_0_14px_rgba(6,182,212,0.4)] ${
+                  isSelected ? 'z-30' : ''
                 }`}
               >
                 {/* Center Target Node (Mastermind) */}
                 {isCenter ? (
-                  <div className="flex flex-col items-center group">
+                  <div className="flex flex-col items-center group pointer-events-none select-none">
                     <div className="relative">
                       {/* Pulse Ring */}
                       <div className="absolute -inset-2.5 rounded-full bg-red-600/30 animate-ping opacity-75 pointer-events-none" />
@@ -359,7 +365,7 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
                   </div>
                 ) : (
                   /* Connected Entity Nodes */
-                  <div className="flex flex-col items-center group">
+                  <div className="flex flex-col items-center group pointer-events-none select-none">
                     <div className={`w-9 h-9 rounded-xl border ${getRiskBorderColor(node.risk)} flex items-center justify-center bg-[#07132a] shadow-lg relative group-hover:border-cyan-400 transition-colors`}>
                       {getNodeIcon(node.category)}
                       <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${
@@ -368,11 +374,11 @@ export const CriminalNetworkGraph: React.FC<CriminalNetworkGraphProps> = ({
                     </div>
 
                     <div className="mt-1 px-2 py-0.5 rounded-md bg-[#050e20]/90 border border-slate-800 shadow-md flex flex-col items-center text-center max-w-[120px]">
-                      <span className="text-[10px] font-bold text-slate-200 truncate w-full group-hover:text-cyan-300 transition-colors">
+                      <span className="text-[11px] font-bold text-white tracking-wide truncate max-w-[110px]">
                         {node.label}
                       </span>
                       {node.sublabel && (
-                        <span className="text-[8.5px] font-mono text-slate-400 truncate w-full">
+                        <span className="text-[9px] font-mono text-slate-400 truncate max-w-[110px]">
                           {node.sublabel}
                         </span>
                       )}
