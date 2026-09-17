@@ -1,0 +1,100 @@
+# bansal
+# CrimeSync Production High-Availability Cluster with Traefik, Prometheus, & Grafana
+
+version: '3.8'
+
+services:
+  # Edge Reverse Proxy & Automatic Let's Encrypt TLS
+  traefik-ingress:
+    image: traefik:v3.0
+    container_name: crimesync-traefik-proxy
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/certificates
+    networks:
+      - crimesync-prod-net
+
+  # AI GNN Inference Microservice
+  ai-gnn-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.ai-worker
+    container_name: crimesync-gnn-inference
+    environment:
+      - MODEL_CHECKPOINT=/models/gnn_link_v4.pt
+      - WORKERS=4
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - crimesync-prod-net
+
+  # Blockchain Private Validator Node (Hyperledger Besu / Ethereum PoA)
+  blockchain-validator:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.blockchain-node
+    container_name: crimesync-besu-validator-01
+    ports:
+      - "8545:8545"
+      - "30303:30303"
+    volumes:
+      - blockchain_ledger_data:/opt/besu/data
+    networks:
+      - crimesync-prod-net
+
+  # Forensic OCR & Document NLP Service
+  nlp-ocr-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.nlp-ocr-engine
+    container_name: crimesync-nlp-ocr-worker
+    environment:
+      - OMP_NUM_THREADS=4
+    networks:
+      - crimesync-prod-net
+
+  # Prometheus Metrics Collector
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: crimesync-prometheus
+    volumes:
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - crimesync-prod-net
+
+  # Grafana Security Telemetry Dashboards
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: crimesync-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - crimesync-prod-net
+
+networks:
+  crimesync-prod-net:
+    driver: overlay
+
+volumes:
+  traefik_certs:
+  blockchain_ledger_data:
+  prometheus_data:
+  grafana_data:

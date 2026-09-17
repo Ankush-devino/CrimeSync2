@@ -1,0 +1,39 @@
+# bansal
+# CrimeSync AI Inference & PyTorch GNN Graph Worker Dockerfile (CUDA 12.2 / PyTorch 2.3)
+# Author: Rajesh Bansal
+
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
+
+# bansal
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Install PyTorch & Graph Neural Network packages
+RUN pip3 install --no-cache-dir \
+    torch \
+    torchvision \
+    torchaudio \
+    networkx \
+    pandas \
+    numpy \
+    scikit-learn \
+    fastapi \
+    uvicorn \
+    web3 \
+    redis
+
+COPY ./cybersecurity /workspace/cybersecurity
+COPY ./blockchain /workspace/blockchain
+
+EXPOSE 8000
+CMD ["python3", "-u", "cybersecurity/honeypot_telemetry_engine.py"]

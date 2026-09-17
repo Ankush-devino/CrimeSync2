@@ -1,0 +1,115 @@
+# bansal
+# CrimeSync Enterprise Orchestration Stack: Microservices & AI Inference Cluster
+
+version: '3.8'
+
+services:
+  # 1. CrimeSync Frontend Web App (Vite / React)
+  crimesync-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-production
+    container_name: crimesync-ui-service
+    ports:
+      - "5173:80"
+    environment:
+      - NODE_ENV=production
+      - VITE_API_GATEWAY=http://crimesync-backend:5000
+    depends_on:
+      - crimesync-backend
+    networks:
+      - crimesync-mesh-net
+    restart: always
+
+  # 2. CrimeSync Intelligence API Gateway (Express / TypeScript)
+  crimesync-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: crimesync-core-api
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - POSTGRES_URL=postgres://crimesync_admin:SovereignPolice2026@postgres-db:5432/crimesync_db
+      - NEO4J_URI=bolt://neo4j-graph:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=CrimeSyncGraphSec2026!
+      - REDIS_URL=redis://redis-telemetry:6379
+      - JWT_SECRET=CRIMESYNC_POLICE_SOVEREIGN_AUTH_KEY_088
+    depends_on:
+      - postgres-db
+      - neo4j-graph
+      - redis-telemetry
+    networks:
+      - crimesync-mesh-net
+    restart: always
+
+  # 3. Neo4j Syndicate Knowledge Graph Database
+  neo4j-graph:
+    image: neo4j:5.19.0-enterprise
+    container_name: crimesync-neo4j-graphdb
+    environment:
+      - NEO4J_AUTH=neo4j/CrimeSyncGraphSec2026!
+      - NEO4J_PLUGINS=["apoc", "gds"]
+      - NEO4J_dbms_memory_heap_max__size=4G
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - crimesync-mesh-net
+    restart: always
+
+  # 4. PostgreSQL Immutable Evidence & Audit Ledger
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: crimesync-audit-postgres
+    environment:
+      - POSTGRES_USER=crimesync_admin
+      - POSTGRES_PASSWORD=SovereignPolice2026
+      - POSTGRES_DB=crimesync_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - crimesync-mesh-net
+    restart: always
+
+  # 5. Redis High-Velocity Threat Telemetry Cache
+  redis-telemetry:
+    image: redis:7.2-alpine
+    container_name: crimesync-redis-cache
+    ports:
+      - "6379:6379"
+    networks:
+      - crimesync-mesh-net
+    restart: always
+
+  # 6. Autonomous Cyber Deception & Honeypot Trap Worker
+  honeypot-deception-mesh:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.ai-worker
+    container_name: crimesync-deception-daemon
+    environment:
+      - DECEPTION_NODE_ID=NODE-FEDEX-01
+      - API_GATEWAY_URL=http://crimesync-backend:5000
+    depends_on:
+      - crimesync-backend
+    networks:
+      - crimesync-mesh-net
+    restart: always
+
+networks:
+  crimesync-mesh-net:
+    driver: bridge
+
+volumes:
+  neo4j_data:
+  postgres_data:

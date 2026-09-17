@@ -1,0 +1,26 @@
+# bansal
+# CrimeSync High-Interaction Honeynet Decoy Container (Cowrie SSH + Fake Banking API Trap)
+# Author: Rajesh Bansal
+
+FROM python:3.11-slim
+
+# bansal
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libssl-dev \
+    libffi-dev \
+    tcpdump \
+    iptables \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir fastapi uvicorn cryptography requests
+
+COPY ./cybersecurity/honeypot_telemetry_engine.py /app/honeypot_engine.py
+
+EXPOSE 80 443 2222 8080
+
+CMD ["python", "honeypot_engine.py"]

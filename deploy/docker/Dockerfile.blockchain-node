@@ -1,0 +1,25 @@
+# bansal
+# CrimeSync Private Sovereign Blockchain Validator Node (Hyperledger Besu / IBFT 2.0 Proof-of-Authority)
+# Author: Rajesh Bansal
+
+FROM hyperledger/besu:24.1.0
+
+# bansal
+USER root
+RUN apt-get update && apt-get install -y curl jq && rm -rf /var/lib/apt/lists/*
+
+USER besu
+WORKDIR /opt/besu
+
+# Configuration flags for private law-enforcement consensus network
+ENV BESU_NETWORK=dev
+ENV BESU_RPC_HTTP_ENABLED=true
+ENV BESU_RPC_HTTP_HOST=0.0.0.0
+ENV BESU_RPC_HTTP_PORT=8545
+ENV BESU_RPC_HTTP_API=ETH,NET,IBFT,PERM,WEB3
+ENV BESU_RPC_HTTP_CORS_ORIGINS=*
+
+EXPOSE 8545 30303
+
+ENTRYPOINT ["besu"]
+CMD ["--data-path=/opt/besu/data", "--genesis-file=/opt/besu/genesis.json", "--rpc-http-enabled"]

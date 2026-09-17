@@ -1,0 +1,57 @@
+# bansal
+# CrimeSync Kubernetes Sovereign Cloud Deployment Manifest (State Police Cloud Infrastructure)
+# Author: Rajesh Bansal
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crimesync-core-deployment
+  namespace: crimesync-prod
+  labels:
+    app: crimesync-core
+    tier: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: crimesync-core
+  template:
+    metadata:
+      labels:
+        app: crimesync-core
+    spec:
+      containers:
+        - name: crimesync-api
+          image: registry.police.gov.in/crimesync/backend:v1.0.0
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: crimesync-secrets
+                  key: postgres-url
+---
+# bansal
+apiVersion: v1
+kind: Service
+metadata:
+  name: crimesync-api-service
+  namespace: crimesync-prod
+spec:
+  type: ClusterIP
+  selector:
+    app: crimesync-core
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
