@@ -3,6 +3,10 @@
 [![Vite](https://img.shields.io/badge/Vite-8.2.2-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-19.2.8-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0.2-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Terraform](https://img.shields.io/badge/Terraform-1.7_IaC-844FBA?style=flat-square&logo=terraform&logoColor=white)](https://www.terraform.io/)
+[![AWS GovCloud](https://img.shields.io/badge/AWS-GovCloud_MeghRaj-FF9900?style=flat-square&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/govcloud-us/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS_1.30-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Serverless](https://img.shields.io/badge/Serverless-Lambda_Python-FD5750?style=flat-square&logo=serverless&logoColor=white)](https://aws.amazon.com/lambda/)
 [![LangChain](https://img.shields.io/badge/LangChain-v0.3-1C3C3C?style=flat-square&logo=langchain&logoColor=white)](https://langchain.com/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Multi_Agent-FF6F61?style=flat-square)](https://langchain-ai.github.io/langgraph/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4_CUDA-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
@@ -21,7 +25,7 @@
 
 **CrimeSync** (CRIMINALINK AI) is an enterprise-grade National Intelligence, Cyber Defense, and Forensic Investigation Platform engineered for Indian Law Enforcement Agencies, including the **National Crime Records Bureau (NCRB)**, State Cyber Cells, and the **Ministry of Home Affairs (MHA)**.
 
-The system unifies relational case records (**PostgreSQL / Neon**), criminal syndicate relationship graphs (**Neo4j AuraDB**), autonomous agentic AI swarms (**LangChain, LangGraph, CrewAI, AutoGen**), military-grade **AES-256-GCM** forensic vault encryption, centralized secrets leasing (**HashiCorp Vault**), enterprise SIEM/XDR telemetry (**Wazuh**), Section 65B **Bharatiya Sakshya Adhiniyam (BSA 2023)** automated electronic evidence charge-sheets, dual-layer cryptographic chain-of-custody ledgers (**Ethereum EVM, Hyperledger Fabric, Solidity Smart Contracts, zk-SNARKs**), and deep-packet cyber deception radar.
+The system unifies sovereign multi-cloud infrastructure (**Terraform, Kubernetes EKS, Serverless Lambdas, S3 WORM Storage**), relational case records (**PostgreSQL / Neon**), criminal syndicate relationship graphs (**Neo4j AuraDB**), autonomous agentic AI swarms (**LangChain, LangGraph, CrewAI, AutoGen**), military-grade **AES-256-GCM** forensic vault encryption, centralized secrets leasing (**HashiCorp Vault**), enterprise SIEM/XDR telemetry (**Wazuh**), Section 65B **Bharatiya Sakshya Adhiniyam (BSA 2023)** automated electronic evidence charge-sheets, dual-layer cryptographic chain-of-custody ledgers (**Ethereum EVM, Hyperledger Fabric, Solidity Smart Contracts, zk-SNARKs**), and deep-packet cyber deception radar.
 
 ---
 
@@ -254,9 +258,13 @@ The platform is structured into distinct tactical suites accessible from the uni
 
 ---
 
-### 8. 📱 Mobile Field App & DevOps Infrastructure
+### 8. 📱 Mobile Field App, Cloud & Sovereign DevOps Infrastructure
 | Layer | Technologies | Description |
 |---|---|---|
+| **Infrastructure as Code (IaC)** | Terraform 1.7+, OpenTofu | Declarative sovereign cloud architecture deploying isolated GovCloud VPCs, private KMS HSM encryption, and air-gapped subnet perimeters. |
+| **Serverless Compute** | AWS Lambda, Python 3.11 | Event-driven automated forensic evidence hashing, Section 65B BSA certificate synthesis, and asynchronous AI agent triggers. |
+| **Container Orchestration** | Kubernetes (EKS 1.30), Helm, Istio | Sovereign microservice mesh with GPU node groups (`g5.2xlarge`), HPA auto-scaling (4-24 replicas), and mTLS 1.3 zero-trust ingress. |
+| **Evidence Cloud Vault** | AWS S3 / MeghRaj Cloud Storage | WORM (Write Once Read Many) 7-year statutory object lock, customer-managed KMS AES-256 envelope encryption. |
 | **Mobile Field App** | Flutter 3.x, Dart | Cross-platform ground officer app for offline exhibit seizure, GPS geo-tagging, biometric capture, and live field telemetry sync. |
 | **Containerization** | Docker, Docker Compose | Multi-stage Docker builds orchestrating frontend web, backend API gateway, PostgreSQL, Neo4j, and Python agent workers. |
 | **Reverse Proxy & TLS** | Nginx, Let's Encrypt | Reverse proxying, TLS 1.3 encryption, rate limiting, and HTTP/2 performance optimization. |
@@ -273,6 +281,15 @@ CrimeSync/
 ├── index.html                          # Single-page application entry point
 ├── vite.config.ts                      # Vite build & proxy configuration
 ├── tailwind.config.js                  # Cyber-tactical Tailwind CSS theme
+├── cloud_computing/                    # ☁️ Sovereign Cloud Computing & IaC Suite
+│   ├── cloud_architecture_guide.md     # Multi-cloud defense architecture guide
+│   ├── terraform/                      # Infrastructure as Code (IaC)
+│   │   ├── main.tf                     # Sovereign VPC, EKS Cluster, KMS, S3 WORM
+│   │   └── variables.tf                # Multi-region Cloud parameters
+│   ├── serverless/                     # Event-Driven Serverless Functions
+│   │   └── evidence_ingestion_lambda.py# Auto-hashing & Section 65B BSA Lambda
+│   └── k8s/                            # Kubernetes Sovereign Mesh Manifests
+│       └── crimesync_production_mesh.yaml # HPA, GPU Pools, and TLS 1.3 Ingress
 ├── ai_agent_notebooks/                 # Autonomous Multi-Agent AI Swarms
 │   ├── 01_autogen_multi_agent_investigation_team.ipynb
 │   ├── 02_langgraph_autonomous_case_resolution_graph.ipynb
@@ -590,7 +607,29 @@ flutter build apk --release
 
 ---
 
-### 6. 🔍 Security, Forensic & Blockchain Verification Commands
+### 6. ☁️ Sovereign Cloud Deployment & Terraform IaC
+
+```bash
+# 1. Initialize Terraform Providers
+cd cloud_computing/terraform
+terraform init
+
+# 2. Plan Sovereign Infrastructure (GovCloud VPC, EKS, KMS, S3 WORM)
+terraform plan -out=tfplan.binary
+
+# 3. Apply Infrastructure Deployment
+terraform apply tfplan.binary
+
+# 4. Deploy Kubernetes Sovereign Mesh & GPU Autoscaler
+kubectl apply -f ../k8s/crimesync_production_mesh.yaml
+
+# 5. Test Serverless Evidence Ingestion Lambda Locally
+python ../serverless/evidence_ingestion_lambda.py
+```
+
+---
+
+### 7. 🔍 Security, Forensic & Blockchain Verification Commands
 
 ```bash
 # Verify AES-256-GCM exhibit hashes and Merkle Tree root integrity
@@ -608,7 +647,7 @@ npx hardhat test
 
 ---
 
-### 7. 📦 Production Build Verification
+### 8. 📦 Production Build Verification
 
 ```bash
 # Validate TypeScript schemas and compile optimized production bundle
