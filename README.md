@@ -127,6 +127,30 @@ The platform is structured into distinct tactical suites accessible from the uni
 
 ---
 
+### 6. 📱 Mobile Field Operations Suite (`flutter_app/`)
+- **Officer Biometric Authentication** (`officer_biometric_login_screen.dart`):
+  Fingerprint and Face ID biometric passkey authentication with hardware-backed enclave token storage for ground personnel.
+- **Evidence Custody QR & Barcode Scanner** (`evidence_custody_scanner.dart`):
+  Ground-level physical and digital exhibit sealing, real-time SHA-256 hash generation, and on-chain blockchain logging via `web3dart`.
+- **Geofenced Suspect Vector Radar** (`suspect_geofence_map_screen.dart`):
+  Real-time GPS perimeter alerts, suspect proximity tracking vectors, and live beacon updates via `geolocator`.
+- **Telecom Tower & CDR Triangulator** (`cell_tower_cdr_screen.dart`):
+  On-field cell tower azimuth mapping, BTS sector dump correlation, and tower handover speed anomaly alerts.
+- **UPI Mule Account Rapid Freeze** (`upi_mule_tracker_screen.dart`):
+  Instant ground-level UPI transaction tracing, mule account ring detection, and 1-tap Section 102 CrPC bank account freeze requests.
+- **Seized VoIP Voice Cloning Forensics** (`voice_cloning_analyzer_screen.dart`):
+  Mobile spectral audio analyzer detecting AI-synthesized audio deepfakes used in digital arrest extortions.
+- **Active Honeypot Radar** (`honeypot_radar_screen.dart`):
+  Push notification alerts for canary token trips, ghost database table accesses, and honey document breaches.
+- **Darknet Intelligence Bulletins** (`darkweb_bulletin_screen.dart`):
+  Live encrypted stream of compromised credentials, breach alerts, and tactical threat advisories.
+- **Mobile FIR & BSA Section 65B Generator** (`fir_generator_screen.dart`):
+  Instant offline-first FIR drafting with geo-timestamped electronic evidence certification.
+- **Architecture & State Management**:
+  Built with Flutter 3.x, Dart, `flutter_bloc` reactive state machines, `fl_chart` telemetry graphs, `web3dart` smart contract interaction, and local offline SQLite caching.
+
+---
+
 ## 🛠️ Complete Enterprise Technology Stack
 
 ```
@@ -548,7 +572,25 @@ docker compose logs -f
 
 ---
 
-### 5. 🔍 Security, Forensic & Blockchain Verification Commands
+### 5. 📱 Running the Flutter Mobile Field Operations Suite
+
+```bash
+# 1. Enter the Flutter application directory
+cd flutter_app
+
+# 2. Fetch Flutter dependencies
+flutter pub get
+
+# 3. Launch on a connected Android / iOS device or emulator
+flutter run
+
+# 4. (Optional) Build production Android APK for field officers
+flutter build apk --release
+```
+
+---
+
+### 6. 🔍 Security, Forensic & Blockchain Verification Commands
 
 ```bash
 # Verify AES-256-GCM exhibit hashes and Merkle Tree root integrity
@@ -566,7 +608,7 @@ npx hardhat test
 
 ---
 
-### 6. 📦 Production Build Verification
+### 7. 📦 Production Build Verification
 
 ```bash
 # Validate TypeScript schemas and compile optimized production bundle
